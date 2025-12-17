@@ -60,9 +60,9 @@ export default function HomePage() {
           lineHeight: 1.1,
           marginBottom: 24
         }}>
-          Tu organises une partie ?
+          Trouve des joueurs
           <br />
-          <span style={{ color: '#2e7d32' }}>Gere-la proprement.</span>
+          <span style={{ color: '#2e7d32' }}>de ton niveau</span>
         </h1>
         
         <p style={{
@@ -72,7 +72,7 @@ export default function HomePage() {
           margin: '0 auto 40px',
           lineHeight: 1.6
         }}>
-          Cree ta partie, partage le lien sur WhatsApp, et retrouve des joueurs de ton niveau. Fini le chaos des groupes.
+          Cree ta partie, invite tes potes ou trouve de nouveaux partenaires. Chaque joueur a un profil avec son niveau et son ambiance.
         </p>
         
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -85,7 +85,19 @@ export default function HomePage() {
             fontSize: 17,
             fontWeight: '600'
           }}>
-            Creer ma partie gratuitement
+            Creer ma partie
+          </Link>
+          <Link href="/auth" style={{
+            padding: '18px 36px',
+            background: '#fff',
+            color: '#1a1a1a',
+            borderRadius: 14,
+            textDecoration: 'none',
+            fontSize: 17,
+            fontWeight: '600',
+            border: '2px solid #e5e5e5'
+          }}>
+            Rejoindre une partie
           </Link>
         </div>
 
@@ -98,21 +110,21 @@ export default function HomePage() {
           flexWrap: 'wrap'
         }}>
           <div>
-            <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>30 sec</div>
-            <div style={{ fontSize: 14, color: '#666' }}>pour creer une partie</div>
+            <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>🎯</div>
+            <div style={{ fontSize: 14, color: '#666', marginTop: 4 }}>Matchmaking par niveau</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>⭐</div>
+            <div style={{ fontSize: 14, color: '#666', marginTop: 4 }}>Score de fiabilite</div>
           </div>
           <div>
             <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>100%</div>
-            <div style={{ fontSize: 14, color: '#666' }}>gratuit</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>5 clubs</div>
-            <div style={{ fontSize: 14, color: '#666' }}>a Metz</div>
+            <div style={{ fontSize: 14, color: '#666', marginTop: 4 }}>Gratuit</div>
           </div>
         </div>
       </section>
 
-      {/* Probleme */}
+      {/* Le probleme */}
       <section style={{
         padding: '80px 40px',
         background: '#fafafa'
@@ -123,20 +135,10 @@ export default function HomePage() {
             fontWeight: '700',
             color: '#1a1a1a',
             textAlign: 'center',
-            marginBottom: 16
+            marginBottom: 48
           }}>
-            Organiser sur WhatsApp, c est le chaos
+            Le probleme avec WhatsApp
           </h2>
-          <p style={{
-            fontSize: 18,
-            color: '#666',
-            textAlign: 'center',
-            marginBottom: 48,
-            maxWidth: 600,
-            margin: '0 auto 48px'
-          }}>
-            Tu connais la galere...
-          </p>
           
           <div style={{
             display: 'grid',
@@ -149,12 +151,12 @@ export default function HomePage() {
               borderRadius: 20,
               border: '1px solid #eee'
             }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>😵</div>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>🤷</div>
               <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                "Qui vient samedi ?"
+                Niveau inconnu
               </h3>
               <p style={{ color: '#666', lineHeight: 1.6 }}>
-                15 reponses en vrac, tu recomptes 3 fois, et tu sais toujours pas qui vient vraiment.
+                Quelqu un repond "moi !" sur le groupe, mais tu connais pas son niveau. Mauvaise surprise sur le terrain.
               </p>
             </div>
             
@@ -164,12 +166,12 @@ export default function HomePage() {
               borderRadius: 20,
               border: '1px solid #eee'
             }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>🤷</div>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>😵</div>
               <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                "C est qui ce joueur ?"
+                Messages noyes
               </h3>
               <p style={{ color: '#666', lineHeight: 1.6 }}>
-                Quelqu un repond "moi !" mais tu connais pas son niveau. Mauvaise surprise sur le terrain.
+                "Qui vient samedi ?" 15 reponses en vrac, tu recomptes 3 fois, et tu sais toujours pas qui vient.
               </p>
             </div>
             
@@ -181,17 +183,17 @@ export default function HomePage() {
             }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>💨</div>
               <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                "Desole je peux plus"
+                Annulations
               </h3>
               <p style={{ color: '#666', lineHeight: 1.6 }}>
-                Annulation 2h avant. Tu dois tout relancer pour trouver un remplacant en urgence.
+                "Desole je peux plus" 2h avant. Tu dois tout relancer pour trouver un remplacant.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Solution */}
+      {/* La solution */}
       <section style={{
         padding: '80px 40px',
         background: '#1a1a1a',
@@ -204,7 +206,7 @@ export default function HomePage() {
             textAlign: 'center',
             marginBottom: 16
           }}>
-            PadelMatch simplifie tout
+            PadelMatch resout tout
           </h2>
           <p style={{
             fontSize: 18,
@@ -214,83 +216,83 @@ export default function HomePage() {
             maxWidth: 600,
             margin: '0 auto 48px'
           }}>
-            Tu gardes WhatsApp pour discuter. PadelMatch gere la logistique.
+            Chaque joueur a un profil. Tu sais avec qui tu joues.
           </p>
           
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: 24
           }}>
             <div style={{
               background: 'rgba(255,255,255,0.05)',
-              padding: 28,
-              borderRadius: 16
+              padding: 32,
+              borderRadius: 20
             }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
-              <h3 style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Liste claire</h3>
-              <p style={{ color: '#999', fontSize: 15, lineHeight: 1.5 }}>
-                Tu vois qui vient, qui est en attente. Plus besoin de recompter.
+              <div style={{ fontSize: 40, marginBottom: 16 }}>🎯</div>
+              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Matchmaking par niveau</h3>
+              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
+                Debutant, intermediaire, confirme ou expert. Tu choisis le niveau que tu recherches, et tu vois le niveau de ceux qui veulent jouer.
               </p>
             </div>
             
             <div style={{
               background: 'rgba(255,255,255,0.05)',
-              padding: 28,
-              borderRadius: 16
+              padding: 32,
+              borderRadius: 20
             }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🎯</div>
-              <h3 style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Profils visibles</h3>
-              <p style={{ color: '#999', fontSize: 15, lineHeight: 1.5 }}>
-                Chaque joueur a son niveau et son ambiance. Tu sais avec qui tu joues.
+              <div style={{ fontSize: 40, marginBottom: 16 }}>😎</div>
+              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Ambiance affichee</h3>
+              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
+                Detente, equilibre ou competitif. Chaque joueur affiche ce qu il recherche. Plus de malentendus.
               </p>
             </div>
             
             <div style={{
               background: 'rgba(255,255,255,0.05)',
-              padding: 28,
-              borderRadius: 16
+              padding: 32,
+              borderRadius: 20
             }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>⭐</div>
-              <h3 style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Score de fiabilite</h3>
-              <p style={{ color: '#999', fontSize: 15, lineHeight: 1.5 }}>
-                Les joueurs qui annulent souvent, ca se voit. Fini les mauvaises surprises.
+              <div style={{ fontSize: 40, marginBottom: 16 }}>⭐</div>
+              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Score de fiabilite</h3>
+              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
+                Les joueurs qui annulent souvent, ca se voit. Tu sais sur qui tu peux compter.
               </p>
             </div>
             
             <div style={{
               background: 'rgba(255,255,255,0.05)',
-              padding: 28,
-              borderRadius: 16
+              padding: 32,
+              borderRadius: 20
             }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🔔</div>
-              <h3 style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Rappels auto</h3>
-              <p style={{ color: '#999', fontSize: 15, lineHeight: 1.5 }}>
-                Notification la veille a tout le monde. Plus besoin de relancer.
+              <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
+              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Liste claire</h3>
+              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
+                Tu vois qui est inscrit, leur profil complet. Plus besoin de recompter les "moi !" sur WhatsApp.
               </p>
             </div>
             
             <div style={{
               background: 'rgba(255,255,255,0.05)',
-              padding: 28,
-              borderRadius: 16
+              padding: 32,
+              borderRadius: 20
             }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🔗</div>
-              <h3 style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Lien a partager</h3>
-              <p style={{ color: '#999', fontSize: 15, lineHeight: 1.5 }}>
-                Un lien unique a coller sur WhatsApp. Les gens s inscrivent en 30 sec.
+              <div style={{ fontSize: 40, marginBottom: 16 }}>🔗</div>
+              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Partage facile</h3>
+              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
+                Un lien a partager sur WhatsApp. Les joueurs s inscrivent en 30 secondes avec leur profil.
               </p>
             </div>
             
             <div style={{
               background: 'rgba(255,255,255,0.05)',
-              padding: 28,
-              borderRadius: 16
+              padding: 32,
+              borderRadius: 20
             }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
-              <h3 style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Chat dedie</h3>
-              <p style={{ color: '#999', fontSize: 15, lineHeight: 1.5 }}>
-                Un chat par partie. Toutes les infos au meme endroit.
+              <div style={{ fontSize: 40, marginBottom: 16 }}>💬</div>
+              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Chat dedie</h3>
+              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
+                Un chat par partie. Toutes les infos au meme endroit, pas noyees dans un groupe.
               </p>
             </div>
           </div>
@@ -321,21 +323,23 @@ export default function HomePage() {
               <div style={{
                 width: 60,
                 height: 60,
-                background: '#e8f5e9',
+                background: '#2e7d32',
+                color: '#fff',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 28,
+                fontSize: 24,
+                fontWeight: '700',
                 margin: '0 auto 20px'
               }}>
                 1
               </div>
               <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Cree ta partie
+                Cree ton profil
               </h3>
               <p style={{ color: '#666', lineHeight: 1.6 }}>
-                Club, date, heure, niveau recherche. En 30 secondes c est fait.
+                Indique ton niveau, ton ambiance et ta frequence de jeu. 30 secondes.
               </p>
             </div>
             
@@ -343,21 +347,23 @@ export default function HomePage() {
               <div style={{
                 width: 60,
                 height: 60,
-                background: '#e8f5e9',
+                background: '#2e7d32',
+                color: '#fff',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 28,
+                fontSize: 24,
+                fontWeight: '700',
                 margin: '0 auto 20px'
               }}>
                 2
               </div>
               <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Partage le lien
+                Cree ou rejoins
               </h3>
               <p style={{ color: '#666', lineHeight: 1.6 }}>
-                Copie le lien et colle-le sur WhatsApp, Insta, ou envoie-le a tes potes.
+                Tu as un terrain ? Cree ta partie. Tu cherches une partie ? Rejoins-en une qui te correspond.
               </p>
             </div>
             
@@ -365,101 +371,163 @@ export default function HomePage() {
               <div style={{
                 width: 60,
                 height: 60,
-                background: '#e8f5e9',
+                background: '#2e7d32',
+                color: '#fff',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 28,
+                fontSize: 24,
+                fontWeight: '700',
                 margin: '0 auto 20px'
               }}>
                 3
               </div>
               <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Joue tranquille
+                Joue avec les bons joueurs
               </h3>
               <p style={{ color: '#666', lineHeight: 1.6 }}>
-                Tu sais qui vient, leur niveau, leur fiabilite. Plus de mauvaises surprises.
+                Tu connais le niveau et la fiabilite de chacun. Plus de mauvaises surprises.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Profil public teaser */}
+      {/* Exemple de profil */}
       <section style={{
         padding: '80px 40px',
         background: '#fafafa'
       }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
-          <div style={{
-            display: 'inline-block',
-            background: '#dbeafe',
-            color: '#1e40af',
-            padding: '8px 16px',
-            borderRadius: 20,
-            fontSize: 14,
-            fontWeight: '600',
-            marginBottom: 24
-          }}>
-            Bientot disponible
-          </div>
-          
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <h2 style={{
-            fontSize: 'clamp(24px, 4vw, 36px)',
+            fontSize: 'clamp(28px, 4vw, 36px)',
             fontWeight: '700',
             color: '#1a1a1a',
+            textAlign: 'center',
             marginBottom: 16
           }}>
-            Ta carte de joueur
+            Chaque joueur a un profil complet
           </h2>
           <p style={{
             fontSize: 18,
             color: '#666',
-            marginBottom: 32,
-            lineHeight: 1.6
+            textAlign: 'center',
+            marginBottom: 48
           }}>
-            Un profil public a partager comme un Linktree. Mets-le dans ta bio Instagram, et montre qui tu es sur le terrain.
+            Tu sais exactement avec qui tu vas jouer
           </p>
           
           <div style={{
-            background: '#fff',
-            borderRadius: 20,
-            padding: 32,
-            maxWidth: 350,
-            margin: '0 auto',
-            border: '1px solid #eee',
-            textAlign: 'center'
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: 20,
+            maxWidth: 800,
+            margin: '0 auto'
           }}>
+            {/* Profil 1 */}
             <div style={{
-              width: 80,
-              height: 80,
-              background: '#f5f5f5',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 36,
-              margin: '0 auto 16px'
+              background: '#fff',
+              borderRadius: 20,
+              padding: 24,
+              border: '1px solid #eee'
             }}>
-              👤
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{
+                  width: 50,
+                  height: 50,
+                  background: '#e5e5e5',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 24
+                }}>
+                  👤
+                </div>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: 18 }}>Marie</div>
+                  <div style={{ fontSize: 13, color: '#2e7d32' }}>⭐ 98% fiable</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: '500' }}>
+                  📈 Intermediaire
+                </span>
+                <span style={{ background: '#dbeafe', color: '#1e40af', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: '500' }}>
+                  😎 Detente
+                </span>
+              </div>
             </div>
-            <div style={{ fontSize: 22, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 }}>
-              Franck
+
+            {/* Profil 2 */}
+            <div style={{
+              background: '#fff',
+              borderRadius: 20,
+              padding: 24,
+              border: '1px solid #eee'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{
+                  width: 50,
+                  height: 50,
+                  background: '#e5e5e5',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 24
+                }}>
+                  👤
+                </div>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: 18 }}>Thomas</div>
+                  <div style={{ fontSize: 13, color: '#2e7d32' }}>⭐ 100% fiable</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: '500' }}>
+                  💪 Confirme
+                </span>
+                <span style={{ background: '#fef3c7', color: '#92400e', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: '500' }}>
+                  🏆 Competitif
+                </span>
+              </div>
             </div>
-            <div style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>
-              padelmatch.fr/j/franck
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-              <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: '500' }}>
-                📈 Intermediaire
-              </span>
-              <span style={{ background: '#dbeafe', color: '#1e40af', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: '500' }}>
-                😎 Detente
-              </span>
-            </div>
-            <div style={{ fontSize: 14, color: '#2e7d32', fontWeight: '600' }}>
-              ⭐ 98% fiable - 23 parties jouees
+
+            {/* Profil 3 */}
+            <div style={{
+              background: '#fff',
+              borderRadius: 20,
+              padding: 24,
+              border: '1px solid #eee'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{
+                  width: 50,
+                  height: 50,
+                  background: '#e5e5e5',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 24
+                }}>
+                  👤
+                </div>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: 18 }}>Lucas</div>
+                  <div style={{ fontSize: 13, color: '#f59e0b' }}>⭐ 75% fiable</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: '500' }}>
+                  🌱 Debutant
+                </span>
+                <span style={{ background: '#f3f4f6', color: '#4b5563', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: '500' }}>
+                  ⚡ Equilibre
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -478,14 +546,14 @@ export default function HomePage() {
             fontWeight: '700',
             marginBottom: 16
           }}>
-            Pret a simplifier tes parties ?
+            Pret a jouer avec les bons partenaires ?
           </h2>
           <p style={{
             fontSize: 18,
             opacity: 0.9,
             marginBottom: 32
           }}>
-            Cree ta premiere partie gratuitement. Ca prend 30 secondes.
+            Cree ton profil gratuitement et trouve des joueurs de ton niveau.
           </p>
           <Link href="/auth" style={{
             display: 'inline-block',
@@ -497,7 +565,7 @@ export default function HomePage() {
             fontSize: 17,
             fontWeight: '700'
           }}>
-            Creer ma partie
+            Commencer gratuitement
           </Link>
         </div>
       </section>
