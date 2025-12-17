@@ -26,6 +26,32 @@ export default function MatchPage() {
   
   const messagesEndRef = useRef(null)
 
+  const experienceLabels = {
+    'less6months': 'Debutant',
+    '6months2years': 'Intermediaire',
+    '2to5years': 'Confirme',
+    'more5years': 'Expert'
+  }
+
+  const experienceEmojis = {
+    'less6months': '🌱',
+    '6months2years': '📈',
+    '2to5years': '💪',
+    'more5years': '🏆'
+  }
+
+  const ambianceLabels = {
+    'loisir': 'Detente',
+    'mix': 'Equilibre',
+    'compet': 'Competitif'
+  }
+
+  const ambianceEmojis = {
+    'loisir': '😎',
+    'mix': '⚡',
+    'compet': '🏆'
+  }
+
   useEffect(() => {
     loadData()
     
@@ -77,7 +103,7 @@ export default function MatchPage() {
         .select(`
           *,
           clubs (id, name, address, booking_url),
-          profiles!matches_organizer_id_fkey (id, name, experience, ambiance)
+          profiles!matches_organizer_id_fkey (id, name, experience, ambiance, reliability_score)
         `)
         .eq('id', matchId)
         .single()
@@ -94,7 +120,7 @@ export default function MatchPage() {
         .from('match_participants')
         .select(`
           *,
-          profiles (id, name, experience, ambiance)
+          profiles (id, name, experience, ambiance, reliability_score)
         `)
         .eq('match_id', matchId)
 
@@ -273,7 +299,7 @@ export default function MatchPage() {
 
   function shareWhatsApp() {
     const link = `${window.location.origin}/join/${matchId}`
-    const text = `🎾 ${profile?.name || 'Quelqu un'} t invite a jouer au padel !\n\n${formatDate(match.match_date)} a ${formatTime(match.match_time)}\n${match.clubs?.name}\n\nRejoins la partie : ${link}`
+    const text = `🎾 Je cherche ${match.spots_available} joueur${match.spots_available > 1 ? 's' : ''} pour une partie de padel !\n\n📅 ${formatDate(match.match_date)} a ${formatTime(match.match_time)}\n📍 ${match.clubs?.name}\n🎯 ${ambianceEmojis[match.ambiance]} ${ambianceLabels[match.ambiance]}\n\nRejoins : ${link}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
@@ -292,11 +318,128 @@ export default function MatchPage() {
     return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const experienceLabels = {
-    'less6months': 'Debutant',
-    '6months2years': 'Intermediaire',
-    '2to5years': 'Confirme',
-    'more5years': 'Expert'
+  function getReliabilityColor(score) {
+    if (score >= 90) return '#2e7d32'
+    if (score >= 70) return '#f59e0b'
+    return '#dc2626'
+  }
+
+  function renderPlayerCard(playerProfile, isOrganizer = false, isCurrentUser = false) {
+    const reliability = playerProfile?.reliability_score || 100
+    
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: 16,
+        background: isOrganizer ? '#fafafa' : '#fafafa',
+        borderRadius: 12,
+        border: isOrganizer ? '2px solid #1a1a1a' : '1px solid #eee'
+      }}>
+        <div style={{
+          width: 48,
+          height: 48,
+          background: isOrganizer ? '#1a1a1a' : '#e5e5e5',
+          color: isOrganizer ? '#fff' : '#666',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 20
+        }}>
+          👤
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ 
+            fontWeight: '600', 
+            color: '#1a1a1a',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 4
+          }}>
+            {playerProfile?.name || 'Joueur'}
+            {isOrganizer && <span style={{ fontSize: 12 }}>⭐</span>}
+            {isCurrentUser && (
+              <span style={{ 
+                fontSize: 11, 
+                color: '#666',
+                background: '#f5f5f5',
+                padding: '2px 8px',
+                borderRadius: 10
+              }}>
+                toi
+              </span>
+            )}
+          </div>
+          
+          {/* Niveau et Ambiance */}
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap',
+            gap: 6,
+            marginBottom: 6
+          }}>
+            {playerProfile?.experience && (
+              <span style={{
+                fontSize: 12,
+                background: '#e8f5e9',
+                color: '#2e7d32',
+                padding: '3px 8px',
+                borderRadius: 6,
+                fontWeight: '500'
+              }}>
+                {experienceEmojis[playerProfile.experience]} {experienceLabels[playerProfile.experience]}
+              </span>
+            )}
+            {playerProfile?.ambiance && (
+              <span style={{
+                fontSize: 12,
+                background: playerProfile.ambiance === 'compet' ? '#fef3c7' : 
+                           playerProfile.ambiance === 'loisir' ? '#dbeafe' : '#f3f4f6',
+                color: playerProfile.ambiance === 'compet' ? '#92400e' : 
+                       playerProfile.ambiance === 'loisir' ? '#1e40af' : '#4b5563',
+                padding: '3px 8px',
+                borderRadius: 6,
+                fontWeight: '500'
+              }}>
+                {ambianceEmojis[playerProfile.ambiance]} {ambianceLabels[playerProfile.ambiance]}
+              </span>
+            )}
+          </div>
+
+          {/* Fiabilite */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            gap: 6
+          }}>
+            <div style={{
+              width: 60,
+              height: 6,
+              background: '#e5e5e5',
+              borderRadius: 3,
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                width: `${reliability}%`,
+                height: '100%',
+                background: getReliabilityColor(reliability),
+                borderRadius: 3
+              }} />
+            </div>
+            <span style={{ 
+              fontSize: 11, 
+              color: getReliabilityColor(reliability),
+              fontWeight: '600'
+            }}>
+              {reliability}% fiable
+            </span>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -427,7 +570,7 @@ export default function MatchPage() {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>Ambiance</div>
+            <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>Ambiance recherchee</div>
             <span style={{
               display: 'inline-block',
               background: match.ambiance === 'compet' ? '#fef3c7' : 
@@ -439,8 +582,7 @@ export default function MatchPage() {
               fontSize: 15,
               fontWeight: '600'
             }}>
-              {match.ambiance === 'compet' ? '🏆 Competitif' : 
-               match.ambiance === 'loisir' ? '😎 Detente' : '⚡ Equilibre'}
+              {ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}
             </span>
           </div>
 
@@ -480,7 +622,7 @@ export default function MatchPage() {
                 marginBottom: 12
               }}
             >
-              📤 Inviter quelqu un
+              📤 Inviter des joueurs
             </button>
           )}
 
@@ -519,11 +661,12 @@ export default function MatchPage() {
                 marginTop: 12
               }}
             >
-              🗑️ Annuler cette partie
+              Annuler cette partie
             </button>
           )}
         </div>
 
+        {/* Joueurs */}
         <div style={{
           background: '#fff',
           borderRadius: 20,
@@ -540,90 +683,25 @@ export default function MatchPage() {
           </h2>
 
           <div style={{ display: 'grid', gap: 12 }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: 16,
-              background: '#fafafa',
-              borderRadius: 12
-            }}>
-              <div style={{
-                width: 48,
-                height: 48,
-                background: '#1a1a1a',
-                color: '#fff',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20
-              }}>
-                👤
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  color: '#1a1a1a',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8
-                }}>
-                  {match.profiles?.name || 'Organisateur'}
-                  {match.organizer_id === user?.id && (
-                    <span style={{ fontSize: 12, color: '#666' }}>(toi)</span>
-                  )}
-                </div>
-                <div style={{ fontSize: 13, color: '#666' }}>
-                  {experienceLabels[match.profiles?.experience] || 'Organisateur'} - ⭐ Organisateur
-                </div>
-              </div>
-            </div>
+            {/* Organisateur */}
+            {renderPlayerCard(
+              match.profiles,
+              true,
+              match.organizer_id === user?.id
+            )}
 
+            {/* Participants */}
             {participants.map(p => (
-              <div
-                key={p.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: 16,
-                  background: '#fafafa',
-                  borderRadius: 12
-                }}
-              >
-                <div style={{
-                  width: 48,
-                  height: 48,
-                  background: '#e5e5e5',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 20
-                }}>
-                  👤
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ 
-                    fontWeight: '600', 
-                    color: '#1a1a1a',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8
-                  }}>
-                    {p.profiles?.name || 'Joueur'}
-                    {p.user_id === user?.id && (
-                      <span style={{ fontSize: 12, color: '#666' }}>(toi)</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 13, color: '#666' }}>
-                    {experienceLabels[p.profiles?.experience] || 'Niveau inconnu'}
-                  </div>
-                </div>
+              <div key={p.id}>
+                {renderPlayerCard(
+                  p.profiles,
+                  false,
+                  p.user_id === user?.id
+                )}
               </div>
             ))}
 
+            {/* Places vides */}
             {Array.from({ length: match.spots_available }).map((_, i) => (
               <div
                 key={`empty-${i}`}
@@ -631,20 +709,21 @@ export default function MatchPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: 20,
+                  padding: 24,
                   border: '2px dashed #e5e5e5',
                   borderRadius: 12,
                   color: '#999',
                   fontSize: 14
                 }}
               >
-                Place disponible
+                En attente d un joueur...
               </div>
             ))}
           </div>
         </div>
       </div>
 
+      {/* Chat */}
       <div style={{
         background: '#fff',
         borderRadius: 24,
@@ -832,6 +911,7 @@ export default function MatchPage() {
         )}
       </div>
 
+      {/* Modal Inviter */}
       {showInviteModal && (
         <div style={{
           position: 'fixed',
@@ -860,7 +940,7 @@ export default function MatchPage() {
               marginBottom: 24
             }}>
               <h2 style={{ fontSize: 22, fontWeight: '700' }}>
-                Inviter quelqu un
+                Inviter des joueurs
               </h2>
               <button
                 onClick={() => setShowInviteModal(false)}
@@ -882,7 +962,7 @@ export default function MatchPage() {
               fontSize: 15,
               lineHeight: 1.5
             }}>
-              Partage ce lien pour inviter des joueurs.
+              Partage ce lien sur WhatsApp ou tes reseaux pour trouver des joueurs.
             </p>
 
             <div style={{
@@ -936,6 +1016,7 @@ export default function MatchPage() {
         </div>
       )}
 
+      {/* Modal Supprimer */}
       {showDeleteModal && (
         <div style={{
           position: 'fixed',
@@ -986,7 +1067,7 @@ export default function MatchPage() {
               fontSize: 15,
               lineHeight: 1.5
             }}>
-              Cette action est irreversible. Les participants seront notifies.
+              Les {participants.length} participant{participants.length > 1 ? 's' : ''} seront notifies.
             </p>
 
             <div style={{ marginBottom: 20 }}>
