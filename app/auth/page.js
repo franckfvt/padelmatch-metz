@@ -7,19 +7,18 @@ import { useRouter } from 'next/navigation'
 
 export default function AuthPage() {
   const router = useRouter()
-  const [mode, setMode] = useState('login') // 'login' ou 'signup'
+  const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
 
-  // Vérifier si déjà connecté
   useEffect(() => {
     async function checkSession() {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        // Vérifier si profil complet
         const { data: profile } = await supabase
           .from('profiles')
           .select('experience, ambiance')
@@ -31,6 +30,8 @@ export default function AuthPage() {
         } else {
           router.push('/onboarding')
         }
+      } else {
+        setCheckingSession(false)
       }
     }
     checkSession()
@@ -43,7 +44,6 @@ export default function AuthPage() {
 
     try {
       if (mode === 'signup') {
-        // Inscription
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -53,12 +53,9 @@ export default function AuthPage() {
         })
         
         if (error) throw error
-        
-        // Rediriger vers onboarding
         router.push('/onboarding')
         
       } else {
-        // Connexion
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -66,7 +63,6 @@ export default function AuthPage() {
         
         if (error) throw error
         
-        // Vérifier si profil complet
         const { data: profile } = await supabase
           .from('profiles')
           .select('experience, ambiance')
@@ -82,7 +78,6 @@ export default function AuthPage() {
     } catch (error) {
       console.error('Auth error:', error)
       
-      // Messages d'erreur en français
       if (error.message.includes('Invalid login credentials')) {
         setError('Email ou mot de passe incorrect')
       } else if (error.message.includes('User already registered')) {
@@ -97,6 +92,24 @@ export default function AuthPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f5f5f5',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
+          <div style={{ color: '#666' }}>Chargement...</div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -118,21 +131,15 @@ export default function AuthPage() {
         boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
       }}>
         
-        {/* Logo - retour à l'accueil */}
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🎾</div>
-            <h1 style={{ 
-              fontSize: 28, 
-              fontWeight: '700',
-              color: '#1a1a1a'
-            }}>
+            <h1 style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>
               PadelMatch
             </h1>
           </div>
         </Link>
 
-        {/* Toggle Connexion / Inscription */}
         <div style={{
           display: 'flex',
           background: '#f5f5f5',
@@ -153,8 +160,7 @@ export default function AuthPage() {
               cursor: 'pointer',
               background: mode === 'login' ? '#fff' : 'transparent',
               color: mode === 'login' ? '#1a1a1a' : '#888',
-              boxShadow: mode === 'login' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.2s'
+              boxShadow: mode === 'login' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
             }}
           >
             Se connecter
@@ -172,28 +178,17 @@ export default function AuthPage() {
               cursor: 'pointer',
               background: mode === 'signup' ? '#fff' : 'transparent',
               color: mode === 'signup' ? '#1a1a1a' : '#888',
-              boxShadow: mode === 'signup' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.2s'
+              boxShadow: mode === 'signup' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
             }}
           >
             S'inscrire
           </button>
         </div>
 
-        {/* Sous-titre */}
-        <p style={{ 
-          color: '#666', 
-          fontSize: 15, 
-          textAlign: 'center', 
-          marginBottom: 28 
-        }}>
-          {mode === 'login' 
-            ? 'Content de te revoir !' 
-            : 'Rejoins les joueurs de Metz'
-          }
+        <p style={{ color: '#666', fontSize: 15, textAlign: 'center', marginBottom: 28 }}>
+          {mode === 'login' ? 'Content de te revoir !' : 'Rejoins les joueurs de Metz'}
         </p>
 
-        {/* Message d'erreur */}
         {error && (
           <div style={{
             background: '#fef2f2',
@@ -208,10 +203,8 @@ export default function AuthPage() {
           </div>
         )}
 
-        {/* Formulaire */}
         <form onSubmit={handleSubmit}>
           
-          {/* Champ Prénom (inscription uniquement) */}
           {mode === 'signup' && (
             <div style={{ marginBottom: 20 }}>
               <label style={{ 
@@ -229,23 +222,19 @@ export default function AuthPage() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ton prénom"
                 required
+                autoComplete="given-name"
                 style={{
                   width: '100%',
                   padding: '16px',
                   border: '2px solid #e5e5e5',
                   borderRadius: 12,
                   fontSize: 16,
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  transition: 'border-color 0.2s'
+                  boxSizing: 'border-box'
                 }}
-                onFocus={(e) => e.target.style.borderColor = '#1a1a1a'}
-                onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
               />
             </div>
           )}
 
-          {/* Champ Email */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ 
               fontSize: 14, 
@@ -262,22 +251,18 @@ export default function AuthPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ton@email.com"
               required
+              autoComplete="email"
               style={{
                 width: '100%',
                 padding: '16px',
                 border: '2px solid #e5e5e5',
                 borderRadius: 12,
                 fontSize: 16,
-                boxSizing: 'border-box',
-                outline: 'none',
-                transition: 'border-color 0.2s'
+                boxSizing: 'border-box'
               }}
-              onFocus={(e) => e.target.style.borderColor = '#1a1a1a'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
             />
           </div>
 
-          {/* Champ Mot de passe */}
           <div style={{ marginBottom: 28 }}>
             <label style={{ 
               fontSize: 14, 
@@ -295,31 +280,23 @@ export default function AuthPage() {
               placeholder="••••••••"
               required
               minLength={6}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               style={{
                 width: '100%',
                 padding: '16px',
                 border: '2px solid #e5e5e5',
                 borderRadius: 12,
                 fontSize: 16,
-                boxSizing: 'border-box',
-                outline: 'none',
-                transition: 'border-color 0.2s'
+                boxSizing: 'border-box'
               }}
-              onFocus={(e) => e.target.style.borderColor = '#1a1a1a'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
             />
             {mode === 'signup' && (
-              <p style={{ 
-                fontSize: 13, 
-                color: '#999', 
-                marginTop: 8 
-              }}>
+              <p style={{ fontSize: 13, color: '#999', marginTop: 8 }}>
                 Minimum 6 caractères
               </p>
             )}
           </div>
 
-          {/* Bouton Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -332,8 +309,7 @@ export default function AuthPage() {
               borderRadius: 14,
               fontSize: 16,
               fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s'
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
           >
             {loading 
@@ -345,31 +321,19 @@ export default function AuthPage() {
           </button>
         </form>
 
-        {/* Mention légale pour inscription */}
         {mode === 'signup' && (
-          <p style={{ 
-            fontSize: 13, 
-            color: '#999', 
-            textAlign: 'center', 
-            marginTop: 20,
-            lineHeight: 1.5
-          }}>
+          <p style={{ fontSize: 13, color: '#999', textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
             En t'inscrivant, tu acceptes nos conditions d'utilisation et notre politique de confidentialité.
           </p>
         )}
 
-        {/* Lien retour accueil */}
         <div style={{ 
           textAlign: 'center', 
           marginTop: 28,
           paddingTop: 24,
           borderTop: '1px solid #eee'
         }}>
-          <Link href="/" style={{
-            color: '#666',
-            fontSize: 14,
-            textDecoration: 'none'
-          }}>
+          <Link href="/" style={{ color: '#666', fontSize: 14, textDecoration: 'none' }}>
             ← Retour à l'accueil
           </Link>
         </div>
