@@ -10,25 +10,29 @@ export default function DashboardPage() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [matches, setMatches] = useState([])
+  const [myMatches, setMyMatches] = useState([])
+  const [groups, setGroups] = useState([])
   const [clubs, setClubs] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
 
-  // Formulaire creation
   const [newMatch, setNewMatch] = useState({
     club_id: '',
     date: '',
     time: '',
     spots: '3',
     ambiance: 'mix',
-    level: 'all'
+    level: 'all',
+    price_total: '',
+    private_notes: '',
+    group_id: ''
   })
 
   const experienceLabels = {
-    'less6months': 'Debutant',
-    '6months2years': 'Intermediaire',
-    '2to5years': 'Confirme',
+    'less6months': 'Débutant',
+    '6months2years': 'Intermédiaire',
+    '2to5years': 'Confirmé',
     'more5years': 'Expert',
     'all': 'Tous niveaux'
   }
@@ -42,9 +46,9 @@ export default function DashboardPage() {
   }
 
   const ambianceLabels = {
-    'loisir': 'Detente',
-    'mix': 'Equilibre',
-    'compet': 'Competitif'
+    'loisir': 'Détente',
+    'mix': 'Équilibré',
+    'compet': 'Compétitif'
   }
 
   const ambianceEmojis = {
@@ -54,17 +58,17 @@ export default function DashboardPage() {
   }
 
   const levelOptions = [
-    { id: 'all', label: 'Tous niveaux', emoji: '🎾', desc: 'Ouvert a tous' },
-    { id: 'less6months', label: 'Debutant', emoji: '🌱', desc: 'Moins de 6 mois' },
-    { id: '6months2years', label: 'Intermediaire', emoji: '📈', desc: '6 mois - 2 ans' },
-    { id: '2to5years', label: 'Confirme', emoji: '💪', desc: '2 - 5 ans' },
+    { id: 'all', label: 'Tous niveaux', emoji: '🎾', desc: 'Ouvert à tous' },
+    { id: 'less6months', label: 'Débutant', emoji: '🌱', desc: 'Moins de 6 mois' },
+    { id: '6months2years', label: 'Intermédiaire', emoji: '📈', desc: '6 mois - 2 ans' },
+    { id: '2to5years', label: 'Confirmé', emoji: '💪', desc: '2 - 5 ans' },
     { id: 'more5years', label: 'Expert', emoji: '🏆', desc: 'Plus de 5 ans' }
   ]
 
   const ambianceOptions = [
-    { id: 'loisir', label: 'Detente', emoji: '😎', desc: 'Fun et convivial' },
-    { id: 'mix', label: 'Equilibre', emoji: '⚡', desc: 'Fun mais on joue bien' },
-    { id: 'compet', label: 'Competitif', emoji: '🏆', desc: 'On est la pour gagner' }
+    { id: 'loisir', label: 'Détente', emoji: '😎', desc: 'Fun et convivial' },
+    { id: 'mix', label: 'Équilibré', emoji: '⚡', desc: 'Fun mais on joue bien' },
+    { id: 'compet', label: 'Compétitif', emoji: '🏆', desc: 'On est là pour gagner' }
   ]
 
   useEffect(() => {
@@ -97,9 +101,37 @@ export default function DashboardPage() {
 
       setClubs(clubsData || [])
 
-      // Matches a venir
+      // Mes groupes
+      const { data: groupsData } = await supabase
+        .from('group_members')
+        .select(`
+          group_id,
+          player_groups (id, name, description, created_by)
+        `)
+        .eq('user_id', session.user.id)
+
+      setGroups(groupsData?.map(g => g.player_groups).filter(Boolean) || [])
+
+      // Mes parties (où je suis organisateur ou participant)
       const today = new Date().toISOString().split('T')[0]
       
+      const { data: myMatchesData } = await supabase
+        .from('matches')
+        .select(`
+          *,
+          clubs (name, address),
+          profiles!matches_organizer_id_fkey (name),
+          match_participants (user_id)
+        `)
+        .or(`organizer_id.eq.${session.user.id},match_participants.user_id.eq.${session.user.id}`)
+        .gte('match_date', today)
+        .order('match_date', { ascending: true })
+        .order('match_time', { ascending: true })
+        .limit(5)
+
+      setMyMatches(myMatchesData || [])
+
+      // Toutes les parties ouvertes
       const { data: matchesData } = await supabase
         .from('matches')
         .select(`
@@ -108,6 +140,7 @@ export default function DashboardPage() {
           profiles!matches_organizer_id_fkey (name),
           match_participants (user_id, profiles (name))
         `)
+        .eq('status', 'open')
         .gte('match_date', today)
         .order('match_date', { ascending: true })
         .order('match_time', { ascending: true })
@@ -138,12 +171,19 @@ export default function DashboardPage() {
           spots_available: parseInt(newMatch.spots),
           ambiance: newMatch.ambiance,
           level_required: newMatch.level,
+          price_total: newMatch.price_total ? parseInt(newMatch.price_total) * 100 : 0,
+          private_notes: newMatch.private_notes || null,
           status: 'open'
         })
         .select()
         .single()
 
       if (error) throw error
+
+      // Si un groupe est sélectionné, inviter les membres
+      if (newMatch.group_id) {
+        // TODO: Envoyer notifications aux membres du groupe
+      }
 
       setShowCreateModal(false)
       setNewMatch({
@@ -152,60 +192,19 @@ export default function DashboardPage() {
         time: '',
         spots: '3',
         ambiance: 'mix',
-        level: 'all'
+        level: 'all',
+        price_total: '',
+        private_notes: '',
+        group_id: ''
       })
       
       router.push(`/dashboard/match/${data.id}`)
 
     } catch (error) {
       console.error('Error creating match:', error)
-      alert('Erreur lors de la creation de la partie')
+      alert('Erreur lors de la création de la partie')
     } finally {
       setCreating(false)
-    }
-  }
-
-  async function joinMatch(matchId, spotsAvailable) {
-    try {
-      // Verifier si deja inscrit
-      const match = matches.find(m => m.id === matchId)
-      const isParticipant = match?.match_participants?.some(p => p.user_id === user.id)
-      const isOrganizer = match?.organizer_id === user.id
-
-      if (isParticipant || isOrganizer) {
-        router.push(`/dashboard/match/${matchId}`)
-        return
-      }
-
-      const { error } = await supabase
-        .from('match_participants')
-        .insert({
-          match_id: matchId,
-          user_id: user.id,
-          status: 'confirmed'
-        })
-
-      if (error) throw error
-
-      await supabase
-        .from('matches')
-        .update({
-          spots_available: spotsAvailable - 1,
-          status: spotsAvailable - 1 === 0 ? 'full' : 'open'
-        })
-        .eq('id', matchId)
-
-      await supabase.from('match_messages').insert({
-        match_id: matchId,
-        user_id: user.id,
-        message: `${profile?.name || 'Un joueur'} a rejoint la partie ! 🎾`
-      })
-
-      router.push(`/dashboard/match/${matchId}`)
-
-    } catch (error) {
-      console.error('Error joining match:', error)
-      alert('Erreur lors de inscription')
     }
   }
 
@@ -234,69 +233,160 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Message bienvenue */}
+      {/* Header avec stats */}
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 }}>
           Salut {profile?.name || 'Joueur'} 👋
         </h1>
-        <p style={{ color: '#666', fontSize: 16 }}>
-          Pret pour une partie ?
-        </p>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <span style={{ color: '#666', fontSize: 14 }}>
+            🎾 {profile?.matches_played || 0} parties jouées
+          </span>
+          <span style={{ color: '#666', fontSize: 14 }}>
+            🏆 {profile?.matches_won || 0} victoires
+          </span>
+          {profile?.current_streak > 0 && (
+            <span style={{ color: '#2e7d32', fontSize: 14, fontWeight: '600' }}>
+              🔥 {profile.current_streak} victoires d'affilée
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Actions principales */}
+      {/* Actions rapides */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: 16,
-        marginBottom: 40
+        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gap: 12,
+        marginBottom: 32
       }}>
-        {/* Creer une partie */}
         <div
           onClick={() => setShowCreateModal(true)}
           style={{
             background: '#1a1a1a',
-            borderRadius: 20,
-            padding: 28,
+            borderRadius: 16,
+            padding: 20,
             cursor: 'pointer',
-            transition: 'transform 0.2s'
+            textAlign: 'center'
           }}
         >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🎾</div>
-          <h2 style={{ fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 8 }}>
-            J ai un terrain
-          </h2>
-          <p style={{ color: '#999', fontSize: 14 }}>
-            Cree ta partie et invite des joueurs
-          </p>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>🎾</div>
+          <div style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+            Créer une partie
+          </div>
         </div>
 
-        {/* Trouver une partie */}
         <Link href="/dashboard/clubs" style={{ textDecoration: 'none' }}>
           <div style={{
             background: '#fff',
-            borderRadius: 20,
-            padding: 28,
+            borderRadius: 16,
+            padding: 20,
             border: '2px solid #e5e5e5',
-            cursor: 'pointer',
+            textAlign: 'center',
             height: '100%',
             boxSizing: 'border-box'
           }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
-            <h2 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 }}>
-              Je cherche une partie
-            </h2>
-            <p style={{ color: '#666', fontSize: 14 }}>
-              Trouve une partie qui te correspond
-            </p>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
+            <div style={{ color: '#1a1a1a', fontWeight: '600', fontSize: 14 }}>
+              Trouver une partie
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/groups" style={{ textDecoration: 'none' }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            border: '2px solid #e5e5e5',
+            textAlign: 'center',
+            height: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>👥</div>
+            <div style={{ color: '#1a1a1a', fontWeight: '600', fontSize: 14 }}>
+              Mes groupes
+            </div>
+            {groups.length > 0 && (
+              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                {groups.length} groupe{groups.length > 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        </Link>
+
+        <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            border: '2px solid #e5e5e5',
+            textAlign: 'center',
+            height: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
+            <div style={{ color: '#1a1a1a', fontWeight: '600', fontSize: 14 }}>
+              Mes stats
+            </div>
           </div>
         </Link>
       </div>
 
-      {/* Parties a venir */}
+      {/* Mes prochaines parties */}
+      {myMatches.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a', marginBottom: 16 }}>
+            🗓️ Mes prochaines parties
+          </h2>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {myMatches.map(match => {
+              const isOrganizer = match.organizer_id === user?.id
+              return (
+                <Link 
+                  href={`/dashboard/match/${match.id}`} 
+                  key={match.id}
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div style={{
+                    background: '#fff',
+                    borderRadius: 12,
+                    padding: 16,
+                    border: '2px solid #2e7d32',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#1a1a1a', marginBottom: 4 }}>
+                        {formatDate(match.match_date)} à {formatTime(match.match_time)}
+                      </div>
+                      <div style={{ fontSize: 14, color: '#666' }}>
+                        📍 {match.clubs?.name}
+                      </div>
+                    </div>
+                    <div style={{
+                      background: isOrganizer ? '#1a1a1a' : '#e8f5e9',
+                      color: isOrganizer ? '#fff' : '#2e7d32',
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: '600'
+                    }}>
+                      {isOrganizer ? 'Organisateur' : 'Inscrit'}
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Parties disponibles */}
       <div>
-        <h2 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 20 }}>
-          Parties a venir
+        <h2 style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a', marginBottom: 16 }}>
+          🎾 Parties disponibles
         </h2>
 
         {matches.length === 0 ? (
@@ -309,7 +399,7 @@ export default function DashboardPage() {
           }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
             <p style={{ color: '#666', marginBottom: 16 }}>
-              Aucune partie prevue pour le moment
+              Aucune partie disponible pour le moment
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -324,7 +414,7 @@ export default function DashboardPage() {
                 cursor: 'pointer'
               }}
             >
-              Creer la premiere partie
+              Créer la première partie
             </button>
           </div>
         ) : (
@@ -333,140 +423,109 @@ export default function DashboardPage() {
               const isOrganizer = match.organizer_id === user?.id
               const isParticipant = match.match_participants?.some(p => p.user_id === user?.id)
               const isInvolved = isOrganizer || isParticipant
+              const pricePerPerson = match.price_total ? Math.round(match.price_total / 100 / match.spots_total) : 0
 
               return (
-                <div
+                <Link 
+                  href={`/dashboard/match/${match.id}`}
                   key={match.id}
-                  style={{
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div style={{
                     background: '#fff',
                     borderRadius: 16,
                     padding: 20,
                     border: isInvolved ? '2px solid #2e7d32' : '1px solid #eee'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 12 }}>
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      {/* Date et heure */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <span style={{ fontWeight: '700', color: '#1a1a1a' }}>
-                          {formatDate(match.match_date)}
-                        </span>
-                        <span style={{ 
-                          background: '#2e7d32', 
-                          color: '#fff',
-                          padding: '4px 10px',
-                          borderRadius: 6,
-                          fontSize: 13,
-                          fontWeight: '600'
-                        }}>
-                          {formatTime(match.match_time)}
-                        </span>
-                      </div>
-
-                      {/* Club */}
-                      <div style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>
-                        📍 {match.clubs?.name}
-                      </div>
-
-                      {/* Tags */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {/* Niveau */}
-                        {match.level_required && match.level_required !== 'all' && (
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 12 }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                          <span style={{ fontWeight: '700', color: '#1a1a1a' }}>
+                            {formatDate(match.match_date)}
+                          </span>
+                          <span style={{ 
+                            background: '#2e7d32', 
+                            color: '#fff',
+                            padding: '4px 10px',
+                            borderRadius: 6,
+                            fontSize: 13,
+                            fontWeight: '600'
+                          }}>
+                            {formatTime(match.match_time)}
+                          </span>
+                          {pricePerPerson > 0 && (
+                            <span style={{
+                              background: '#fef3c7',
+                              color: '#92400e',
+                              padding: '4px 10px',
+                              borderRadius: 6,
+                              fontSize: 13,
+                              fontWeight: '600'
+                            }}>
+                              💰 {pricePerPerson}€/pers
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>
+                          📍 {match.clubs?.name}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {match.level_required && match.level_required !== 'all' && (
+                            <span style={{
+                              fontSize: 12,
+                              background: '#e8f5e9',
+                              color: '#2e7d32',
+                              padding: '4px 10px',
+                              borderRadius: 6,
+                              fontWeight: '500'
+                            }}>
+                              {experienceEmojis[match.level_required]} {experienceLabels[match.level_required]}
+                            </span>
+                          )}
                           <span style={{
                             fontSize: 12,
-                            background: '#e8f5e9',
-                            color: '#2e7d32',
+                            background: match.ambiance === 'compet' ? '#fef3c7' : 
+                                       match.ambiance === 'loisir' ? '#dbeafe' : '#f3f4f6',
+                            color: match.ambiance === 'compet' ? '#92400e' : 
+                                   match.ambiance === 'loisir' ? '#1e40af' : '#4b5563',
                             padding: '4px 10px',
                             borderRadius: 6,
                             fontWeight: '500'
                           }}>
-                            {experienceEmojis[match.level_required]} {experienceLabels[match.level_required]}
+                            {ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}
                           </span>
-                        )}
-                        {/* Ambiance */}
-                        <span style={{
-                          fontSize: 12,
-                          background: match.ambiance === 'compet' ? '#fef3c7' : 
-                                     match.ambiance === 'loisir' ? '#dbeafe' : '#f3f4f6',
-                          color: match.ambiance === 'compet' ? '#92400e' : 
-                                 match.ambiance === 'loisir' ? '#1e40af' : '#4b5563',
-                          padding: '4px 10px',
-                          borderRadius: 6,
-                          fontWeight: '500'
-                        }}>
-                          {ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}
-                        </span>
-                        {/* Places */}
-                        <span style={{
-                          fontSize: 12,
-                          background: match.spots_available > 0 ? '#f5f5f5' : '#fef2f2',
-                          color: match.spots_available > 0 ? '#666' : '#dc2626',
-                          padding: '4px 10px',
-                          borderRadius: 6,
-                          fontWeight: '500'
-                        }}>
-                          {match.spots_available > 0 
-                            ? `${match.spots_available} place${match.spots_available > 1 ? 's' : ''}` 
-                            : 'Complet'}
-                        </span>
+                          <span style={{
+                            fontSize: 12,
+                            background: '#f5f5f5',
+                            color: '#666',
+                            padding: '4px 10px',
+                            borderRadius: 6,
+                            fontWeight: '500'
+                          }}>
+                            {match.spots_available} place{match.spots_available > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{
+                        background: isInvolved ? '#2e7d32' : '#1a1a1a',
+                        color: '#fff',
+                        padding: '10px 20px',
+                        borderRadius: 10,
+                        fontSize: 14,
+                        fontWeight: '600'
+                      }}>
+                        {isInvolved ? 'Voir' : 'Rejoindre'}
                       </div>
                     </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {isInvolved ? (
-                        <Link href={`/dashboard/match/${match.id}`}>
-                          <button style={{
-                            padding: '10px 20px',
-                            background: '#2e7d32',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: 10,
-                            fontSize: 14,
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}>
-                            {isOrganizer ? 'Gerer' : 'Voir'}
-                          </button>
-                        </Link>
-                      ) : match.spots_available > 0 ? (
-                        <button
-                          onClick={() => joinMatch(match.id, match.spots_available)}
-                          style={{
-                            padding: '10px 20px',
-                            background: '#1a1a1a',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: 10,
-                            fontSize: 14,
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Rejoindre
-                        </button>
-                      ) : (
-                        <span style={{
-                          padding: '10px 20px',
-                          background: '#f5f5f5',
-                          color: '#999',
-                          borderRadius: 10,
-                          fontSize: 14,
-                          fontWeight: '600'
-                        }}>
-                          Complet
-                        </span>
-                      )}
-                    </div>
                   </div>
-                </div>
+                </Link>
               )
             })}
           </div>
         )}
       </div>
 
-      {/* Modal Creation */}
+      {/* Modal Création */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',
@@ -497,7 +556,7 @@ export default function DashboardPage() {
               marginBottom: 24
             }}>
               <h2 style={{ fontSize: 22, fontWeight: '700' }}>
-                Creer une partie
+                Créer une partie
               </h2>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -509,7 +568,7 @@ export default function DashboardPage() {
                   color: '#999'
                 }}
               >
-                X
+                ✕
               </button>
             </div>
 
@@ -533,7 +592,7 @@ export default function DashboardPage() {
                     background: '#fff'
                   }}
                 >
-                  <option value="">Selectionne un club</option>
+                  <option value="">Sélectionne un club</option>
                   {clubs.map(club => (
                     <option key={club.id} value={club.id}>{club.name}</option>
                   ))}
@@ -583,7 +642,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Joueurs recherches */}
+              {/* Joueurs recherchés */}
               <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
                   Combien de joueurs tu cherches ? *
@@ -604,16 +663,56 @@ export default function DashboardPage() {
                         background: newMatch.spots === num ? '#fafafa' : '#fff'
                       }}
                     >
-                      {num} joueur{num !== '1' ? 's' : ''}
+                      {num}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Niveau recherche */}
+              {/* Prix du terrain */}
               <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  Niveau recherche *
+                  💰 Prix total du terrain (optionnel)
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    value={newMatch.price_total}
+                    onChange={e => setNewMatch({ ...newMatch, price_total: e.target.value })}
+                    placeholder="Ex: 60"
+                    min="0"
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      paddingRight: 50,
+                      border: '2px solid #e5e5e5',
+                      borderRadius: 12,
+                      fontSize: 15,
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    right: 16,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#999',
+                    fontWeight: '600'
+                  }}>
+                    €
+                  </span>
+                </div>
+                {newMatch.price_total && (
+                  <p style={{ fontSize: 13, color: '#2e7d32', marginTop: 8 }}>
+                    → {Math.round(parseInt(newMatch.price_total) / 4)}€ par personne
+                  </p>
+                )}
+              </div>
+
+              {/* Niveau recherché */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                  Niveau recherché *
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                   {levelOptions.slice(0, 3).map(opt => (
@@ -656,7 +755,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Ambiance */}
-              <div style={{ marginBottom: 28 }}>
+              <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
                   Ambiance *
                 </label>
@@ -676,11 +775,62 @@ export default function DashboardPage() {
                     >
                       <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.emoji}</div>
                       <div style={{ fontSize: 12, fontWeight: '600' }}>{opt.label}</div>
-                      <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>{opt.desc}</div>
                     </div>
                   ))}
                 </div>
               </div>
+
+              {/* Notes privées */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                  📝 Notes privées (optionnel)
+                </label>
+                <textarea
+                  value={newMatch.private_notes}
+                  onChange={e => setNewMatch({ ...newMatch, private_notes: e.target.value })}
+                  placeholder="Ex: Terrain n°3, code portail 1234, RDV au bar 15min avant..."
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: '2px solid #e5e5e5',
+                    borderRadius: 12,
+                    fontSize: 15,
+                    boxSizing: 'border-box',
+                    resize: 'vertical'
+                  }}
+                />
+                <p style={{ fontSize: 12, color: '#999', marginTop: 6 }}>
+                  Visible uniquement par les joueurs inscrits
+                </p>
+              </div>
+
+              {/* Inviter un groupe */}
+              {groups.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                    👥 Inviter un groupe (optionnel)
+                  </label>
+                  <select
+                    value={newMatch.group_id}
+                    onChange={e => setNewMatch({ ...newMatch, group_id: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      border: '2px solid #e5e5e5',
+                      borderRadius: 12,
+                      fontSize: 15,
+                      boxSizing: 'border-box',
+                      background: '#fff'
+                    }}
+                  >
+                    <option value="">Pas de groupe</option>
+                    {groups.map(group => (
+                      <option key={group.id} value={group.id}>{group.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Bouton */}
               <button
@@ -698,7 +848,7 @@ export default function DashboardPage() {
                   cursor: creating || !newMatch.club_id || !newMatch.date || !newMatch.time ? 'not-allowed' : 'pointer'
                 }}
               >
-                {creating ? 'Creation...' : 'Creer la partie'}
+                {creating ? 'Création...' : 'Créer la partie'}
               </button>
             </form>
           </div>

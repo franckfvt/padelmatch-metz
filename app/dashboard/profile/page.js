@@ -9,25 +9,59 @@ export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [stats, setStats] = useState({
-    matchesPlayed: 0,
-    matchesOrganized: 0,
-    reliability: 100
-  })
-  const [favorites, setFavorites] = useState([])
-  const [recentPlayers, setRecentPlayers] = useState([])
+  const [recentMatches, setRecentMatches] = useState([])
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
-  
-  // Données éditables
+  const [activeTab, setActiveTab] = useState('stats')
+  const [copied, setCopied] = useState(false)
+
   const [editData, setEditData] = useState({
     name: '',
     experience: '',
-    frequency: '',
     ambiance: '',
-    bio: ''
+    lydia_username: '',
+    paypal_email: '',
+    rib: ''
   })
+
+  const experienceOptions = [
+    { id: 'less6months', label: 'Débutant', emoji: '🌱', desc: 'Moins de 6 mois' },
+    { id: '6months2years', label: 'Intermédiaire', emoji: '📈', desc: '6 mois - 2 ans' },
+    { id: '2to5years', label: 'Confirmé', emoji: '💪', desc: '2 - 5 ans' },
+    { id: 'more5years', label: 'Expert', emoji: '🏆', desc: 'Plus de 5 ans' }
+  ]
+
+  const ambianceOptions = [
+    { id: 'loisir', label: 'Détente', emoji: '😎', desc: 'Fun et convivial' },
+    { id: 'mix', label: 'Équilibré', emoji: '⚡', desc: 'Fun mais on joue bien' },
+    { id: 'compet', label: 'Compétitif', emoji: '🏆', desc: 'On est là pour gagner' }
+  ]
+
+  const experienceLabels = {
+    'less6months': 'Débutant',
+    '6months2years': 'Intermédiaire',
+    '2to5years': 'Confirmé',
+    'more5years': 'Expert'
+  }
+
+  const experienceEmojis = {
+    'less6months': '🌱',
+    '6months2years': '📈',
+    '2to5years': '💪',
+    'more5years': '🏆'
+  }
+
+  const ambianceLabels = {
+    'loisir': 'Détente',
+    'mix': 'Équilibré',
+    'compet': 'Compétitif'
+  }
+
+  const ambianceEmojis = {
+    'loisir': '😎',
+    'mix': '⚡',
+    'compet': '🏆'
+  }
 
   useEffect(() => {
     loadData()
@@ -35,116 +69,73 @@ export default function ProfilePage() {
 
   async function loadData() {
     try {
-      // User
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/auth')
         return
       }
-      
+
       setUser(session.user)
 
-      // Profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single()
-      
+
       setProfile(profileData)
       setEditData({
         name: profileData?.name || '',
         experience: profileData?.experience || '',
-        frequency: profileData?.frequency || '',
         ambiance: profileData?.ambiance || '',
-        bio: profileData?.bio || ''
+        lydia_username: profileData?.lydia_username || '',
+        paypal_email: profileData?.paypal_email || '',
+        rib: profileData?.rib || ''
       })
 
-      // Stats - Parties jouées
-      const { data: participations } = await supabase
-        .from('match_participants')
-        .select('id')
-        .eq('user_id', session.user.id)
-
-      // Stats - Parties organisées
-      const { data: organized } = await supabase
+      // Charger les parties récentes
+      const { data: matchesData } = await supabase
         .from('matches')
-        .select('id')
-        .eq('organizer_id', session.user.id)
-
-      setStats({
-        matchesPlayed: (participations?.length || 0) + (organized?.length || 0),
-        matchesOrganized: organized?.length || 0,
-        reliability: profileData?.reliability_score || 100
-      })
-
-      // Favoris
-      const { data: favoritesData } = await supabase
-        .from('favorites')
         .select(`
-          id,
-          favorite_user_id,
-          profiles!favorites_favorite_user_id_fkey (
-            id, name, experience, ambiance
-          )
+          *,
+          clubs (name)
         `)
-        .eq('user_id', session.user.id)
-
-      setFavorites(favoritesData || [])
-
-      // Joueurs récents (via les parties)
-      const { data: recentMatches } = await supabase
-        .from('match_participants')
-        .select(`
-          match_id,
-          matches (
-            id,
-            match_participants (
-              user_id,
-              profiles (id, name, experience, ambiance)
-            )
-          )
-        `)
-        .eq('user_id', session.user.id)
+        .or(`organizer_id.eq.${session.user.id},team_a.cs.{${session.user.id}},team_b.cs.{${session.user.id}}`)
+        .eq('status', 'completed')
+        .order('match_date', { ascending: false })
         .limit(10)
 
-      // Extraire les joueurs uniques
-      const playersMap = new Map()
-      recentMatches?.forEach(mp => {
-        mp.matches?.match_participants?.forEach(p => {
-          if (p.user_id !== session.user.id && p.profiles) {
-            playersMap.set(p.user_id, p.profiles)
-          }
-        })
-      })
-      setRecentPlayers(Array.from(playersMap.values()).slice(0, 6))
-
+      setRecentMatches(matchesData || [])
       setLoading(false)
+
     } catch (error) {
-      console.error('Error loading profile:', error)
+      console.error('Error loading data:', error)
       setLoading(false)
     }
   }
 
-  async function saveProfile() {
+  async function saveProfile(e) {
+    e.preventDefault()
     setSaving(true)
-    
+
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
           name: editData.name,
           experience: editData.experience,
-          frequency: editData.frequency,
           ambiance: editData.ambiance,
-          bio: editData.bio
+          lydia_username: editData.lydia_username || null,
+          paypal_email: editData.paypal_email || null,
+          rib: editData.rib || null
         })
         .eq('id', user.id)
 
       if (error) throw error
 
-      setProfile({ ...profile, ...editData })
-      setEditing(false)
+      loadData()
+      alert('Profil mis à jour !')
+
     } catch (error) {
       console.error('Error saving profile:', error)
       alert('Erreur lors de la sauvegarde')
@@ -153,95 +144,51 @@ export default function ProfilePage() {
     }
   }
 
-  async function addFavorite(userId) {
-    try {
-      const { error } = await supabase
-        .from('favorites')
-        .insert({
-          user_id: user.id,
-          favorite_user_id: userId
-        })
-
-      if (error) throw error
-      loadData()
-    } catch (error) {
-      console.error('Error adding favorite:', error)
-    }
-  }
-
-  async function removeFavorite(favoriteId) {
-    try {
-      const { error } = await supabase
-        .from('favorites')
-        .delete()
-        .eq('id', favoriteId)
-
-      if (error) throw error
-      loadData()
-    } catch (error) {
-      console.error('Error removing favorite:', error)
-    }
-  }
-
-  async function handleLogout() {
+  async function logout() {
     await supabase.auth.signOut()
     router.push('/')
   }
 
-  // Labels pour l'affichage
-  const experienceLabels = {
-    'less6months': 'Débutant',
-    '6months2years': 'Intermédiaire',
-    '2to5years': 'Confirmé',
-    'more5years': 'Expert'
+  function copyProfileLink() {
+    const link = `${window.location.origin}/player/${profile?.id}`
+    navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
-  const frequencyLabels = {
-    'occasional': '1-2x/mois',
-    'regular': '1x/semaine',
-    'often': '2-3x/semaine',
-    'intense': '4x+/semaine'
+  function shareInstagram() {
+    const link = `${window.location.origin}/player/${profile?.id}`
+    navigator.clipboard.writeText(link)
+    alert('Lien copié ! Tu peux le coller dans ta bio Instagram.')
   }
 
-  const ambianceLabels = {
-    'loisir': '😎 Détente',
-    'mix': '⚡ Équilibré',
-    'compet': '🏆 Compétitif'
+  function formatDate(dateStr) {
+    return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
   }
 
-  const experienceOptions = [
-    { id: 'less6months', label: 'Moins de 6 mois' },
-    { id: '6months2years', label: '6 mois - 2 ans' },
-    { id: '2to5years', label: '2 - 5 ans' },
-    { id: 'more5years', label: 'Plus de 5 ans' }
-  ]
+  function getWinRate() {
+    if (!profile?.matches_played || profile.matches_played === 0) return 0
+    return Math.round((profile.matches_won || 0) / profile.matches_played * 100)
+  }
 
-  const frequencyOptions = [
-    { id: 'occasional', label: 'Occasionnel' },
-    { id: 'regular', label: 'Régulier' },
-    { id: 'often', label: 'Souvent' },
-    { id: 'intense', label: 'Intense' }
-  ]
-
-  const ambianceOptions = [
-    { id: 'loisir', label: '😎 Détente' },
-    { id: 'mix', label: '⚡ Équilibré' },
-    { id: 'compet', label: '🏆 Compétitif' }
-  ]
+  function didIWin(match) {
+    if (!match.winner) return null
+    const winningTeam = match.winner === 'team_a' ? match.team_a : match.team_b
+    return winningTeam?.includes(user?.id)
+  }
 
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 60 }}>
         <div style={{ fontSize: 32, marginBottom: 16 }}>👤</div>
-        <div style={{ color: '#666' }}>Chargement du profil...</div>
+        <div style={{ color: '#666' }}>Chargement...</div>
       </div>
     )
   }
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      
-      {/* En-tête profil */}
+      {/* Header Profil */}
       <div style={{
         background: '#fff',
         borderRadius: 24,
@@ -250,7 +197,6 @@ export default function ProfilePage() {
         border: '1px solid #eee',
         textAlign: 'center'
       }}>
-        {/* Avatar */}
         <div style={{
           width: 100,
           height: 100,
@@ -259,423 +205,245 @@ export default function ProfilePage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 40,
+          fontSize: 48,
           margin: '0 auto 20px'
         }}>
           👤
         </div>
-
-        {/* Nom */}
-        <h1 style={{ 
-          fontSize: 28, 
-          fontWeight: '700',
-          color: '#1a1a1a',
-          marginBottom: 4
-        }}>
-          {profile?.name || 'Joueur'}
+        <h1 style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 }}>
+          {profile?.name}
         </h1>
-        
-        {/* Email */}
-        <p style={{ fontSize: 14, color: '#999', marginBottom: 20 }}>
-          {user?.email}
-        </p>
-
-        {/* Tags profil */}
-        <div style={{ 
-          display: 'flex', 
-          gap: 8, 
-          justifyContent: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 24
-        }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           {profile?.experience && (
             <span style={{
-              background: '#f5f5f5',
-              padding: '8px 16px',
+              background: '#e8f5e9',
+              color: '#2e7d32',
+              padding: '6px 14px',
               borderRadius: 20,
-              fontSize: 13,
-              fontWeight: '600',
-              color: '#666'
+              fontSize: 14,
+              fontWeight: '500'
             }}>
-              🎾 {experienceLabels[profile.experience] || profile.experience}
+              {experienceEmojis[profile.experience]} {experienceLabels[profile.experience]}
             </span>
           )}
           {profile?.ambiance && (
             <span style={{
-              background: '#f5f5f5',
-              padding: '8px 16px',
+              background: profile.ambiance === 'compet' ? '#fef3c7' : 
+                         profile.ambiance === 'loisir' ? '#dbeafe' : '#f3f4f6',
+              color: profile.ambiance === 'compet' ? '#92400e' : 
+                     profile.ambiance === 'loisir' ? '#1e40af' : '#4b5563',
+              padding: '6px 14px',
               borderRadius: 20,
-              fontSize: 13,
-              fontWeight: '600',
-              color: '#666'
+              fontSize: 14,
+              fontWeight: '500'
             }}>
-              {ambianceLabels[profile.ambiance] || profile.ambiance}
-            </span>
-          )}
-          {profile?.frequency && (
-            <span style={{
-              background: '#f5f5f5',
-              padding: '8px 16px',
-              borderRadius: 20,
-              fontSize: 13,
-              fontWeight: '600',
-              color: '#666'
-            }}>
-              📅 {frequencyLabels[profile.frequency] || profile.frequency}
+              {ambianceEmojis[profile.ambiance]} {ambianceLabels[profile.ambiance]}
             </span>
           )}
         </div>
+        <div style={{ color: '#2e7d32', fontWeight: '600', fontSize: 15 }}>
+          ⭐ {profile?.reliability_score || 100}% fiable
+        </div>
 
-        {/* Bouton modifier */}
-        <button
-          onClick={() => setEditing(true)}
-          style={{
-            padding: '12px 24px',
-            background: '#f5f5f5',
-            color: '#1a1a1a',
-            border: 'none',
-            borderRadius: 12,
-            fontSize: 14,
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          ✏️ Modifier mon profil
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 20,
-        padding: 24,
-        marginBottom: 24,
-        border: '1px solid #eee'
-      }}>
-        <h2 style={{ 
-          fontSize: 18, 
-          fontWeight: '700',
-          marginBottom: 20,
-          color: '#1a1a1a'
-        }}>
-          Statistiques
-        </h2>
-
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 16
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-              fontSize: 32, 
-              fontWeight: '700',
-              color: '#1a1a1a',
-              marginBottom: 4
-            }}>
-              {stats.matchesPlayed}
-            </div>
-            <div style={{ fontSize: 13, color: '#666' }}>
-              Parties jouées
-            </div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-              fontSize: 32, 
-              fontWeight: '700',
-              color: '#1a1a1a',
-              marginBottom: 4
-            }}>
-              {stats.matchesOrganized}
-            </div>
-            <div style={{ fontSize: 13, color: '#666' }}>
-              Parties organisées
-            </div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-              fontSize: 32, 
-              fontWeight: '700',
-              color: '#2e7d32',
-              marginBottom: 4
-            }}>
-              {stats.reliability}%
-            </div>
-            <div style={{ fontSize: 13, color: '#666' }}>
-              Fiabilité
-            </div>
-          </div>
+        {/* Partager profil */}
+        <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #eee' }}>
+          <button
+            onClick={copyProfileLink}
+            style={{
+              padding: '12px 24px',
+              background: copied ? '#e8f5e9' : '#f5f5f5',
+              color: copied ? '#2e7d32' : '#1a1a1a',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: '600',
+              cursor: 'pointer',
+              marginRight: 8
+            }}
+          >
+            {copied ? '✓ Lien copié !' : '🔗 Copier mon lien'}
+          </button>
+          <button
+            onClick={shareInstagram}
+            style={{
+              padding: '12px 24px',
+              background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            📸 Pour ma bio Insta
+          </button>
         </div>
       </div>
 
-      {/* Favoris */}
+      {/* Stats principales */}
       <div style={{
-        background: '#fff',
-        borderRadius: 20,
-        padding: 24,
-        marginBottom: 24,
-        border: '1px solid #eee'
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: 12,
+        marginBottom: 24
       }}>
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 20
+          background: '#fff',
+          borderRadius: 16,
+          padding: 20,
+          textAlign: 'center',
+          border: '1px solid #eee'
         }}>
-          <h2 style={{ 
-            fontSize: 18, 
-            fontWeight: '700',
-            color: '#1a1a1a'
-          }}>
-            ⭐ Joueurs favoris
-          </h2>
-          <span style={{ fontSize: 14, color: '#999' }}>
-            {favorites.length} favori{favorites.length > 1 ? 's' : ''}
-          </span>
+          <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>
+            {profile?.matches_played || 0}
+          </div>
+          <div style={{ fontSize: 12, color: '#666' }}>Parties</div>
         </div>
-
-        {favorites.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '24px 0',
-            color: '#999'
-          }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>⭐</div>
-            <p style={{ fontSize: 14 }}>
-              Aucun favori pour l'instant
-            </p>
-            <p style={{ fontSize: 13, marginTop: 4 }}>
-              Ajoute des joueurs après une partie !
-            </p>
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          padding: 20,
+          textAlign: 'center',
+          border: '1px solid #eee'
+        }}>
+          <div style={{ fontSize: 28, fontWeight: '700', color: '#2e7d32' }}>
+            {profile?.matches_won || 0}
           </div>
-        ) : (
-          <div style={{ display: 'grid', gap: 12 }}>
-            {favorites.map(fav => (
-              <div
-                key={fav.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 16,
-                  background: '#fafafa',
-                  borderRadius: 12
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    width: 44,
-                    height: 44,
-                    background: '#e5e5e5',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 18
-                  }}>
-                    👤
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
-                      {fav.profiles?.name || 'Joueur'}
-                    </div>
-                    <div style={{ fontSize: 13, color: '#666' }}>
-                      {experienceLabels[fav.profiles?.experience] || 'Niveau inconnu'}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeFavorite(fav.id)}
-                  style={{
-                    padding: '8px 12px',
-                    background: '#fff',
-                    border: '1px solid #e5e5e5',
-                    borderRadius: 8,
-                    fontSize: 12,
-                    color: '#999',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Retirer
-                </button>
-              </div>
-            ))}
+          <div style={{ fontSize: 12, color: '#666' }}>Victoires</div>
+        </div>
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          padding: 20,
+          textAlign: 'center',
+          border: '1px solid #eee'
+        }}>
+          <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>
+            {getWinRate()}%
           </div>
-        )}
+          <div style={{ fontSize: 12, color: '#666' }}>Win rate</div>
+        </div>
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          padding: 20,
+          textAlign: 'center',
+          border: profile?.current_streak > 0 ? '2px solid #f59e0b' : '1px solid #eee'
+        }}>
+          <div style={{ fontSize: 28, fontWeight: '700', color: '#f59e0b' }}>
+            🔥 {profile?.current_streak || 0}
+          </div>
+          <div style={{ fontSize: 12, color: '#666' }}>Série</div>
+        </div>
       </div>
 
-      {/* Joueurs récents */}
-      {recentPlayers.length > 0 && (
+      {/* Tabs */}
+      <div style={{
+        display: 'flex',
+        background: '#f5f5f5',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 24
+      }}>
+        {[
+          { id: 'stats', label: '📊 Stats' },
+          { id: 'edit', label: '✏️ Modifier' },
+          { id: 'payment', label: '💰 Paiement' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              flex: 1,
+              padding: '12px',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: '600',
+              cursor: 'pointer',
+              background: activeTab === tab.id ? '#fff' : 'transparent',
+              color: activeTab === tab.id ? '#1a1a1a' : '#666',
+              boxShadow: activeTab === tab.id ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Stats */}
+      {activeTab === 'stats' && (
         <div style={{
           background: '#fff',
           borderRadius: 20,
           padding: 24,
-          marginBottom: 24,
           border: '1px solid #eee'
         }}>
-          <h2 style={{ 
-            fontSize: 18, 
-            fontWeight: '700',
-            marginBottom: 20,
-            color: '#1a1a1a'
-          }}>
-            🕐 Joué récemment avec
+          <h2 style={{ fontSize: 18, fontWeight: '700', marginBottom: 20 }}>
+            Historique des parties
           </h2>
-
-          <div style={{ display: 'grid', gap: 12 }}>
-            {recentPlayers.map(player => {
-              const isFavorite = favorites.some(f => f.favorite_user_id === player.id)
-              
-              return (
-                <div
-                  key={player.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 16,
-                    background: '#fafafa',
-                    borderRadius: 12
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {recentMatches.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🎾</div>
+              <p>Aucune partie terminée</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {recentMatches.map(match => {
+                const won = didIWin(match)
+                return (
+                  <Link href={`/dashboard/match/${match.id}`} key={match.id} style={{ textDecoration: 'none' }}>
                     <div style={{
-                      width: 44,
-                      height: 44,
-                      background: '#e5e5e5',
-                      borderRadius: '50%',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 18
+                      justifyContent: 'space-between',
+                      padding: 16,
+                      background: '#f5f5f5',
+                      borderRadius: 12,
+                      borderLeft: won === true ? '4px solid #2e7d32' : won === false ? '4px solid #dc2626' : '4px solid #999'
                     }}>
-                      👤
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
-                        {player.name}
+                      <div>
+                        <div style={{ fontWeight: '600', color: '#1a1a1a', marginBottom: 4 }}>
+                          {formatDate(match.match_date)} - {match.clubs?.name}
+                        </div>
+                        {match.score_set1_a !== null && (
+                          <div style={{ fontSize: 13, color: '#666' }}>
+                            {match.score_set1_a}-{match.score_set1_b}
+                            {match.score_set2_a !== null && ` / ${match.score_set2_a}-${match.score_set2_b}`}
+                          </div>
+                        )}
                       </div>
-                      <div style={{ fontSize: 13, color: '#666' }}>
-                        {experienceLabels[player.experience] || 'Niveau inconnu'}
-                      </div>
-                    </div>
-                  </div>
-                  {!isFavorite ? (
-                    <button
-                      onClick={() => addFavorite(player.id)}
-                      style={{
-                        padding: '8px 12px',
-                        background: '#1a1a1a',
-                        color: '#fff',
-                        border: 'none',
+                      <div style={{
+                        padding: '6px 12px',
+                        background: won === true ? '#e8f5e9' : won === false ? '#fef2f2' : '#f5f5f5',
+                        color: won === true ? '#2e7d32' : won === false ? '#dc2626' : '#666',
                         borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: '600',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      + Favori
-                    </button>
-                  ) : (
-                    <span style={{
-                      padding: '8px 12px',
-                      background: '#e8f5e9',
-                      color: '#2e7d32',
-                      borderRadius: 8,
-                      fontSize: 12,
-                      fontWeight: '600'
-                    }}>
-                      ⭐ Favori
-                    </span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                        fontSize: 13,
+                        fontWeight: '600'
+                      }}>
+                        {won === true ? '🏆 Victoire' : won === false ? 'Défaite' : 'En cours'}
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Déconnexion */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 20,
-        padding: 24,
-        marginBottom: 24,
-        border: '1px solid #eee'
-      }}>
-        <button
-          onClick={handleLogout}
-          style={{
-            width: '100%',
-            padding: '16px',
-            background: '#fff',
-            color: '#dc2626',
-            border: '2px solid #fecaca',
-            borderRadius: 12,
-            fontSize: 15,
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          Se déconnecter
-        </button>
-      </div>
-
-      {/* Modal Édition */}
-      {editing && (
+      {/* Tab Modifier */}
+      {activeTab === 'edit' && (
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 20,
-          zIndex: 1000
+          background: '#fff',
+          borderRadius: 20,
+          padding: 24,
+          border: '1px solid #eee'
         }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: 24,
-            padding: 32,
-            width: '100%',
-            maxWidth: 480,
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 24
-            }}>
-              <h2 style={{ fontSize: 22, fontWeight: '700' }}>
-                Modifier mon profil
-              </h2>
-              <button
-                onClick={() => setEditing(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: 24,
-                  cursor: 'pointer',
-                  color: '#999'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Prénom */}
+          <form onSubmit={saveProfile}>
             <div style={{ marginBottom: 20 }}>
-              <label style={{ 
-                fontSize: 14, 
-                fontWeight: '600', 
-                display: 'block', 
-                marginBottom: 8 
-              }}>
+              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
                 Prénom
               </label>
               <input
@@ -693,175 +461,192 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Expérience */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ 
-                fontSize: 14, 
-                fontWeight: '600', 
-                display: 'block', 
-                marginBottom: 8 
-              }}>
-                Expérience
+              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                Niveau
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                 {experienceOptions.map(opt => (
                   <div
                     key={opt.id}
                     onClick={() => setEditData({ ...editData, experience: opt.id })}
                     style={{
-                      padding: '12px 16px',
-                      border: editData.experience === opt.id 
-                        ? '2px solid #1a1a1a' 
-                        : '2px solid #e5e5e5',
-                      borderRadius: 10,
+                      padding: '12px',
+                      border: editData.experience === opt.id ? '2px solid #2e7d32' : '2px solid #e5e5e5',
+                      borderRadius: 12,
                       cursor: 'pointer',
-                      fontSize: 14,
-                      fontWeight: editData.experience === opt.id ? '600' : '400',
-                      textAlign: 'center',
-                      background: editData.experience === opt.id ? '#fafafa' : '#fff'
+                      background: editData.experience === opt.id ? '#e8f5e9' : '#fff',
+                      textAlign: 'center'
                     }}
                   >
-                    {opt.label}
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.emoji}</div>
+                    <div style={{ fontSize: 13, fontWeight: '600' }}>{opt.label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Fréquence */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ 
-                fontSize: 14, 
-                fontWeight: '600', 
-                display: 'block', 
-                marginBottom: 8 
-              }}>
-                Fréquence
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                Ambiance
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {frequencyOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setEditData({ ...editData, frequency: opt.id })}
-                    style={{
-                      padding: '12px 16px',
-                      border: editData.frequency === opt.id 
-                        ? '2px solid #1a1a1a' 
-                        : '2px solid #e5e5e5',
-                      borderRadius: 10,
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      fontWeight: editData.frequency === opt.id ? '600' : '400',
-                      textAlign: 'center',
-                      background: editData.frequency === opt.id ? '#fafafa' : '#fff'
-                    }}
-                  >
-                    {opt.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Ambiance */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ 
-                fontSize: 14, 
-                fontWeight: '600', 
-                display: 'block', 
-                marginBottom: 8 
-              }}>
-                Ambiance recherchée
-              </label>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {ambianceOptions.map(opt => (
                   <div
                     key={opt.id}
                     onClick={() => setEditData({ ...editData, ambiance: opt.id })}
                     style={{
-                      flex: 1,
-                      padding: '12px',
-                      border: editData.ambiance === opt.id 
-                        ? '2px solid #1a1a1a' 
-                        : '2px solid #e5e5e5',
-                      borderRadius: 10,
+                      padding: '12px 8px',
+                      border: editData.ambiance === opt.id ? '2px solid #2e7d32' : '2px solid #e5e5e5',
+                      borderRadius: 12,
                       cursor: 'pointer',
-                      fontSize: 14,
-                      fontWeight: editData.ambiance === opt.id ? '600' : '400',
-                      textAlign: 'center',
-                      background: editData.ambiance === opt.id ? '#fafafa' : '#fff'
+                      background: editData.ambiance === opt.id ? '#e8f5e9' : '#fff',
+                      textAlign: 'center'
                     }}
                   >
-                    {opt.label}
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.emoji}</div>
+                    <div style={{ fontSize: 12, fontWeight: '600' }}>{opt.label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Bio */}
-            <div style={{ marginBottom: 28 }}>
-              <label style={{ 
-                fontSize: 14, 
-                fontWeight: '600', 
-                display: 'block', 
-                marginBottom: 8 
-              }}>
-                Bio (optionnel)
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                width: '100%',
+                padding: '18px',
+                background: saving ? '#e5e5e5' : '#1a1a1a',
+                color: saving ? '#999' : '#fff',
+                border: 'none',
+                borderRadius: 14,
+                fontSize: 16,
+                fontWeight: '600',
+                cursor: saving ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {saving ? 'Enregistrement...' : 'Enregistrer'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Tab Paiement */}
+      {activeTab === 'payment' && (
+        <div style={{
+          background: '#fff',
+          borderRadius: 20,
+          padding: 24,
+          border: '1px solid #eee'
+        }}>
+          <p style={{ color: '#666', marginBottom: 24, fontSize: 14 }}>
+            Configure tes moyens de paiement pour que les autres joueurs puissent te payer facilement quand tu organises une partie.
+          </p>
+
+          <form onSubmit={saveProfile}>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                🔵 Lydia (username)
               </label>
-              <textarea
-                value={editData.bio}
-                onChange={e => setEditData({ ...editData, bio: e.target.value })}
-                placeholder="Quelques mots sur toi..."
-                rows={3}
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#999' }}>@</span>
+                <input
+                  type="text"
+                  value={editData.lydia_username}
+                  onChange={e => setEditData({ ...editData, lydia_username: e.target.value })}
+                  placeholder="ton-username"
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px 14px 36px',
+                    border: '2px solid #e5e5e5',
+                    borderRadius: 12,
+                    fontSize: 15,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                🔵 PayPal (email)
+              </label>
+              <input
+                type="email"
+                value={editData.paypal_email}
+                onChange={e => setEditData({ ...editData, paypal_email: e.target.value })}
+                placeholder="ton@email.com"
                 style={{
                   width: '100%',
                   padding: '14px 16px',
                   border: '2px solid #e5e5e5',
                   borderRadius: 12,
                   fontSize: 15,
-                  boxSizing: 'border-box',
-                  resize: 'none'
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
 
-            {/* Boutons */}
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button
-                onClick={() => setEditing(false)}
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                🏦 RIB / IBAN
+              </label>
+              <input
+                type="text"
+                value={editData.rib}
+                onChange={e => setEditData({ ...editData, rib: e.target.value })}
+                placeholder="FR76 3000 4000 ..."
                 style={{
-                  flex: 1,
-                  padding: '16px',
-                  background: '#f5f5f5',
-                  color: '#1a1a1a',
-                  border: 'none',
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: '2px solid #e5e5e5',
                   borderRadius: 12,
                   fontSize: 15,
-                  fontWeight: '600',
-                  cursor: 'pointer'
+                  boxSizing: 'border-box'
                 }}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={saveProfile}
-                disabled={saving}
-                style={{
-                  flex: 1,
-                  padding: '16px',
-                  background: saving ? '#e5e5e5' : '#1a1a1a',
-                  color: saving ? '#999' : '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: 15,
-                  fontWeight: '600',
-                  cursor: saving ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {saving ? 'Sauvegarde...' : 'Enregistrer'}
-              </button>
+              />
             </div>
-          </div>
+
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                width: '100%',
+                padding: '18px',
+                background: saving ? '#e5e5e5' : '#1a1a1a',
+                color: saving ? '#999' : '#fff',
+                border: 'none',
+                borderRadius: 14,
+                fontSize: 16,
+                fontWeight: '600',
+                cursor: saving ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {saving ? 'Enregistrement...' : 'Enregistrer'}
+            </button>
+          </form>
         </div>
       )}
+
+      {/* Déconnexion */}
+      <button
+        onClick={logout}
+        style={{
+          width: '100%',
+          padding: '16px',
+          background: '#fff',
+          color: '#dc2626',
+          border: '1px solid #fecaca',
+          borderRadius: 14,
+          fontSize: 15,
+          fontWeight: '600',
+          cursor: 'pointer',
+          marginTop: 24
+        }}
+      >
+        Se déconnecter
+      </button>
     </div>
   )
 }
