@@ -19,6 +19,9 @@ export default function MatchPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState(false)
   
   const messagesEndRef = useRef(null)
@@ -26,7 +29,6 @@ export default function MatchPage() {
   useEffect(() => {
     loadData()
     
-    // Écouter les nouveaux messages en temps réel
     const channel = supabase
       .channel(`match-${matchId}`)
       .on(
@@ -37,7 +39,7 @@ export default function MatchPage() {
           table: 'match_messages',
           filter: `match_id=eq.${matchId}`
         },
-        (payload) => {
+        () => {
           loadMessages()
         }
       )
@@ -48,14 +50,12 @@ export default function MatchPage() {
     }
   }, [matchId])
 
-  // Scroll vers le bas quand nouveaux messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   async function loadData() {
     try {
-      // User
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/auth')
@@ -64,7 +64,6 @@ export default function MatchPage() {
       
       setUser(session.user)
 
-      // Profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -73,7 +72,6 @@ export default function MatchPage() {
       
       setProfile(profileData)
 
-      // Match
       const { data: matchData, error: matchError } = await supabase
         .from('matches')
         .select(`
@@ -92,7 +90,6 @@ export default function MatchPage() {
 
       setMatch(matchData)
 
-      // Participants
       const { data: participantsData } = await supabase
         .from('match_participants')
         .select(`
@@ -103,7 +100,6 @@ export default function MatchPage() {
 
       setParticipants(participantsData || [])
 
-      // Messages
       await loadMessages()
 
       setLoading(false)
@@ -128,14 +124,12 @@ export default function MatchPage() {
 
   async function joinMatch() {
     try {
-      // Vérifier si déjà inscrit
       const isParticipant = participants.some(p => p.user_id === user.id)
       if (isParticipant || match.organizer_id === user.id) {
-        alert('Tu es déjà inscrit à cette partie !')
+        alert('Tu es deja inscrit a cette partie !')
         return
       }
 
-      // Ajouter le participant
       const { error } = await supabase
         .from('match_participants')
         .insert({
@@ -146,7 +140,6 @@ export default function MatchPage() {
 
       if (error) throw error
 
-      // Mettre à jour les places
       await supabase
         .from('matches')
         .update({ 
@@ -157,7 +150,6 @@ export default function MatchPage() {
 
       loadData()
       
-      // Envoyer un message auto
       await supabase.from('match_messages').insert({
         match_id: parseInt(matchId),
         user_id: user.id,
@@ -166,7 +158,7 @@ export default function MatchPage() {
       
     } catch (error) {
       console.error('Error joining match:', error)
-      alert('Erreur lors de l\'inscription')
+      alert('Erreur lors de inscription')
     }
   }
 
@@ -182,7 +174,6 @@ export default function MatchPage() {
 
       if (error) throw error
 
-      // Mettre à jour les places
       await supabase
         .from('matches')
         .update({ 
@@ -191,17 +182,59 @@ export default function MatchPage() {
         })
         .eq('id', matchId)
 
-      // Envoyer un message auto
       await supabase.from('match_messages').insert({
         match_id: parseInt(matchId),
         user_id: user.id,
-        message: `${profile?.name || 'Un joueur'} a quitté la partie 😢`
+        message: `${profile?.name || 'Un joueur'} a quitte la partie`
       })
 
       loadData()
     } catch (error) {
       console.error('Error leaving match:', error)
-      alert('Erreur lors du départ')
+      alert('Erreur lors du depart')
+    }
+  }
+
+  async function deleteMatch() {
+    if (!deleteReason.trim()) {
+      alert('Merci de donner un motif')
+      return
+    }
+
+    setDeleting(true)
+
+    try {
+      await supabase.from('match_messages').insert({
+        match_id: parseInt(matchId),
+        user_id: user.id,
+        message: `PARTIE ANNULEE par ${profile?.name || 'organisateur'} - Motif : ${deleteReason}`
+      })
+
+      await supabase
+        .from('match_participants')
+        .delete()
+        .eq('match_id', matchId)
+
+      await supabase
+        .from('match_messages')
+        .delete()
+        .eq('match_id', matchId)
+
+      const { error } = await supabase
+        .from('matches')
+        .delete()
+        .eq('id', matchId)
+
+      if (error) throw error
+
+      alert('Partie annulee. Les participants ont ete notifies.')
+      router.push('/dashboard')
+
+    } catch (error) {
+      console.error('Error deleting match:', error)
+      alert('Erreur lors de la suppression')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -240,33 +273,29 @@ export default function MatchPage() {
 
   function shareWhatsApp() {
     const link = `${window.location.origin}/join/${matchId}`
-    const text = `🎾 ${profile?.name || 'Quelqu\'un'} t'invite à jouer au padel !\n\n📅 ${formatDate(match.match_date)} à ${formatTime(match.match_time)}\n📍 ${match.clubs?.name}\n\nRejoins la partie : ${link}`
+    const text = `🎾 ${profile?.name || 'Quelqu un'} t invite a jouer au padel !\n\n${formatDate(match.match_date)} a ${formatTime(match.match_time)}\n${match.clubs?.name}\n\nRejoins la partie : ${link}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
-  // Format date
   function formatDate(dateStr) {
     const date = new Date(dateStr)
     const options = { weekday: 'long', day: 'numeric', month: 'long' }
     return date.toLocaleDateString('fr-FR', options)
   }
 
-  // Format time
   function formatTime(timeStr) {
     return timeStr?.slice(0, 5) || ''
   }
 
-  // Format message time
   function formatMessageTime(timestamp) {
     const date = new Date(timestamp)
     return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  // Labels
   const experienceLabels = {
-    'less6months': 'Débutant',
-    '6months2years': 'Intermédiaire',
-    '2to5years': 'Confirmé',
+    'less6months': 'Debutant',
+    '6months2years': 'Intermediaire',
+    '2to5years': 'Confirme',
     'more5years': 'Expert'
   }
 
@@ -285,7 +314,7 @@ export default function MatchPage() {
         <div style={{ fontSize: 32, marginBottom: 16 }}>😕</div>
         <div style={{ color: '#666' }}>Partie introuvable</div>
         <Link href="/dashboard" style={{ color: '#1a1a1a', marginTop: 16, display: 'inline-block' }}>
-          ← Retour au dashboard
+          Retour au dashboard
         </Link>
       </div>
     )
@@ -296,6 +325,10 @@ export default function MatchPage() {
   const canJoin = !isOrganizer && !isParticipant && match.spots_available > 0
   const canChat = isOrganizer || isParticipant
 
+  const spotsText = match.spots_available > 1 
+    ? `${match.spots_available} places disponibles` 
+    : `${match.spots_available} place disponible`
+
   return (
     <div style={{ 
       display: 'grid', 
@@ -304,9 +337,7 @@ export default function MatchPage() {
       alignItems: 'start'
     }}>
       
-      {/* Colonne gauche - Détails */}
       <div>
-        {/* Bouton retour */}
         <Link href="/dashboard" style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -319,7 +350,6 @@ export default function MatchPage() {
           ← Retour
         </Link>
 
-        {/* Card principale */}
         <div style={{
           background: '#fff',
           borderRadius: 24,
@@ -327,7 +357,6 @@ export default function MatchPage() {
           marginBottom: 20,
           border: '1px solid #eee'
         }}>
-          {/* Badge statut */}
           <div style={{ marginBottom: 20 }}>
             <span style={{
               background: match.status === 'open' ? '#e8f5e9' : '#fef3c7',
@@ -337,14 +366,10 @@ export default function MatchPage() {
               fontSize: 13,
               fontWeight: '600'
             }}>
-              {match.status === 'open' 
-                ? `${match.spots_available} place${match.spots_available > 1 ? 's' : ''} disponible${match.spots_available > 1 ? 's' : ''}`
-                : 'Complet'
-              }
+              {match.status === 'open' ? spotsText : 'Complet'}
             </span>
           </div>
 
-          {/* Date et heure */}
           <h1 style={{ 
             fontSize: 28, 
             fontWeight: '700',
@@ -362,7 +387,6 @@ export default function MatchPage() {
             {formatTime(match.match_time)}
           </div>
 
-          {/* Lieu */}
           <div style={{
             background: '#f5f5f5',
             borderRadius: 16,
@@ -397,12 +421,11 @@ export default function MatchPage() {
                   border: '1px solid #e5e5e5'
                 }}
               >
-                Voir le club →
+                Voir le club
               </a>
             )}
           </div>
 
-          {/* Ambiance */}
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>Ambiance</div>
             <span style={{
@@ -416,12 +439,11 @@ export default function MatchPage() {
               fontSize: 15,
               fontWeight: '600'
             }}>
-              {match.ambiance === 'compet' ? '🏆 Compétitif' : 
-               match.ambiance === 'loisir' ? '😎 Détente' : '⚡ Équilibré'}
+              {match.ambiance === 'compet' ? '🏆 Competitif' : 
+               match.ambiance === 'loisir' ? '😎 Detente' : '⚡ Equilibre'}
             </span>
           </div>
 
-          {/* Actions */}
           {canJoin && (
             <button
               onClick={joinMatch}
@@ -458,7 +480,7 @@ export default function MatchPage() {
                 marginBottom: 12
               }}
             >
-              📤 Inviter quelqu'un
+              📤 Inviter quelqu un
             </button>
           )}
 
@@ -480,9 +502,28 @@ export default function MatchPage() {
               Quitter la partie
             </button>
           )}
+
+          {isOrganizer && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: '#fff',
+                color: '#dc2626',
+                border: '1px solid #fecaca',
+                borderRadius: 14,
+                fontSize: 14,
+                fontWeight: '600',
+                cursor: 'pointer',
+                marginTop: 12
+              }}
+            >
+              🗑️ Annuler cette partie
+            </button>
+          )}
         </div>
 
-        {/* Joueurs */}
         <div style={{
           background: '#fff',
           borderRadius: 20,
@@ -499,7 +540,6 @@ export default function MatchPage() {
           </h2>
 
           <div style={{ display: 'grid', gap: 12 }}>
-            {/* Organisateur */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -535,12 +575,11 @@ export default function MatchPage() {
                   )}
                 </div>
                 <div style={{ fontSize: 13, color: '#666' }}>
-                  {experienceLabels[match.profiles?.experience] || 'Organisateur'} · ⭐ Organisateur
+                  {experienceLabels[match.profiles?.experience] || 'Organisateur'} - ⭐ Organisateur
                 </div>
               </div>
             </div>
 
-            {/* Participants */}
             {participants.map(p => (
               <div
                 key={p.id}
@@ -585,7 +624,6 @@ export default function MatchPage() {
               </div>
             ))}
 
-            {/* Places vides */}
             {Array.from({ length: match.spots_available }).map((_, i) => (
               <div
                 key={`empty-${i}`}
@@ -607,7 +645,6 @@ export default function MatchPage() {
         </div>
       </div>
 
-      {/* Colonne droite - Chat */}
       <div style={{
         background: '#fff',
         borderRadius: 24,
@@ -618,7 +655,6 @@ export default function MatchPage() {
         position: 'sticky',
         top: 100
       }}>
-        {/* Header chat */}
         <div style={{
           padding: '20px 24px',
           borderBottom: '1px solid #eee'
@@ -632,7 +668,6 @@ export default function MatchPage() {
           </h2>
         </div>
 
-        {/* Messages */}
         <div style={{
           flex: 1,
           overflow: 'auto',
@@ -646,7 +681,7 @@ export default function MatchPage() {
             }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
               <p style={{ fontSize: 14 }}>
-                Rejoins la partie pour accéder au chat
+                Rejoins la partie pour acceder au chat
               </p>
             </div>
           ) : messages.length === 0 ? (
@@ -657,7 +692,7 @@ export default function MatchPage() {
             }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
               <p style={{ fontSize: 14 }}>
-                Aucun message pour l'instant
+                Aucun message pour le moment
               </p>
               <p style={{ fontSize: 13 }}>
                 Dis bonjour ! 👋
@@ -667,7 +702,7 @@ export default function MatchPage() {
             <div style={{ display: 'grid', gap: 12 }}>
               {messages.map(msg => {
                 const isMe = msg.user_id === user?.id
-                const isSystem = msg.message.includes('a rejoint') || msg.message.includes('a quitté')
+                const isSystem = msg.message.includes('a rejoint') || msg.message.includes('a quitte') || msg.message.includes('ANNULEE')
                 
                 if (isSystem) {
                   return (
@@ -676,8 +711,11 @@ export default function MatchPage() {
                       style={{
                         textAlign: 'center',
                         fontSize: 13,
-                        color: '#999',
-                        padding: '8px 0'
+                        color: msg.message.includes('ANNULEE') ? '#dc2626' : '#999',
+                        padding: '12px',
+                        background: msg.message.includes('ANNULEE') ? '#fef2f2' : 'transparent',
+                        borderRadius: 12,
+                        whiteSpace: 'pre-line'
                       }}
                     >
                       {msg.message}
@@ -710,9 +748,7 @@ export default function MatchPage() {
                         👤
                       </div>
                     )}
-                    <div style={{
-                      maxWidth: '70%'
-                    }}>
+                    <div style={{ maxWidth: '70%' }}>
                       {!isMe && (
                         <div style={{ 
                           fontSize: 12, 
@@ -752,7 +788,6 @@ export default function MatchPage() {
           )}
         </div>
 
-        {/* Input message */}
         {canChat && (
           <form 
             onSubmit={sendMessage}
@@ -791,13 +826,12 @@ export default function MatchPage() {
                 cursor: !newMessage.trim() || sending ? 'not-allowed' : 'pointer'
               }}
             >
-              →
+              Envoyer
             </button>
           </form>
         )}
       </div>
 
-      {/* Modal Inviter */}
       {showInviteModal && (
         <div style={{
           position: 'fixed',
@@ -826,7 +860,7 @@ export default function MatchPage() {
               marginBottom: 24
             }}>
               <h2 style={{ fontSize: 22, fontWeight: '700' }}>
-                Inviter quelqu'un
+                Inviter quelqu un
               </h2>
               <button
                 onClick={() => setShowInviteModal(false)}
@@ -838,7 +872,7 @@ export default function MatchPage() {
                   color: '#999'
                 }}
               >
-                ✕
+                X
               </button>
             </div>
 
@@ -848,10 +882,9 @@ export default function MatchPage() {
               fontSize: 15,
               lineHeight: 1.5
             }}>
-              Partage ce lien pour inviter des joueurs à rejoindre cette partie.
+              Partage ce lien pour inviter des joueurs.
             </p>
 
-            {/* Lien */}
             <div style={{
               background: '#f5f5f5',
               padding: 16,
@@ -864,7 +897,6 @@ export default function MatchPage() {
               {typeof window !== 'undefined' && `${window.location.origin}/join/${matchId}`}
             </div>
 
-            {/* Boutons */}
             <div style={{ display: 'grid', gap: 12 }}>
               <button
                 onClick={copyInviteLink}
@@ -880,7 +912,7 @@ export default function MatchPage() {
                   cursor: 'pointer'
                 }}
               >
-                {copied ? '✓ Copié !' : '📋 Copier le lien'}
+                {copied ? 'Copie !' : 'Copier le lien'}
               </button>
               
               <button
@@ -897,7 +929,132 @@ export default function MatchPage() {
                   cursor: 'pointer'
                 }}
               >
-                📱 Partager sur WhatsApp
+                Partager sur WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 24,
+            padding: 32,
+            width: '100%',
+            maxWidth: 420
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 24
+            }}>
+              <h2 style={{ fontSize: 22, fontWeight: '700', color: '#dc2626' }}>
+                Annuler la partie
+              </h2>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 24,
+                  cursor: 'pointer',
+                  color: '#999'
+                }}
+              >
+                X
+              </button>
+            </div>
+
+            <p style={{ 
+              color: '#666', 
+              marginBottom: 24,
+              fontSize: 15,
+              lineHeight: 1.5
+            }}>
+              Cette action est irreversible. Les participants seront notifies.
+            </p>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ 
+                fontSize: 14, 
+                fontWeight: '600', 
+                display: 'block', 
+                marginBottom: 8,
+                color: '#1a1a1a'
+              }}>
+                Motif *
+              </label>
+              <select
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '2px solid #e5e5e5',
+                  borderRadius: 12,
+                  fontSize: 15,
+                  boxSizing: 'border-box',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Selectionne un motif</option>
+                <option value="Terrain indisponible">Terrain indisponible</option>
+                <option value="Probleme personnel">Probleme personnel</option>
+                <option value="Blessure">Blessure</option>
+                <option value="Meteo">Meteo</option>
+                <option value="Pas assez de joueurs">Pas assez de joueurs</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '16px',
+                  background: '#f5f5f5',
+                  color: '#1a1a1a',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 15,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Retour
+              </button>
+              <button
+                onClick={deleteMatch}
+                disabled={!deleteReason.trim() || deleting}
+                style={{
+                  flex: 1,
+                  padding: '16px',
+                  background: !deleteReason.trim() || deleting ? '#e5e5e5' : '#dc2626',
+                  color: !deleteReason.trim() || deleting ? '#999' : '#fff',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 15,
+                  fontWeight: '600',
+                  cursor: !deleteReason.trim() || deleting ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {deleting ? 'Suppression...' : 'Confirmer'}
               </button>
             </div>
           </div>

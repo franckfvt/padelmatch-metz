@@ -94,7 +94,7 @@ export default function DashboardHome() {
           match_date: newMatch.date,
           match_time: newMatch.time,
           spots_total: 4,
-          spots_available: newMatch.spots,
+          spots_available: 3,
           ambiance: newMatch.ambiance,
           status: 'open'
         })
@@ -102,13 +102,6 @@ export default function DashboardHome() {
         .single()
 
       if (error) throw error
-
-      // Ajouter l'organisateur comme participant
-      await supabase.from('match_participants').insert({
-        match_id: data.id,
-        user_id: user.id,
-        status: 'confirmed'
-      })
 
       // Reset et reload
       setShowCreateModal(false)
