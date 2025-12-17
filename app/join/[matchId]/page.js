@@ -18,7 +18,6 @@ export default function JoinMatchPage() {
   const [userProfile, setUserProfile] = useState(null)
   const [error, setError] = useState('')
   
-  // Formulaire inscription
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,7 +36,6 @@ export default function JoinMatchPage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
       setUser(session.user)
-      // Charger le profil
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -60,7 +58,7 @@ export default function JoinMatchPage() {
         .single()
 
       if (matchError || !matchData) {
-        setError('Cette partie n\'existe pas ou a ete annulee.')
+        setError('Cette partie n\'existe pas ou a été annulée.')
         setLoading(false)
         return
       }
@@ -90,7 +88,6 @@ export default function JoinMatchPage() {
     setSubmitting(true)
     setError('')
 
-    // Validation
     if (mode === 'signup' && (!experience || !ambiance)) {
       setError('Merci de renseigner ton niveau et ton ambiance')
       setSubmitting(false)
@@ -112,7 +109,6 @@ export default function JoinMatchPage() {
         if (error) throw error
         userId = data.user?.id
 
-        // Mettre a jour le profil avec niveau et ambiance
         if (userId) {
           await supabase
             .from('profiles')
@@ -143,10 +139,10 @@ export default function JoinMatchPage() {
       if (error.message.includes('Invalid login credentials')) {
         setError('Email ou mot de passe incorrect')
       } else if (error.message.includes('User already registered')) {
-        setError('Un compte existe deja avec cet email. Connecte-toi !')
+        setError('Un compte existe déjà avec cet email. Connecte-toi !')
         setMode('login')
       } else if (error.message.includes('Password should be at least')) {
-        setError('Le mot de passe doit contenir au moins 6 caracteres')
+        setError('Le mot de passe doit contenir au moins 6 caractères')
       } else {
         setError(error.message)
       }
@@ -175,7 +171,7 @@ export default function JoinMatchPage() {
       }
 
       if (match.spots_available <= 0) {
-        setError('Desole, cette partie est complete.')
+        setError('Désolé, cette partie est complète.')
         return
       }
 
@@ -213,7 +209,7 @@ export default function JoinMatchPage() {
 
     } catch (error) {
       console.error('Error joining match:', error)
-      setError('Erreur lors de l\'inscription a la partie.')
+      setError('Erreur lors de l\'inscription à la partie.')
     }
   }
 
@@ -235,29 +231,29 @@ export default function JoinMatchPage() {
   }
 
   const experienceOptions = [
-    { id: 'less6months', label: 'Debutant', emoji: '🌱', desc: 'Moins de 6 mois' },
-    { id: '6months2years', label: 'Intermediaire', emoji: '📈', desc: '6 mois - 2 ans' },
-    { id: '2to5years', label: 'Confirme', emoji: '💪', desc: '2 - 5 ans' },
+    { id: 'less6months', label: 'Débutant', emoji: '🌱', desc: 'Moins de 6 mois' },
+    { id: '6months2years', label: 'Intermédiaire', emoji: '📈', desc: '6 mois - 2 ans' },
+    { id: '2to5years', label: 'Confirmé', emoji: '💪', desc: '2 - 5 ans' },
     { id: 'more5years', label: 'Expert', emoji: '🏆', desc: 'Plus de 5 ans' }
   ]
 
   const ambianceOptions = [
-    { id: 'loisir', label: 'Detente', emoji: '😎', desc: 'Fun et convivial' },
-    { id: 'mix', label: 'Equilibre', emoji: '⚡', desc: 'Fun mais on joue bien' },
-    { id: 'compet', label: 'Competitif', emoji: '🏆', desc: 'On est la pour gagner' }
+    { id: 'loisir', label: 'Détente', emoji: '😎', desc: 'Fun et convivial' },
+    { id: 'mix', label: 'Équilibré', emoji: '⚡', desc: 'Fun mais on joue bien' },
+    { id: 'compet', label: 'Compétitif', emoji: '🏆', desc: 'On est là pour gagner' }
   ]
 
   const experienceLabels = {
-    'less6months': '🌱 Debutant',
-    '6months2years': '📈 Intermediaire',
-    '2to5years': '💪 Confirme',
+    'less6months': '🌱 Débutant',
+    '6months2years': '📈 Intermédiaire',
+    '2to5years': '💪 Confirmé',
     'more5years': '🏆 Expert'
   }
 
   const ambianceLabels = {
-    'loisir': '😎 Detente',
-    'mix': '⚡ Equilibre',
-    'compet': '🏆 Competitif'
+    'loisir': '😎 Détente',
+    'mix': '⚡ Équilibré',
+    'compet': '🏆 Compétitif'
   }
 
   if (loading) {
@@ -272,7 +268,7 @@ export default function JoinMatchPage() {
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
-          <div style={{ color: '#666' }}>Chargement de l invitation...</div>
+          <div style={{ color: '#666' }}>Chargement de l&#39;invitation...</div>
         </div>
       </div>
     )
@@ -312,14 +308,18 @@ export default function JoinMatchPage() {
             textDecoration: 'none',
             fontWeight: '600'
           }}>
-            Decouvrir PadelMatch
+            Découvrir PadelMatch
           </Link>
         </div>
       </div>
     )
   }
 
-  if (match && match.spots_available <= 0 && !user) {
+  // Calcul correct du nombre de joueurs : organisateur + participants
+  const totalPlayers = 1 + participants.length
+  const spotsLeft = match.spots_total - totalPlayers
+
+  if (match && spotsLeft <= 0 && !user) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -339,10 +339,10 @@ export default function JoinMatchPage() {
         }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>😅</div>
           <h1 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>
-            Partie complete
+            Partie complète
           </h1>
           <p style={{ color: '#666', marginBottom: 24 }}>
-            Cette partie a trouve tous ses joueurs. Mais tu peux en rejoindre d autres !
+            Cette partie a trouvé tous ses joueurs. Mais tu peux en rejoindre d&#39;autres !
           </p>
           <Link href="/auth" style={{
             display: 'inline-block',
@@ -418,14 +418,14 @@ export default function JoinMatchPage() {
               color: '#1a1a1a',
               marginBottom: 8
             }}>
-              {organizer?.name || 'Quelqu un'} t invite a jouer !
+              {organizer?.name || 'Quelqu\'un'} t&#39;invite à jouer !
             </h1>
             <p style={{ color: '#666', fontSize: 15 }}>
               Rejoins cette partie de padel
             </p>
           </div>
 
-          {/* Details de la partie */}
+          {/* Détails de la partie */}
           <div style={{
             background: '#fafafa',
             borderRadius: 16,
@@ -479,10 +479,13 @@ export default function JoinMatchPage() {
               <div style={{ fontSize: 24 }}>👥</div>
               <div>
                 <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
-                  {match?.spots_total - match?.spots_available}/{match?.spots_total} joueurs
+                  {totalPlayers}/{match?.spots_total} joueurs
                 </div>
                 <div style={{ fontSize: 14, color: '#2e7d32' }}>
-                  {match?.spots_available} place{match?.spots_available > 1 ? 's' : ''} restante{match?.spots_available > 1 ? 's' : ''}
+                  {spotsLeft > 0 
+                    ? `${spotsLeft} place${spotsLeft > 1 ? 's' : ''} restante${spotsLeft > 1 ? 's' : ''}`
+                    : 'Complet'
+                  }
                 </div>
               </div>
             </div>
@@ -496,7 +499,7 @@ export default function JoinMatchPage() {
                 <div style={{ fontSize: 24 }}>🎯</div>
                 <div>
                   <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
-                    Ambiance recherchee
+                    Ambiance recherchée
                   </div>
                   <div style={{ fontSize: 14, color: '#666' }}>
                     {ambianceLabels[match.ambiance] || match.ambiance}
@@ -591,20 +594,22 @@ export default function JoinMatchPage() {
                 </div>
               ))}
 
-              {/* Place pour toi */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#e8f5e9',
-                padding: '12px 16px',
-                borderRadius: 12,
-                border: '2px dashed #2e7d32'
-              }}>
-                <span style={{ fontWeight: '600', fontSize: 14, color: '#2e7d32' }}>
-                  + Toi ?
-                </span>
-              </div>
+              {/* Places restantes */}
+              {spotsLeft > 0 && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#e8f5e9',
+                  padding: '12px 16px',
+                  borderRadius: 12,
+                  border: '2px dashed #2e7d32'
+                }}>
+                  <span style={{ fontWeight: '600', fontSize: 14, color: '#2e7d32' }}>
+                    + Toi ?
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -633,7 +638,7 @@ export default function JoinMatchPage() {
                 marginBottom: 16
               }}>
                 <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
-                  Connecte en tant que
+                  Connecté en tant que
                 </div>
                 <div style={{ fontWeight: '600', color: '#1a1a1a', marginBottom: 8 }}>
                   {userProfile?.name || user.email}
@@ -688,7 +693,7 @@ export default function JoinMatchPage() {
                     boxShadow: mode === 'signup' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
                   }}
                 >
-                  Creer un compte
+                  Créer un compte
                 </button>
                 <button
                   type="button"
@@ -706,7 +711,7 @@ export default function JoinMatchPage() {
                     boxShadow: mode === 'login' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
                   }}
                 >
-                  J ai un compte
+                  J&#39;ai un compte
                 </button>
               </div>
 
@@ -720,13 +725,13 @@ export default function JoinMatchPage() {
                         display: 'block', 
                         marginBottom: 6 
                       }}>
-                        Prenom
+                        Prénom
                       </label>
                       <input
                         type="text"
                         value={name}
                         onChange={e => setName(e.target.value)}
-                        placeholder="Ton prenom"
+                        placeholder="Ton prénom"
                         required
                         style={{
                           width: '100%',
@@ -867,7 +872,7 @@ export default function JoinMatchPage() {
                   />
                   {mode === 'signup' && (
                     <p style={{ fontSize: 12, color: '#999', marginTop: 6 }}>
-                      Minimum 6 caracteres
+                      Minimum 6 caractères
                     </p>
                   )}
                 </div>
