@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function ProfilePage() {
   const router = useRouter()
-  const cardRef = useRef(null)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [stats, setStats] = useState({ played: 0, won: 0, streak: 0 })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('card')
@@ -54,17 +52,10 @@ export default function ProfilePage() {
       setProfile(profileData)
       setEditData({
         name: profileData?.name || '',
-        level: profileData?.level || '',
+        level: profileData?.level?.toString() || '',
         position: profileData?.position || '',
         lydia_username: profileData?.lydia_username || '',
         paypal_email: profileData?.paypal_email || ''
-      })
-
-      // Calculer les stats
-      setStats({
-        played: profileData?.matches_played || 0,
-        won: profileData?.matches_won || 0,
-        streak: profileData?.current_streak || 0
       })
 
       setLoading(false)
@@ -94,7 +85,6 @@ export default function ProfilePage() {
 
       await loadData()
       setShowEditModal(false)
-      alert('Profil mis à jour !')
     } catch (error) {
       console.error('Error:', error)
       alert('Erreur lors de la sauvegarde')
@@ -111,8 +101,8 @@ export default function ProfilePage() {
   }
 
   function getWinRate() {
-    if (!stats.played || stats.played === 0) return 0
-    return Math.round((stats.won / stats.played) * 100)
+    if (!profile?.matches_played || profile.matches_played === 0) return 0
+    return Math.round((profile.matches_won / profile.matches_played) * 100)
   }
 
   function getReliabilityScore() {
@@ -136,6 +126,38 @@ export default function ProfilePage() {
   return (
     <div style={{ padding: 20, maxWidth: 500, margin: '0 auto' }}>
       
+      {/* === BANDEAU PARTAGE (TOUJOURS VISIBLE) === */}
+      <div style={{
+        background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        color: '#fff'
+      }}>
+        <div style={{ fontSize: 14, fontWeight: '600', marginBottom: 8 }}>
+          💡 Fais-toi remarquer sur Facebook !
+        </div>
+        <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 12 }}>
+          Au lieu de commenter "Moi !", colle ton lien. Les orgas verront ton niveau et tes stats !
+        </div>
+        <button
+          onClick={copyProfileLink}
+          style={{
+            width: '100%',
+            padding: 12,
+            background: copied ? '#dcfce7' : '#fff',
+            color: copied ? '#166534' : '#1e40af',
+            border: 'none',
+            borderRadius: 10,
+            fontSize: 14,
+            fontWeight: '700',
+            cursor: 'pointer'
+          }}
+        >
+          {copied ? '✓ Lien copié !' : '📋 Copier mon lien PadelMatch'}
+        </button>
+      </div>
+
       {/* Tabs */}
       <div style={{
         display: 'flex',
@@ -147,20 +169,20 @@ export default function ProfilePage() {
         {[
           { id: 'card', label: '🪪 Ma carte' },
           { id: 'stats', label: '📊 Stats' },
-          { id: 'settings', label: '⚙️ Réglages' }
+          { id: 'settings', label: '⚙️' }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
               flex: 1,
-              padding: '10px 16px',
+              padding: '10px 12px',
               border: 'none',
               borderRadius: 8,
               background: activeTab === tab.id ? '#fff' : 'transparent',
               color: activeTab === tab.id ? '#1a1a1a' : '#666',
               fontWeight: activeTab === tab.id ? '600' : '400',
-              fontSize: 14,
+              fontSize: 13,
               cursor: 'pointer',
               boxShadow: activeTab === tab.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
             }}
@@ -170,20 +192,17 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Tab: Carte de visite */}
+      {/* === TAB: CARTE === */}
       {activeTab === 'card' && (
         <div>
           {/* La carte */}
-          <div 
-            ref={cardRef}
-            style={{
-              background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
-              borderRadius: 20,
-              padding: 24,
-              color: '#fff',
-              marginBottom: 16
-            }}
-          >
+          <div style={{
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+            borderRadius: 20,
+            padding: 24,
+            color: '#fff',
+            marginBottom: 16
+          }}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -250,7 +269,7 @@ export default function ProfilePage() {
               borderTop: '1px solid rgba(255,255,255,0.1)'
             }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: '700' }}>{stats.played}</div>
+                <div style={{ fontSize: 24, fontWeight: '700' }}>{profile?.matches_played || 0}</div>
                 <div style={{ fontSize: 11, opacity: 0.7 }}>parties</div>
               </div>
               <div style={{ textAlign: 'center' }}>
@@ -259,7 +278,7 @@ export default function ProfilePage() {
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 24, fontWeight: '700', color: '#fbbf24' }}>
-                  🔥{stats.streak}
+                  🔥{profile?.current_streak || 0}
                 </div>
                 <div style={{ fontSize: 11, opacity: 0.7 }}>série</div>
               </div>
@@ -267,18 +286,14 @@ export default function ProfilePage() {
           </div>
 
           {/* Actions */}
-          <div style={{ 
-            display: 'flex', 
-            gap: 10,
-            marginBottom: 24
-          }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             <button
               onClick={copyProfileLink}
               style={{
                 flex: 1,
                 padding: '14px 20px',
-                background: copied ? '#dcfce7' : '#f5f5f5',
-                color: copied ? '#166534' : '#1a1a1a',
+                background: copied ? '#dcfce7' : '#1a1a1a',
+                color: copied ? '#166534' : '#fff',
                 border: 'none',
                 borderRadius: 12,
                 fontSize: 14,
@@ -286,15 +301,15 @@ export default function ProfilePage() {
                 cursor: 'pointer'
               }}
             >
-              {copied ? '✓ Copié !' : '🔗 Copier le lien'}
+              {copied ? '✓ Copié !' : '📋 Copier le lien'}
             </button>
             <Link
               href={`/player/${profile?.id}`}
               target="_blank"
               style={{
                 padding: '14px 20px',
-                background: '#1a1a1a',
-                color: '#fff',
+                background: '#f5f5f5',
+                color: '#1a1a1a',
                 border: 'none',
                 borderRadius: 12,
                 fontSize: 14,
@@ -307,40 +322,26 @@ export default function ProfilePage() {
             </Link>
           </div>
 
-          {/* Astuce Facebook */}
+          {/* Exemple d'utilisation */}
           <div style={{
-            background: '#eff6ff',
-            borderRadius: 16,
-            padding: 20,
-            border: '1px solid #bfdbfe'
+            background: '#f9fafb',
+            borderRadius: 12,
+            padding: 16,
+            border: '1px solid #eee'
           }}>
-            <h3 style={{ fontSize: 14, fontWeight: '600', color: '#1e40af', margin: '0 0 8px' }}>
-              💡 Astuce pour les groupes Facebook
-            </h3>
-            <p style={{ fontSize: 13, color: '#1e40af', margin: '0 0 12px', lineHeight: 1.5 }}>
-              Au lieu de commenter "Moi !", colle ton lien PadelMatch. 
-              L'organisateur verra directement ton niveau et tes stats !
-            </p>
-            <button
-              onClick={copyProfileLink}
-              style={{
-                padding: '10px 16px',
-                background: '#1e40af',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              📋 Copier mon lien
-            </button>
+            <div style={{ fontSize: 13, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 }}>
+              📘 Comment l'utiliser sur Facebook ?
+            </div>
+            <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+              1. Trouve un post "Cherche joueurs"<br/>
+              2. Au lieu de "Moi !", colle ton lien<br/>
+              3. L'orga voit ton profil complet 👍
+            </div>
           </div>
         </div>
       )}
 
-      {/* Tab: Stats */}
+      {/* === TAB: STATS === */}
       {activeTab === 'stats' && (
         <div>
           {/* Stats principales */}
@@ -358,7 +359,7 @@ export default function ProfilePage() {
               border: '1px solid #eee'
             }}>
               <div style={{ fontSize: 32, fontWeight: '700', color: '#1a1a1a' }}>
-                {stats.played}
+                {profile?.matches_played || 0}
               </div>
               <div style={{ fontSize: 13, color: '#666' }}>Parties jouées</div>
             </div>
@@ -370,7 +371,7 @@ export default function ProfilePage() {
               border: '1px solid #eee'
             }}>
               <div style={{ fontSize: 32, fontWeight: '700', color: '#16a34a' }}>
-                {stats.won}
+                {profile?.matches_won || 0}
               </div>
               <div style={{ fontSize: 13, color: '#666' }}>Victoires</div>
             </div>
@@ -387,21 +388,40 @@ export default function ProfilePage() {
               <div style={{ fontSize: 13, color: '#666' }}>Win rate</div>
             </div>
             <div style={{
-              background: stats.streak > 0 ? '#fef3c7' : '#fff',
+              background: profile?.current_streak > 0 ? '#fef3c7' : '#fff',
               borderRadius: 16,
               padding: 20,
               textAlign: 'center',
-              border: stats.streak > 0 ? '2px solid #fbbf24' : '1px solid #eee'
+              border: profile?.current_streak > 0 ? '2px solid #fbbf24' : '1px solid #eee'
             }}>
               <div style={{ fontSize: 32, fontWeight: '700', color: '#f59e0b' }}>
-                🔥 {stats.streak}
+                🔥 {profile?.current_streak || 0}
               </div>
               <div style={{ fontSize: 13, color: '#666' }}>Série actuelle</div>
             </div>
           </div>
 
+          {/* Meilleure série */}
+          {profile?.best_streak > 0 && (
+            <div style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              border: '1px solid #eee',
+              marginBottom: 16,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{ color: '#666' }}>Meilleure série</span>
+              <span style={{ fontWeight: '700', color: '#f59e0b' }}>
+                🏆 {profile.best_streak} victoires
+              </span>
+            </div>
+          )}
+
           {/* Message si pas de parties */}
-          {stats.played === 0 && (
+          {(!profile?.matches_played || profile.matches_played === 0) && (
             <div style={{
               background: '#fff',
               borderRadius: 16,
@@ -452,14 +472,14 @@ export default function ProfilePage() {
                 borderRadius: 8
               }} />
             </div>
-            <p style={{ fontSize: 12, color: '#666', marginTop: 8 }}>
+            <p style={{ fontSize: 12, color: '#666', marginTop: 8, marginBottom: 0 }}>
               Les joueurs fiables sont plus souvent invités
             </p>
           </div>
         </div>
       )}
 
-      {/* Tab: Réglages */}
+      {/* === TAB: RÉGLAGES === */}
       {activeTab === 'settings' && (
         <div>
           {/* Infos profil */}
@@ -527,14 +547,14 @@ export default function ProfilePage() {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#666' }}>Lydia</span>
+                <span style={{ color: '#666' }}>💜 Lydia</span>
                 <span style={{ fontWeight: '500' }}>
                   {profile?.lydia_username ? `@${profile.lydia_username}` : '-'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#666' }}>PayPal</span>
-                <span style={{ fontWeight: '500' }}>{profile?.paypal_email || '-'}</span>
+                <span style={{ color: '#666' }}>💙 PayPal</span>
+                <span style={{ fontWeight: '500', fontSize: 13 }}>{profile?.paypal_email || '-'}</span>
               </div>
             </div>
 
@@ -620,7 +640,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Modal édition */}
+      {/* === MODAL ÉDITION === */}
       {showEditModal && (
         <div style={{
           position: 'fixed',
@@ -640,7 +660,7 @@ export default function ProfilePage() {
             padding: 24,
             width: '100%',
             maxWidth: 400,
-            maxHeight: '80vh',
+            maxHeight: '85vh',
             overflow: 'auto'
           }}>
             <h2 style={{ fontSize: 20, fontWeight: '700', margin: '0 0 20px' }}>
@@ -673,21 +693,21 @@ export default function ProfilePage() {
                 <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
                   Niveau (1-10)
                 </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => (
                     <button
                       key={level}
                       type="button"
                       onClick={() => setEditData({ ...editData, level: level.toString() })}
                       style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 10,
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
                         border: '2px solid',
                         borderColor: editData.level === level.toString() ? '#1a1a1a' : '#eee',
                         background: editData.level === level.toString() ? '#1a1a1a' : '#fff',
                         color: editData.level === level.toString() ? '#fff' : '#666',
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: '600',
                         cursor: 'pointer'
                       }}
@@ -715,13 +735,13 @@ export default function ProfilePage() {
                       onClick={() => setEditData({ ...editData, position: pos.id })}
                       style={{
                         flex: 1,
-                        padding: '12px 8px',
-                        borderRadius: 10,
+                        padding: '10px 6px',
+                        borderRadius: 8,
                         border: '2px solid',
                         borderColor: editData.position === pos.id ? '#1a1a1a' : '#eee',
                         background: editData.position === pos.id ? '#1a1a1a' : '#fff',
                         color: editData.position === pos.id ? '#fff' : '#666',
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: '500',
                         cursor: 'pointer'
                       }}

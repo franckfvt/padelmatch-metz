@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [user, setUser] = useState(null)
@@ -15,17 +15,23 @@ export default function DashboardPage() {
   const [clubs, setClubs] = useState([])
   const [loading, setLoading] = useState(true)
   
-  // Modal création rapide
+  // Modal création
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newMatch, setNewMatch] = useState({
     club_id: '',
     date: '',
     time: '',
-    level: 'all'
+    level: 'all',
+    price_total: '',
+    private_notes: ''
   })
+  
+  // Modal succès (après création)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [createdMatchId, setCreatedMatchId] = useState(null)
+  const [copied, setCopied] = useState(false)
 
-  // Ouvrir modal si ?create=true
   useEffect(() => {
     if (searchParams.get('create') === 'true') {
       setShowCreate(true)
@@ -46,7 +52,6 @@ export default function DashboardPage() {
 
       setUser(session.user)
 
-      // Profil
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -63,7 +68,7 @@ export default function DashboardPage() {
 
       setClubs(clubsData || [])
 
-      // Mes parties (organisateur ou participant)
+      // Mes parties (organisateur)
       const { data: myMatchesData } = await supabase
         .from('matches')
         .select(`
@@ -72,10 +77,11 @@ export default function DashboardPage() {
           profiles!matches_organizer_id_fkey (id, name, level, position),
           match_participants (
             user_id,
+            status,
             profiles (id, name, level, position)
           )
         `)
-        .or(`organizer_id.eq.${session.user.id}`)
+        .eq('organizer_id', session.user.id)
         .gte('match_date', new Date().toISOString().split('T')[0])
         .in('status', ['open', 'full'])
         .order('match_date', { ascending: true })
@@ -86,10 +92,10 @@ export default function DashboardPage() {
         .from('match_participants')
         .select('match_id')
         .eq('user_id', session.user.id)
+        .eq('status', 'confirmed')
 
       const participatingIds = participatingData?.map(p => p.match_id) || []
 
-      // Combiner et filtrer
       let allMyMatches = myMatchesData || []
       
       if (participatingIds.length > 0) {
@@ -101,6 +107,7 @@ export default function DashboardPage() {
             profiles!matches_organizer_id_fkey (id, name, level, position),
             match_participants (
               user_id,
+              status,
               profiles (id, name, level, position)
             )
           `)
@@ -109,7 +116,6 @@ export default function DashboardPage() {
           .in('status', ['open', 'full'])
           .order('match_date', { ascending: true })
 
-        // Fusionner sans doublons
         const existingIds = allMyMatches.map(m => m.id)
         participatingMatches?.forEach(m => {
           if (!existingIds.includes(m.id)) {
@@ -118,7 +124,6 @@ export default function DashboardPage() {
         })
       }
 
-      // Trier par date
       allMyMatches.sort((a, b) => {
         const dateA = new Date(`${a.match_date}T${a.match_time}`)
         const dateB = new Date(`${b.match_date}T${b.match_time}`)
@@ -127,7 +132,7 @@ export default function DashboardPage() {
 
       setMyMatches(allMyMatches)
 
-      // Parties disponibles (pas les miennes)
+      // Parties disponibles
       const { data: availableData } = await supabase
         .from('matches')
         .select(`
@@ -136,6 +141,7 @@ export default function DashboardPage() {
           profiles!matches_organizer_id_fkey (id, name, level, position),
           match_participants (
             user_id,
+            status,
             profiles (id, name, level, position)
           )
         `)
@@ -145,7 +151,6 @@ export default function DashboardPage() {
         .order('match_date', { ascending: true })
         .limit(10)
 
-      // Filtrer celles où je suis déjà inscrit
       const available = (availableData || []).filter(m => 
         !participatingIds.includes(m.id)
       )
@@ -177,6 +182,8 @@ export default function DashboardPage() {
           match_date: newMatch.date,
           match_time: newMatch.time,
           level_required: newMatch.level,
+          price_total: newMatch.price_total ? parseFloat(newMatch.price_total) : null,
+          private_notes: newMatch.private_notes || null,
           spots_total: 4,
           spots_available: 3,
           status: 'open'
@@ -186,9 +193,23 @@ export default function DashboardPage() {
 
       if (error) throw error
 
-      // Fermer modal et aller sur la partie
+      // Fermer modal création, ouvrir modal succès
       setShowCreate(false)
-      router.push(`/dashboard/match/${data.id}`)
+      setCreatedMatchId(data.id)
+      setShowSuccess(true)
+      
+      // Reset form
+      setNewMatch({
+        club_id: '',
+        date: '',
+        time: '',
+        level: 'all',
+        price_total: '',
+        private_notes: ''
+      })
+      
+      // Recharger les données
+      loadData()
 
     } catch (error) {
       console.error('Error creating match:', error)
@@ -198,19 +219,30 @@ export default function DashboardPage() {
     }
   }
 
+  function copyInviteLink() {
+    const link = `${window.location.origin}/join/${createdMatchId}`
+    navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function shareWhatsApp() {
+    const link = `${window.location.origin}/join/${createdMatchId}`
+    const club = clubs.find(c => c.id === parseInt(newMatch.club_id))?.name || 'padel'
+    const message = `🎾 Qui pour une partie de padel ?\n\n📍 ${club}\n📅 ${formatDate(newMatch.date)} à ${newMatch.time}\n\n👉 ${link}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+  }
+
   function formatDate(dateStr) {
+    if (!dateStr) return ''
     const date = new Date(dateStr)
     const today = new Date()
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    if (date.toDateString() === today.toDateString()) {
-      return "Aujourd'hui"
-    } else if (date.toDateString() === tomorrow.toDateString()) {
-      return "Demain"
-    } else {
-      return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-    }
+    if (date.toDateString() === today.toDateString()) return "Aujourd'hui"
+    if (date.toDateString() === tomorrow.toDateString()) return "Demain"
+    return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
   }
 
   function formatTime(timeStr) {
@@ -218,16 +250,8 @@ export default function DashboardPage() {
   }
 
   function getPlayerCount(match) {
-    return 1 + (match.match_participants?.length || 0)
-  }
-
-  function getLevelLabel(level) {
-    const labels = {
-      'all': 'Tous niveaux',
-      '1': '1', '2': '2', '3': '3', '4': '4', '5': '5',
-      '6': '6', '7': '7', '8': '8', '9': '9', '10': '10'
-    }
-    return labels[level] || level
+    const confirmed = match.match_participants?.filter(p => p.status === 'confirmed').length || 0
+    return 1 + confirmed
   }
 
   if (loading) {
@@ -242,7 +266,7 @@ export default function DashboardPage() {
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: '0 auto' }}>
       
-      {/* Header avec bouton créer */}
+      {/* Header */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -278,6 +302,75 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      {/* Quick actions si nouveau */}
+      {myMatches.length === 0 && availableMatches.length === 0 && (
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          padding: 24,
+          marginBottom: 24,
+          border: '1px solid #eee',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎾</div>
+          <h2 style={{ fontSize: 18, fontWeight: '600', margin: '0 0 8px' }}>
+            Bienvenue sur PadelMatch !
+          </h2>
+          <p style={{ color: '#666', margin: '0 0 20px', fontSize: 14 }}>
+            Tu es niveau {profile?.level}/10, position {profile?.position === 'left' ? 'Gauche' : profile?.position === 'right' ? 'Droite' : 'Les deux'}
+          </p>
+          
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setShowCreate(true)}
+              style={{
+                padding: '14px 24px',
+                background: '#1a1a1a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              + Créer une partie
+            </button>
+            <Link
+              href="/dashboard/profile"
+              style={{
+                padding: '14px 24px',
+                background: '#f5f5f5',
+                color: '#1a1a1a',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: '600',
+                textDecoration: 'none'
+              }}
+            >
+              Voir ma carte
+            </Link>
+          </div>
+
+          {/* Astuce Facebook */}
+          <div style={{
+            background: '#eff6ff',
+            borderRadius: 12,
+            padding: 16,
+            marginTop: 20,
+            textAlign: 'left'
+          }}>
+            <div style={{ fontSize: 13, fontWeight: '600', color: '#1e40af', marginBottom: 4 }}>
+              💡 Astuce
+            </div>
+            <div style={{ fontSize: 13, color: '#1e40af' }}>
+              Partage ton lien de profil sur les groupes Facebook pour te faire connaître !
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mes prochaines parties */}
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 12 }}>
@@ -288,27 +381,11 @@ export default function DashboardPage() {
           <div style={{
             background: '#fff',
             borderRadius: 16,
-            padding: 32,
+            padding: 24,
             textAlign: 'center',
             border: '1px solid #eee'
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🎾</div>
-            <p style={{ color: '#666', marginBottom: 16 }}>Aucune partie prévue</p>
-            <button
-              onClick={() => setShowCreate(true)}
-              style={{
-                padding: '12px 24px',
-                background: '#1a1a1a',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              Créer ma première partie
-            </button>
+            <p style={{ color: '#666', margin: 0 }}>Aucune partie prévue</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -329,7 +406,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div style={{ 
-                      fontSize: 14, 
+                      fontSize: 15, 
                       fontWeight: '600', 
                       color: '#1a1a1a',
                       marginBottom: 4
@@ -341,11 +418,11 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div style={{
-                    background: match.status === 'full' ? '#dcfce7' : '#fef3c7',
-                    color: match.status === 'full' ? '#166534' : '#92400e',
+                    background: getPlayerCount(match) >= 4 ? '#dcfce7' : '#fef3c7',
+                    color: getPlayerCount(match) >= 4 ? '#166534' : '#92400e',
                     padding: '4px 10px',
                     borderRadius: 8,
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: '600'
                   }}>
                     {getPlayerCount(match)}/4
@@ -359,31 +436,28 @@ export default function DashboardPage() {
                   marginTop: 12,
                   flexWrap: 'wrap'
                 }}>
-                  {/* Organisateur */}
                   <span style={{
-                    background: '#f5f5f5',
+                    background: match.organizer_id === user?.id ? '#1a1a1a' : '#f5f5f5',
+                    color: match.organizer_id === user?.id ? '#fff' : '#1a1a1a',
                     padding: '4px 10px',
                     borderRadius: 6,
-                    fontSize: 12,
-                    color: '#1a1a1a'
+                    fontSize: 12
                   }}>
                     👑 {match.profiles?.name?.split(' ')[0]}
                   </span>
                   
-                  {/* Participants */}
-                  {match.match_participants?.map(p => (
+                  {match.match_participants?.filter(p => p.status === 'confirmed').map(p => (
                     <span key={p.user_id} style={{
-                      background: '#f5f5f5',
+                      background: p.user_id === user?.id ? '#1a1a1a' : '#f5f5f5',
+                      color: p.user_id === user?.id ? '#fff' : '#666',
                       padding: '4px 10px',
                       borderRadius: 6,
-                      fontSize: 12,
-                      color: '#666'
+                      fontSize: 12
                     }}>
                       {p.profiles?.name?.split(' ')[0]}
                     </span>
                   ))}
                   
-                  {/* Places restantes */}
                   {Array(4 - getPlayerCount(match)).fill(0).map((_, i) => (
                     <span key={i} style={{
                       background: '#fff',
@@ -402,7 +476,7 @@ export default function DashboardPage() {
                   <div style={{
                     marginTop: 10,
                     fontSize: 11,
-                    color: '#2e7d32',
+                    color: '#16a34a',
                     fontWeight: '500'
                   }}>
                     👑 Tu organises
@@ -438,7 +512,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div style={{ 
-                      fontSize: 14, 
+                      fontSize: 15, 
                       fontWeight: '600', 
                       color: '#1a1a1a',
                       marginBottom: 4
@@ -451,10 +525,10 @@ export default function DashboardPage() {
                     {match.level_required && match.level_required !== 'all' && (
                       <div style={{ 
                         fontSize: 12, 
-                        color: '#2e7d32',
+                        color: '#16a34a',
                         marginTop: 4 
                       }}>
-                        Niveau {getLevelLabel(match.level_required)}+
+                        Niveau {match.level_required}+
                       </div>
                     )}
                   </div>
@@ -463,7 +537,7 @@ export default function DashboardPage() {
                     color: '#92400e',
                     padding: '4px 10px',
                     borderRadius: 8,
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: '600'
                   }}>
                     {getPlayerCount(match)}/4
@@ -471,14 +545,11 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  gap: 8, 
-                  marginTop: 10,
                   fontSize: 13,
-                  color: '#666'
+                  color: '#666',
+                  marginTop: 10
                 }}>
-                  <span>Organisé par {match.profiles?.name?.split(' ')[0]}</span>
+                  Organisé par {match.profiles?.name?.split(' ')[0]}
                 </div>
               </Link>
             ))}
@@ -486,7 +557,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Modal création rapide */}
+      {/* === MODAL CRÉATION === */}
       {showCreate && (
         <div style={{
           position: 'fixed',
@@ -506,14 +577,14 @@ export default function DashboardPage() {
             padding: 24,
             width: '100%',
             maxWidth: 500,
-            maxHeight: '80vh',
+            maxHeight: '85vh',
             overflow: 'auto'
           }}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center',
-              marginBottom: 24
+              marginBottom: 20
             }}>
               <h2 style={{ fontSize: 20, fontWeight: '700', margin: 0 }}>
                 🎾 Nouvelle partie
@@ -535,12 +606,12 @@ export default function DashboardPage() {
 
             <form onSubmit={createMatch}>
               {/* Club */}
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ 
                   display: 'block', 
                   fontSize: 14, 
                   fontWeight: '600',
-                  marginBottom: 8,
+                  marginBottom: 6,
                   color: '#1a1a1a'
                 }}>
                   📍 Où ?
@@ -565,14 +636,14 @@ export default function DashboardPage() {
                 </select>
               </div>
 
-              {/* Date et Heure sur même ligne */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+              {/* Date et Heure */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={{ 
                     display: 'block', 
                     fontSize: 14, 
                     fontWeight: '600',
-                    marginBottom: 8,
+                    marginBottom: 6,
                     color: '#1a1a1a'
                   }}>
                     📅 Quand ?
@@ -597,7 +668,7 @@ export default function DashboardPage() {
                     display: 'block', 
                     fontSize: 14, 
                     fontWeight: '600',
-                    marginBottom: 8,
+                    marginBottom: 6,
                     color: '#1a1a1a'
                   }}>
                     🕐 Heure
@@ -618,29 +689,29 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Niveau (optionnel) */}
-              <div style={{ marginBottom: 24 }}>
+              {/* Niveau */}
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ 
                   display: 'block', 
                   fontSize: 14, 
                   fontWeight: '600',
-                  marginBottom: 8,
+                  marginBottom: 6,
                   color: '#1a1a1a'
                 }}>
                   🎯 Niveau minimum <span style={{ color: '#999', fontWeight: '400' }}>(optionnel)</span>
                 </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   <button
                     type="button"
                     onClick={() => setNewMatch({ ...newMatch, level: 'all' })}
                     style={{
-                      padding: '10px 16px',
-                      borderRadius: 10,
+                      padding: '8px 14px',
+                      borderRadius: 8,
                       border: '2px solid',
                       borderColor: newMatch.level === 'all' ? '#1a1a1a' : '#eee',
                       background: newMatch.level === 'all' ? '#1a1a1a' : '#fff',
                       color: newMatch.level === 'all' ? '#fff' : '#666',
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: '500',
                       cursor: 'pointer'
                     }}
@@ -653,22 +724,88 @@ export default function DashboardPage() {
                       type="button"
                       onClick={() => setNewMatch({ ...newMatch, level: level.toString() })}
                       style={{
-                        padding: '10px 14px',
-                        borderRadius: 10,
+                        padding: '8px 12px',
+                        borderRadius: 8,
                         border: '2px solid',
                         borderColor: newMatch.level === level.toString() ? '#1a1a1a' : '#eee',
                         background: newMatch.level === level.toString() ? '#1a1a1a' : '#fff',
                         color: newMatch.level === level.toString() ? '#fff' : '#666',
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: '500',
                         cursor: 'pointer',
-                        minWidth: 44
+                        minWidth: 40
                       }}
                     >
                       {level}
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Prix */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: 14, 
+                  fontWeight: '600',
+                  marginBottom: 6,
+                  color: '#1a1a1a'
+                }}>
+                  💰 Prix du terrain <span style={{ color: '#999', fontWeight: '400' }}>(optionnel)</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    value={newMatch.price_total}
+                    onChange={(e) => setNewMatch({ ...newMatch, price_total: e.target.value })}
+                    placeholder="60"
+                    style={{
+                      width: '100%',
+                      padding: '14px 40px 14px 14px',
+                      borderRadius: 12,
+                      border: '2px solid #eee',
+                      fontSize: 16
+                    }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    right: 14,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#999'
+                  }}>€</span>
+                </div>
+                {newMatch.price_total && (
+                  <div style={{ fontSize: 13, color: '#16a34a', marginTop: 6 }}>
+                    → {(parseFloat(newMatch.price_total) / 4).toFixed(0)}€ par personne
+                  </div>
+                )}
+              </div>
+
+              {/* Notes privées */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: 14, 
+                  fontWeight: '600',
+                  marginBottom: 6,
+                  color: '#1a1a1a'
+                }}>
+                  📝 Infos pratiques <span style={{ color: '#999', fontWeight: '400' }}>(optionnel)</span>
+                </label>
+                <input
+                  type="text"
+                  value={newMatch.private_notes}
+                  onChange={(e) => setNewMatch({ ...newMatch, private_notes: e.target.value })}
+                  placeholder="Terrain 3, code portail 1234..."
+                  style={{
+                    width: '100%',
+                    padding: 14,
+                    borderRadius: 12,
+                    border: '2px solid #eee',
+                    fontSize: 16
+                  }}
+                />
               </div>
 
               {/* Bouton créer */}
@@ -693,6 +830,158 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* === MODAL SUCCÈS === */}
+      {showSuccess && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 200,
+          padding: 20
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 24,
+            padding: 32,
+            width: '100%',
+            maxWidth: 400,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+            <h2 style={{ fontSize: 22, fontWeight: '700', margin: '0 0 8px' }}>
+              Partie créée !
+            </h2>
+            <p style={{ color: '#666', margin: '0 0 24px', fontSize: 15 }}>
+              Partage le lien pour inviter des joueurs
+            </p>
+
+            {/* Lien */}
+            <div style={{
+              background: '#f5f5f5',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+              wordBreak: 'break-all',
+              fontSize: 13,
+              color: '#666'
+            }}>
+              {typeof window !== 'undefined' && `${window.location.origin}/join/${createdMatchId}`}
+            </div>
+
+            {/* Bouton copier */}
+            <button
+              onClick={copyInviteLink}
+              style={{
+                width: '100%',
+                padding: 14,
+                background: copied ? '#dcfce7' : '#1a1a1a',
+                color: copied ? '#166534' : '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: '600',
+                cursor: 'pointer',
+                marginBottom: 10
+              }}
+            >
+              {copied ? '✓ Lien copié !' : '📋 Copier le lien'}
+            </button>
+
+            {/* Partage rapide */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <button
+                onClick={shareWhatsApp}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: '#dcfce7',
+                  color: '#166534',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                📱 WhatsApp
+              </button>
+              <button
+                onClick={() => {
+                  const link = `${window.location.origin}/join/${createdMatchId}`
+                  navigator.clipboard.writeText(link)
+                  alert('Lien copié ! Colle-le sur Facebook.')
+                }}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: '#dbeafe',
+                  color: '#1e40af',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                📘 Facebook
+              </button>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setShowSuccess(false)}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: '#f5f5f5',
+                  color: '#666',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  cursor: 'pointer'
+                }}
+              >
+                Fermer
+              </button>
+              <Link
+                href={`/dashboard/match/${createdMatchId}`}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: '#f5f5f5',
+                  color: '#1a1a1a',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  textAlign: 'center'
+                }}
+              >
+                Voir la partie →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ padding: 20, textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 16 }}>🎾</div>
+        <div style={{ color: '#666' }}>Chargement...</div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }

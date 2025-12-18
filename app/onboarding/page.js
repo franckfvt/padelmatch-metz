@@ -9,13 +9,21 @@ export default function OnboardingPage() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [step, setStep] = useState(1) // 1: Nom, 2: Niveau, 3: Position
+  const [step, setStep] = useState(1) // 1: Nom, 2: Niveau, 3: Position, 4: Preview
 
   const [formData, setFormData] = useState({
     name: '',
     level: '',
     position: ''
   })
+
+  const [copied, setCopied] = useState(false)
+
+  const positionLabels = {
+    'left': 'Gauche',
+    'right': 'Droite',
+    'both': 'Les deux'
+  }
 
   useEffect(() => {
     checkAuth()
@@ -44,7 +52,7 @@ export default function OnboardingPage() {
 
     // Pré-remplir avec les données existantes
     setFormData({
-      name: profile?.name || session.user.user_metadata?.name || '',
+      name: profile?.name || session.user.user_metadata?.name?.split(' ')[0] || '',
       level: profile?.level?.toString() || '',
       position: profile?.position || ''
     })
@@ -72,11 +80,13 @@ export default function OnboardingPage() {
 
       if (error) throw error
 
-      router.push('/dashboard')
+      // Aller à l'étape preview
+      setStep(4)
+      setSaving(false)
+
     } catch (error) {
       console.error('Error:', error)
       alert('Erreur lors de la sauvegarde')
-    } finally {
       setSaving(false)
     }
   }
@@ -95,6 +105,24 @@ export default function OnboardingPage() {
       saveProfile()
     } else {
       setStep(step + 1)
+    }
+  }
+
+  function copyProfileLink() {
+    const link = `${window.location.origin}/player/${user?.id}`
+    navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function goToDashboard() {
+    // Vérifier s'il y a une redirection stockée
+    const redirect = sessionStorage.getItem('redirectAfterOnboarding')
+    if (redirect) {
+      sessionStorage.removeItem('redirectAfterOnboarding')
+      router.push(redirect)
+    } else {
+      router.push('/dashboard')
     }
   }
 
@@ -134,26 +162,28 @@ export default function OnboardingPage() {
         </div>
 
         {/* Indicateur d'étapes */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          gap: 8, 
-          marginBottom: 32 
-        }}>
-          {[1, 2, 3].map(s => (
-            <div
-              key={s}
-              style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                background: s <= step ? '#1a1a1a' : '#e5e5e5'
-              }}
-            />
-          ))}
-        </div>
+        {step < 4 && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: 8, 
+            marginBottom: 32 
+          }}>
+            {[1, 2, 3].map(s => (
+              <div
+                key={s}
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  background: s <= step ? '#1a1a1a' : '#e5e5e5'
+                }}
+              />
+            ))}
+          </div>
+        )}
 
-        {/* Étape 1: Nom */}
+        {/* === ÉTAPE 1: NOM === */}
         {step === 1 && (
           <div style={{
             background: '#fff',
@@ -203,7 +233,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Étape 2: Niveau */}
+        {/* === ÉTAPE 2: NIVEAU === */}
         {step === 2 && (
           <div style={{
             background: '#fff',
@@ -310,7 +340,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Étape 3: Position */}
+        {/* === ÉTAPE 3: POSITION === */}
         {step === 3 && (
           <div style={{
             background: '#fff',
@@ -392,7 +422,7 @@ export default function OnboardingPage() {
                   cursor: saving ? 'not-allowed' : 'pointer'
                 }}
               >
-                {saving ? 'Création...' : '🎾 C\'est parti !'}
+                {saving ? 'Création...' : 'Créer mon profil →'}
               </button>
             </div>
 
@@ -415,6 +445,188 @@ export default function OnboardingPage() {
             >
               Passer cette étape
             </button>
+          </div>
+        )}
+
+        {/* === ÉTAPE 4: PREVIEW CARTE === */}
+        {step === 4 && (
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
+              <h2 style={{ fontSize: 22, fontWeight: '700', margin: '0 0 4px' }}>
+                Ton profil est prêt !
+              </h2>
+              <p style={{ color: '#666', margin: 0 }}>
+                Voici ta carte de joueur
+              </p>
+            </div>
+
+            {/* La carte */}
+            <div style={{
+              background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+              borderRadius: 20,
+              padding: 24,
+              color: '#fff',
+              marginBottom: 20
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'flex-start',
+                marginBottom: 20
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 24 }}>🎾</span>
+                  <span style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>PADELMATCH</span>
+                </div>
+                <div style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 12
+                }}>
+                  ✅ 100% fiable
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <h2 style={{ 
+                  fontSize: 28, 
+                  fontWeight: '700', 
+                  margin: '0 0 8px',
+                  letterSpacing: '-0.5px'
+                }}>
+                  {formData.name}
+                </h2>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{
+                    background: '#fbbf24',
+                    color: '#1a1a1a',
+                    padding: '6px 14px',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: '700'
+                  }}>
+                    ⭐ {formData.level}/10
+                  </span>
+                  {formData.position && (
+                    <span style={{
+                      background: 'rgba(255,255,255,0.15)',
+                      padding: '6px 14px',
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: '500'
+                    }}>
+                      🎾 {positionLabels[formData.position]}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(3, 1fr)', 
+                gap: 12,
+                paddingTop: 16,
+                borderTop: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 24, fontWeight: '700' }}>0</div>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>parties</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 24, fontWeight: '700' }}>0%</div>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>victoires</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 24, fontWeight: '700', color: '#fbbf24' }}>🔥0</div>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>série</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Copier le lien */}
+            <button
+              onClick={copyProfileLink}
+              style={{
+                width: '100%',
+                padding: 14,
+                background: copied ? '#dcfce7' : '#f5f5f5',
+                color: copied ? '#166534' : '#1a1a1a',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: '600',
+                cursor: 'pointer',
+                marginBottom: 20
+              }}
+            >
+              {copied ? '✓ Lien copié !' : '📋 Copier le lien de ma carte'}
+            </button>
+
+            {/* Astuce Facebook */}
+            <div style={{
+              background: '#eff6ff',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 24,
+              border: '1px solid #bfdbfe'
+            }}>
+              <div style={{ fontSize: 13, fontWeight: '600', color: '#1e40af', marginBottom: 4 }}>
+                💡 Astuce pour les groupes Facebook
+              </div>
+              <div style={{ fontSize: 13, color: '#1e40af', lineHeight: 1.5 }}>
+                Colle ton lien quand tu réponds à un post "Cherche joueurs". L'organisateur verra directement ton niveau !
+              </div>
+            </div>
+
+            {/* Question : que faire ? */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ 
+                fontSize: 14, 
+                fontWeight: '600', 
+                color: '#1a1a1a',
+                marginBottom: 12,
+                textAlign: 'center'
+              }}>
+                Que veux-tu faire ?
+              </div>
+              
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => router.push('/dashboard?create=true')}
+                  style={{
+                    flex: 1,
+                    padding: 16,
+                    background: '#1a1a1a',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🎾 Créer une partie
+                </button>
+                <button
+                  onClick={goToDashboard}
+                  style={{
+                    flex: 1,
+                    padding: 16,
+                    background: '#fff',
+                    color: '#1a1a1a',
+                    border: '2px solid #1a1a1a',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔍 Rejoindre
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
