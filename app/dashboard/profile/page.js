@@ -1,66 +1,34 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function ProfilePage() {
   const router = useRouter()
+  const cardRef = useRef(null)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [recentMatches, setRecentMatches] = useState([])
+  const [stats, setStats] = useState({ played: 0, won: 0, streak: 0 })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState('stats')
+  const [activeTab, setActiveTab] = useState('card')
   const [copied, setCopied] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const [editData, setEditData] = useState({
     name: '',
-    experience: '',
-    ambiance: '',
+    level: '',
+    position: '',
     lydia_username: '',
-    paypal_email: '',
-    rib: ''
+    paypal_email: ''
   })
 
-  const experienceOptions = [
-    { id: 'less6months', label: 'Débutant', emoji: '🌱', desc: 'Moins de 6 mois' },
-    { id: '6months2years', label: 'Intermédiaire', emoji: '📈', desc: '6 mois - 2 ans' },
-    { id: '2to5years', label: 'Confirmé', emoji: '💪', desc: '2 - 5 ans' },
-    { id: 'more5years', label: 'Expert', emoji: '🏆', desc: 'Plus de 5 ans' }
-  ]
-
-  const ambianceOptions = [
-    { id: 'loisir', label: 'Détente', emoji: '😎', desc: 'Fun et convivial' },
-    { id: 'mix', label: 'Équilibré', emoji: '⚡', desc: 'Fun mais on joue bien' },
-    { id: 'compet', label: 'Compétitif', emoji: '🏆', desc: 'On est là pour gagner' }
-  ]
-
-  const experienceLabels = {
-    'less6months': 'Débutant',
-    '6months2years': 'Intermédiaire',
-    '2to5years': 'Confirmé',
-    'more5years': 'Expert'
-  }
-
-  const experienceEmojis = {
-    'less6months': '🌱',
-    '6months2years': '📈',
-    '2to5years': '💪',
-    'more5years': '🏆'
-  }
-
-  const ambianceLabels = {
-    'loisir': 'Détente',
-    'mix': 'Équilibré',
-    'compet': 'Compétitif'
-  }
-
-  const ambianceEmojis = {
-    'loisir': '😎',
-    'mix': '⚡',
-    'compet': '🏆'
+  const positionLabels = {
+    'left': 'Gauche',
+    'right': 'Droite',
+    'both': 'Les deux'
   }
 
   useEffect(() => {
@@ -86,30 +54,22 @@ export default function ProfilePage() {
       setProfile(profileData)
       setEditData({
         name: profileData?.name || '',
-        experience: profileData?.experience || '',
-        ambiance: profileData?.ambiance || '',
+        level: profileData?.level || '',
+        position: profileData?.position || '',
         lydia_username: profileData?.lydia_username || '',
-        paypal_email: profileData?.paypal_email || '',
-        rib: profileData?.rib || ''
+        paypal_email: profileData?.paypal_email || ''
       })
 
-      // Charger les parties récentes
-      const { data: matchesData } = await supabase
-        .from('matches')
-        .select(`
-          *,
-          clubs (name)
-        `)
-        .or(`organizer_id.eq.${session.user.id},team_a.cs.{${session.user.id}},team_b.cs.{${session.user.id}}`)
-        .eq('status', 'completed')
-        .order('match_date', { ascending: false })
-        .limit(10)
+      // Calculer les stats
+      setStats({
+        played: profileData?.matches_played || 0,
+        won: profileData?.matches_won || 0,
+        streak: profileData?.current_streak || 0
+      })
 
-      setRecentMatches(matchesData || [])
       setLoading(false)
-
     } catch (error) {
-      console.error('Error loading data:', error)
+      console.error('Error:', error)
       setLoading(false)
     }
   }
@@ -123,30 +83,24 @@ export default function ProfilePage() {
         .from('profiles')
         .update({
           name: editData.name,
-          experience: editData.experience,
-          ambiance: editData.ambiance,
+          level: editData.level ? parseInt(editData.level) : null,
+          position: editData.position || null,
           lydia_username: editData.lydia_username || null,
-          paypal_email: editData.paypal_email || null,
-          rib: editData.rib || null
+          paypal_email: editData.paypal_email || null
         })
         .eq('id', user.id)
 
       if (error) throw error
 
-      loadData()
+      await loadData()
+      setShowEditModal(false)
       alert('Profil mis à jour !')
-
     } catch (error) {
-      console.error('Error saving profile:', error)
+      console.error('Error:', error)
       alert('Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
     }
-  }
-
-  async function logout() {
-    await supabase.auth.signOut()
-    router.push('/')
   }
 
   function copyProfileLink() {
@@ -156,30 +110,23 @@ export default function ProfilePage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  function shareInstagram() {
-    const link = `${window.location.origin}/player/${profile?.id}`
-    navigator.clipboard.writeText(link)
-    alert('Lien copié ! Tu peux le coller dans ta bio Instagram.')
-  }
-
-  function formatDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-  }
-
   function getWinRate() {
-    if (!profile?.matches_played || profile.matches_played === 0) return 0
-    return Math.round((profile.matches_won || 0) / profile.matches_played * 100)
+    if (!stats.played || stats.played === 0) return 0
+    return Math.round((stats.won / stats.played) * 100)
   }
 
-  function didIWin(match) {
-    if (!match.winner) return null
-    const winningTeam = match.winner === 'team_a' ? match.team_a : match.team_b
-    return winningTeam?.includes(user?.id)
+  function getReliabilityScore() {
+    return profile?.reliability_score || 100
+  }
+
+  async function logout() {
+    await supabase.auth.signOut()
+    router.push('/')
   }
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: 60 }}>
+      <div style={{ padding: 20, textAlign: 'center' }}>
         <div style={{ fontSize: 32, marginBottom: 16 }}>👤</div>
         <div style={{ color: '#666' }}>Chargement...</div>
       </div>
@@ -187,184 +134,35 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      {/* Header Profil */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 24,
-        padding: 32,
-        marginBottom: 24,
-        border: '1px solid #eee',
-        textAlign: 'center'
-      }}>
-        <div style={{
-          width: 100,
-          height: 100,
-          background: '#f5f5f5',
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 48,
-          margin: '0 auto 20px'
-        }}>
-          👤
-        </div>
-        <h1 style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 }}>
-          {profile?.name}
-        </h1>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-          {profile?.experience && (
-            <span style={{
-              background: '#e8f5e9',
-              color: '#2e7d32',
-              padding: '6px 14px',
-              borderRadius: 20,
-              fontSize: 14,
-              fontWeight: '500'
-            }}>
-              {experienceEmojis[profile.experience]} {experienceLabels[profile.experience]}
-            </span>
-          )}
-          {profile?.ambiance && (
-            <span style={{
-              background: profile.ambiance === 'compet' ? '#fef3c7' : 
-                         profile.ambiance === 'loisir' ? '#dbeafe' : '#f3f4f6',
-              color: profile.ambiance === 'compet' ? '#92400e' : 
-                     profile.ambiance === 'loisir' ? '#1e40af' : '#4b5563',
-              padding: '6px 14px',
-              borderRadius: 20,
-              fontSize: 14,
-              fontWeight: '500'
-            }}>
-              {ambianceEmojis[profile.ambiance]} {ambianceLabels[profile.ambiance]}
-            </span>
-          )}
-        </div>
-        <div style={{ color: '#2e7d32', fontWeight: '600', fontSize: 15 }}>
-          ⭐ {profile?.reliability_score || 100}% fiable
-        </div>
-
-        {/* Partager profil */}
-        <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #eee' }}>
-          <button
-            onClick={copyProfileLink}
-            style={{
-              padding: '12px 24px',
-              background: copied ? '#e8f5e9' : '#f5f5f5',
-              color: copied ? '#2e7d32' : '#1a1a1a',
-              border: 'none',
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: '600',
-              cursor: 'pointer',
-              marginRight: 8
-            }}
-          >
-            {copied ? '✓ Lien copié !' : '🔗 Copier mon lien'}
-          </button>
-          <button
-            onClick={shareInstagram}
-            style={{
-              padding: '12px 24px',
-              background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            📸 Pour ma bio Insta
-          </button>
-        </div>
-      </div>
-
-      {/* Stats principales */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 12,
-        marginBottom: 24
-      }}>
-        <div style={{
-          background: '#fff',
-          borderRadius: 16,
-          padding: 20,
-          textAlign: 'center',
-          border: '1px solid #eee'
-        }}>
-          <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>
-            {profile?.matches_played || 0}
-          </div>
-          <div style={{ fontSize: 12, color: '#666' }}>Parties</div>
-        </div>
-        <div style={{
-          background: '#fff',
-          borderRadius: 16,
-          padding: 20,
-          textAlign: 'center',
-          border: '1px solid #eee'
-        }}>
-          <div style={{ fontSize: 28, fontWeight: '700', color: '#2e7d32' }}>
-            {profile?.matches_won || 0}
-          </div>
-          <div style={{ fontSize: 12, color: '#666' }}>Victoires</div>
-        </div>
-        <div style={{
-          background: '#fff',
-          borderRadius: 16,
-          padding: 20,
-          textAlign: 'center',
-          border: '1px solid #eee'
-        }}>
-          <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>
-            {getWinRate()}%
-          </div>
-          <div style={{ fontSize: 12, color: '#666' }}>Win rate</div>
-        </div>
-        <div style={{
-          background: '#fff',
-          borderRadius: 16,
-          padding: 20,
-          textAlign: 'center',
-          border: profile?.current_streak > 0 ? '2px solid #f59e0b' : '1px solid #eee'
-        }}>
-          <div style={{ fontSize: 28, fontWeight: '700', color: '#f59e0b' }}>
-            🔥 {profile?.current_streak || 0}
-          </div>
-          <div style={{ fontSize: 12, color: '#666' }}>Série</div>
-        </div>
-      </div>
-
+    <div style={{ padding: 20, maxWidth: 500, margin: '0 auto' }}>
+      
       {/* Tabs */}
       <div style={{
         display: 'flex',
         background: '#f5f5f5',
         borderRadius: 12,
         padding: 4,
-        marginBottom: 24
+        marginBottom: 20
       }}>
         {[
+          { id: 'card', label: '🪪 Ma carte' },
           { id: 'stats', label: '📊 Stats' },
-          { id: 'edit', label: '✏️ Modifier' },
-          { id: 'payment', label: '💰 Paiement' }
+          { id: 'settings', label: '⚙️ Réglages' }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
               flex: 1,
-              padding: '12px',
+              padding: '10px 16px',
               border: 'none',
               borderRadius: 8,
-              fontSize: 14,
-              fontWeight: '600',
-              cursor: 'pointer',
               background: activeTab === tab.id ? '#fff' : 'transparent',
               color: activeTab === tab.id ? '#1a1a1a' : '#666',
-              boxShadow: activeTab === tab.id ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
+              fontWeight: activeTab === tab.id ? '600' : '400',
+              fontSize: 14,
+              cursor: 'pointer',
+              boxShadow: activeTab === tab.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
             }}
           >
             {tab.label}
@@ -372,281 +170,658 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Tab Stats */}
-      {activeTab === 'stats' && (
-        <div style={{
-          background: '#fff',
-          borderRadius: 20,
-          padding: 24,
-          border: '1px solid #eee'
-        }}>
-          <h2 style={{ fontSize: 18, fontWeight: '700', marginBottom: 20 }}>
-            Historique des parties
-          </h2>
-          {recentMatches.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🎾</div>
-              <p>Aucune partie terminée</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gap: 12 }}>
-              {recentMatches.map(match => {
-                const won = didIWin(match)
-                return (
-                  <Link href={`/dashboard/match/${match.id}`} key={match.id} style={{ textDecoration: 'none' }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 16,
-                      background: '#f5f5f5',
-                      borderRadius: 12,
-                      borderLeft: won === true ? '4px solid #2e7d32' : won === false ? '4px solid #dc2626' : '4px solid #999'
-                    }}>
-                      <div>
-                        <div style={{ fontWeight: '600', color: '#1a1a1a', marginBottom: 4 }}>
-                          {formatDate(match.match_date)} - {match.clubs?.name}
-                        </div>
-                        {match.score_set1_a !== null && (
-                          <div style={{ fontSize: 13, color: '#666' }}>
-                            {match.score_set1_a}-{match.score_set1_b}
-                            {match.score_set2_a !== null && ` / ${match.score_set2_a}-${match.score_set2_b}`}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{
-                        padding: '6px 12px',
-                        background: won === true ? '#e8f5e9' : won === false ? '#fef2f2' : '#f5f5f5',
-                        color: won === true ? '#2e7d32' : won === false ? '#dc2626' : '#666',
-                        borderRadius: 8,
-                        fontSize: 13,
-                        fontWeight: '600'
-                      }}>
-                        {won === true ? '🏆 Victoire' : won === false ? 'Défaite' : 'En cours'}
-                      </div>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab Modifier */}
-      {activeTab === 'edit' && (
-        <div style={{
-          background: '#fff',
-          borderRadius: 20,
-          padding: 24,
-          border: '1px solid #eee'
-        }}>
-          <form onSubmit={saveProfile}>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                Prénom
-              </label>
-              <input
-                type="text"
-                value={editData.name}
-                onChange={e => setEditData({ ...editData, name: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  border: '2px solid #e5e5e5',
-                  borderRadius: 12,
-                  fontSize: 15,
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                Niveau
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                {experienceOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setEditData({ ...editData, experience: opt.id })}
-                    style={{
-                      padding: '12px',
-                      border: editData.experience === opt.id ? '2px solid #2e7d32' : '2px solid #e5e5e5',
-                      borderRadius: 12,
-                      cursor: 'pointer',
-                      background: editData.experience === opt.id ? '#e8f5e9' : '#fff',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.emoji}</div>
-                    <div style={{ fontSize: 13, fontWeight: '600' }}>{opt.label}</div>
-                  </div>
-                ))}
+      {/* Tab: Carte de visite */}
+      {activeTab === 'card' && (
+        <div>
+          {/* La carte */}
+          <div 
+            ref={cardRef}
+            style={{
+              background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+              borderRadius: 20,
+              padding: 24,
+              color: '#fff',
+              marginBottom: 16
+            }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'flex-start',
+              marginBottom: 20
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 24 }}>🎾</span>
+                <span style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>PADELMATCH</span>
+              </div>
+              <div style={{
+                background: 'rgba(255,255,255,0.15)',
+                padding: '4px 10px',
+                borderRadius: 6,
+                fontSize: 12
+              }}>
+                ✅ {getReliabilityScore()}% fiable
               </div>
             </div>
 
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                Ambiance
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {ambianceOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setEditData({ ...editData, ambiance: opt.id })}
-                    style={{
-                      padding: '12px 8px',
-                      border: editData.ambiance === opt.id ? '2px solid #2e7d32' : '2px solid #e5e5e5',
-                      borderRadius: 12,
-                      cursor: 'pointer',
-                      background: editData.ambiance === opt.id ? '#e8f5e9' : '#fff',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.emoji}</div>
-                    <div style={{ fontSize: 12, fontWeight: '600' }}>{opt.label}</div>
-                  </div>
-                ))}
+            {/* Nom et niveau */}
+            <div style={{ marginBottom: 20 }}>
+              <h2 style={{ 
+                fontSize: 28, 
+                fontWeight: '700', 
+                margin: '0 0 8px',
+                letterSpacing: '-0.5px'
+              }}>
+                {profile?.name}
+              </h2>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {profile?.level && (
+                  <span style={{
+                    background: '#fbbf24',
+                    color: '#1a1a1a',
+                    padding: '6px 14px',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: '700'
+                  }}>
+                    ⭐ {profile.level}/10
+                  </span>
+                )}
+                {profile?.position && (
+                  <span style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    padding: '6px 14px',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: '500'
+                  }}>
+                    🎾 {positionLabels[profile.position] || profile.position}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Stats mini */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(3, 1fr)', 
+              gap: 12,
+              paddingTop: 16,
+              borderTop: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: '700' }}>{stats.played}</div>
+                <div style={{ fontSize: 11, opacity: 0.7 }}>parties</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: '700' }}>{getWinRate()}%</div>
+                <div style={{ fontSize: 11, opacity: 0.7 }}>victoires</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: '700', color: '#fbbf24' }}>
+                  🔥{stats.streak}
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.7 }}>série</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ 
+            display: 'flex', 
+            gap: 10,
+            marginBottom: 24
+          }}>
+            <button
+              onClick={copyProfileLink}
+              style={{
+                flex: 1,
+                padding: '14px 20px',
+                background: copied ? '#dcfce7' : '#f5f5f5',
+                color: copied ? '#166534' : '#1a1a1a',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              {copied ? '✓ Copié !' : '🔗 Copier le lien'}
+            </button>
+            <Link
+              href={`/player/${profile?.id}`}
+              target="_blank"
+              style={{
+                padding: '14px 20px',
+                background: '#1a1a1a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: '600',
+                textDecoration: 'none',
+                textAlign: 'center'
+              }}
+            >
+              👁️ Voir
+            </Link>
+          </div>
+
+          {/* Astuce Facebook */}
+          <div style={{
+            background: '#eff6ff',
+            borderRadius: 16,
+            padding: 20,
+            border: '1px solid #bfdbfe'
+          }}>
+            <h3 style={{ fontSize: 14, fontWeight: '600', color: '#1e40af', margin: '0 0 8px' }}>
+              💡 Astuce pour les groupes Facebook
+            </h3>
+            <p style={{ fontSize: 13, color: '#1e40af', margin: '0 0 12px', lineHeight: 1.5 }}>
+              Au lieu de commenter "Moi !", colle ton lien PadelMatch. 
+              L'organisateur verra directement ton niveau et tes stats !
+            </p>
+            <button
+              onClick={copyProfileLink}
+              style={{
+                padding: '10px 16px',
+                background: '#1e40af',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              📋 Copier mon lien
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Stats */}
+      {activeTab === 'stats' && (
+        <div>
+          {/* Stats principales */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 12,
+            marginBottom: 20
+          }}>
+            <div style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 20,
+              textAlign: 'center',
+              border: '1px solid #eee'
+            }}>
+              <div style={{ fontSize: 32, fontWeight: '700', color: '#1a1a1a' }}>
+                {stats.played}
+              </div>
+              <div style={{ fontSize: 13, color: '#666' }}>Parties jouées</div>
+            </div>
+            <div style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 20,
+              textAlign: 'center',
+              border: '1px solid #eee'
+            }}>
+              <div style={{ fontSize: 32, fontWeight: '700', color: '#16a34a' }}>
+                {stats.won}
+              </div>
+              <div style={{ fontSize: 13, color: '#666' }}>Victoires</div>
+            </div>
+            <div style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 20,
+              textAlign: 'center',
+              border: '1px solid #eee'
+            }}>
+              <div style={{ fontSize: 32, fontWeight: '700', color: '#1a1a1a' }}>
+                {getWinRate()}%
+              </div>
+              <div style={{ fontSize: 13, color: '#666' }}>Win rate</div>
+            </div>
+            <div style={{
+              background: stats.streak > 0 ? '#fef3c7' : '#fff',
+              borderRadius: 16,
+              padding: 20,
+              textAlign: 'center',
+              border: stats.streak > 0 ? '2px solid #fbbf24' : '1px solid #eee'
+            }}>
+              <div style={{ fontSize: 32, fontWeight: '700', color: '#f59e0b' }}>
+                🔥 {stats.streak}
+              </div>
+              <div style={{ fontSize: 13, color: '#666' }}>Série actuelle</div>
+            </div>
+          </div>
+
+          {/* Message si pas de parties */}
+          {stats.played === 0 && (
+            <div style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 32,
+              textAlign: 'center',
+              border: '1px solid #eee'
+            }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
+              <p style={{ color: '#666', margin: 0 }}>
+                Tes stats apparaîtront après ta première partie !
+              </p>
+            </div>
+          )}
+
+          {/* Fiabilité */}
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            border: '1px solid #eee',
+            marginTop: 12
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: 12
+            }}>
+              <span style={{ fontSize: 14, fontWeight: '600' }}>Score de fiabilité</span>
+              <span style={{ 
+                fontSize: 18, 
+                fontWeight: '700',
+                color: getReliabilityScore() >= 80 ? '#16a34a' : '#f59e0b'
+              }}>
+                {getReliabilityScore()}%
+              </span>
+            </div>
+            <div style={{
+              background: '#f5f5f5',
+              borderRadius: 8,
+              height: 8,
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                background: getReliabilityScore() >= 80 ? '#16a34a' : '#f59e0b',
+                height: '100%',
+                width: `${getReliabilityScore()}%`,
+                borderRadius: 8
+              }} />
+            </div>
+            <p style={{ fontSize: 12, color: '#666', marginTop: 8 }}>
+              Les joueurs fiables sont plus souvent invités
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Réglages */}
+      {activeTab === 'settings' && (
+        <div>
+          {/* Infos profil */}
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            border: '1px solid #eee',
+            marginBottom: 16
+          }}>
+            <h3 style={{ fontSize: 15, fontWeight: '600', margin: '0 0 16px' }}>
+              Mon profil
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Nom</span>
+                <span style={{ fontWeight: '500' }}>{profile?.name || '-'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Niveau</span>
+                <span style={{ fontWeight: '500' }}>{profile?.level ? `${profile.level}/10` : '-'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Position</span>
+                <span style={{ fontWeight: '500' }}>
+                  {profile?.position ? positionLabels[profile.position] : '-'}
+                </span>
               </div>
             </div>
 
             <button
-              type="submit"
-              disabled={saving}
+              onClick={() => setShowEditModal(true)}
               style={{
                 width: '100%',
-                padding: '18px',
-                background: saving ? '#e5e5e5' : '#1a1a1a',
-                color: saving ? '#999' : '#fff',
+                marginTop: 16,
+                padding: '12px',
+                background: '#f5f5f5',
+                color: '#1a1a1a',
                 border: 'none',
-                borderRadius: 14,
-                fontSize: 16,
+                borderRadius: 10,
+                fontSize: 14,
                 fontWeight: '600',
-                cursor: saving ? 'not-allowed' : 'pointer'
+                cursor: 'pointer'
               }}
             >
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
+              ✏️ Modifier
             </button>
-          </form>
+          </div>
+
+          {/* Moyens de paiement */}
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            border: '1px solid #eee',
+            marginBottom: 16
+          }}>
+            <h3 style={{ fontSize: 15, fontWeight: '600', margin: '0 0 8px' }}>
+              💰 Mes moyens de paiement
+            </h3>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
+              Pour recevoir l'argent quand tu organises
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Lydia</span>
+                <span style={{ fontWeight: '500' }}>
+                  {profile?.lydia_username ? `@${profile.lydia_username}` : '-'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>PayPal</span>
+                <span style={{ fontWeight: '500' }}>{profile?.paypal_email || '-'}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowEditModal(true)}
+              style={{
+                width: '100%',
+                marginTop: 16,
+                padding: '12px',
+                background: '#f5f5f5',
+                color: '#1a1a1a',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              ✏️ Configurer
+            </button>
+          </div>
+
+          {/* Liens secondaires */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            marginBottom: 16
+          }}>
+            <Link
+              href="/dashboard/groups"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+                background: '#fff',
+                borderRadius: 12,
+                border: '1px solid #eee',
+                textDecoration: 'none',
+                color: '#1a1a1a'
+              }}
+            >
+              <span>👥 Mes groupes</span>
+              <span style={{ color: '#999' }}>→</span>
+            </Link>
+            <Link
+              href="/dashboard/polls"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+                background: '#fff',
+                borderRadius: 12,
+                border: '1px solid #eee',
+                textDecoration: 'none',
+                color: '#1a1a1a'
+              }}
+            >
+              <span>📊 Sondages de dispo</span>
+              <span style={{ color: '#999' }}>→</span>
+            </Link>
+          </div>
+
+          {/* Déconnexion */}
+          <button
+            onClick={logout}
+            style={{
+              width: '100%',
+              padding: '14px',
+              background: '#fff',
+              color: '#dc2626',
+              border: '1px solid #fecaca',
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Se déconnecter
+          </button>
         </div>
       )}
 
-      {/* Tab Paiement */}
-      {activeTab === 'payment' && (
+      {/* Modal édition */}
+      {showEditModal && (
         <div style={{
-          background: '#fff',
-          borderRadius: 20,
-          padding: 24,
-          border: '1px solid #eee'
-        }}>
-          <p style={{ color: '#666', marginBottom: 24, fontSize: 14 }}>
-            Configure tes moyens de paiement pour que les autres joueurs puissent te payer facilement quand tu organises une partie.
-          </p>
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 200,
+          padding: 20
+        }}
+        onClick={(e) => e.target === e.currentTarget && setShowEditModal(false)}
+        >
+          <div style={{
+            background: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            width: '100%',
+            maxWidth: 400,
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ fontSize: 20, fontWeight: '700', margin: '0 0 20px' }}>
+              ✏️ Modifier mon profil
+            </h2>
 
-          <form onSubmit={saveProfile}>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                🔵 Lydia (username)
-              </label>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#999' }}>@</span>
+            <form onSubmit={saveProfile}>
+              {/* Nom */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
+                  Prénom
+                </label>
                 <input
                   type="text"
-                  value={editData.lydia_username}
-                  onChange={e => setEditData({ ...editData, lydia_username: e.target.value })}
-                  placeholder="ton-username"
+                  value={editData.name}
+                  onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                   style={{
                     width: '100%',
-                    padding: '14px 16px 14px 36px',
-                    border: '2px solid #e5e5e5',
-                    borderRadius: 12,
-                    fontSize: 15,
-                    boxSizing: 'border-box'
+                    padding: 12,
+                    borderRadius: 10,
+                    border: '2px solid #eee',
+                    fontSize: 16
+                  }}
+                  required
+                />
+              </div>
+
+              {/* Niveau */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
+                  Niveau (1-10)
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setEditData({ ...editData, level: level.toString() })}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 10,
+                        border: '2px solid',
+                        borderColor: editData.level === level.toString() ? '#1a1a1a' : '#eee',
+                        background: editData.level === level.toString() ? '#1a1a1a' : '#fff',
+                        color: editData.level === level.toString() ? '#fff' : '#666',
+                        fontSize: 16,
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Position */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
+                  Position préférée
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[
+                    { id: 'left', label: '⬅️ Gauche' },
+                    { id: 'right', label: '➡️ Droite' },
+                    { id: 'both', label: '↔️ Les deux' }
+                  ].map(pos => (
+                    <button
+                      key={pos.id}
+                      type="button"
+                      onClick={() => setEditData({ ...editData, position: pos.id })}
+                      style={{
+                        flex: 1,
+                        padding: '12px 8px',
+                        borderRadius: 10,
+                        border: '2px solid',
+                        borderColor: editData.position === pos.id ? '#1a1a1a' : '#eee',
+                        background: editData.position === pos.id ? '#1a1a1a' : '#fff',
+                        color: editData.position === pos.id ? '#fff' : '#666',
+                        fontSize: 13,
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {pos.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lydia */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
+                  💜 Pseudo Lydia <span style={{ color: '#999', fontWeight: '400' }}>(optionnel)</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{
+                    position: 'absolute',
+                    left: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#999'
+                  }}>@</span>
+                  <input
+                    type="text"
+                    value={editData.lydia_username}
+                    onChange={(e) => setEditData({ ...editData, lydia_username: e.target.value })}
+                    placeholder="ton-pseudo"
+                    style={{
+                      width: '100%',
+                      padding: '12px 12px 12px 28px',
+                      borderRadius: 10,
+                      border: '2px solid #eee',
+                      fontSize: 16
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* PayPal */}
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
+                  💙 Email PayPal <span style={{ color: '#999', fontWeight: '400' }}>(optionnel)</span>
+                </label>
+                <input
+                  type="email"
+                  value={editData.paypal_email}
+                  onChange={(e) => setEditData({ ...editData, paypal_email: e.target.value })}
+                  placeholder="ton@email.com"
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 10,
+                    border: '2px solid #eee',
+                    fontSize: 16
                   }}
                 />
               </div>
-            </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                🔵 PayPal (email)
-              </label>
-              <input
-                type="email"
-                value={editData.paypal_email}
-                onChange={e => setEditData({ ...editData, paypal_email: e.target.value })}
-                placeholder="ton@email.com"
-                style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  border: '2px solid #e5e5e5',
-                  borderRadius: 12,
-                  fontSize: 15,
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                🏦 RIB / IBAN
-              </label>
-              <input
-                type="text"
-                value={editData.rib}
-                onChange={e => setEditData({ ...editData, rib: e.target.value })}
-                placeholder="FR76 3000 4000 ..."
-                style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  border: '2px solid #e5e5e5',
-                  borderRadius: 12,
-                  fontSize: 15,
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                width: '100%',
-                padding: '18px',
-                background: saving ? '#e5e5e5' : '#1a1a1a',
-                color: saving ? '#999' : '#fff',
-                border: 'none',
-                borderRadius: 14,
-                fontSize: 16,
-                fontWeight: '600',
-                cursor: saving ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
-            </button>
-          </form>
+              {/* Boutons */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: '#f5f5f5',
+                    color: '#666',
+                    border: 'none',
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: saving ? '#ccc' : '#1a1a1a',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    cursor: saving ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
-
-      {/* Déconnexion */}
-      <button
-        onClick={logout}
-        style={{
-          width: '100%',
-          padding: '16px',
-          background: '#fff',
-          color: '#dc2626',
-          border: '1px solid #fecaca',
-          borderRadius: 14,
-          fontSize: 15,
-          fontWeight: '600',
-          cursor: 'pointer',
-          marginTop: 24
-        }}
-      >
-        Se déconnecter
-      </button>
     </div>
   )
 }

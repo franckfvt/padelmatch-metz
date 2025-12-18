@@ -6,97 +6,98 @@ import { useRouter } from 'next/navigation'
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const [step, setStep] = useState(1)
+  const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [user, setUser] = useState(null)
-  
-  // Données du profil
-  const [profile, setProfile] = useState({
-    experience: '',
-    frequency: '',
-    ambiance: ''
+  const [step, setStep] = useState(1) // 1: Nom, 2: Niveau, 3: Position
+
+  const [formData, setFormData] = useState({
+    name: '',
+    level: '',
+    position: ''
   })
 
-  // Vérifier que l'utilisateur est connecté
   useEffect(() => {
-    async function checkUser() {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        router.push('/auth')
-        return
-      }
-      
-      setUser(session.user)
-      
-      // Vérifier si profil déjà complet
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('experience, ambiance')
-        .eq('id', session.user.id)
-        .single()
-      
-      if (existingProfile?.experience && existingProfile?.ambiance) {
-        router.push('/dashboard')
-        return
-      }
-      
-      setLoading(false)
-    }
-    
-    checkUser()
-  }, [router])
+    checkAuth()
+  }, [])
 
-  // Sauvegarder le profil
+  async function checkAuth() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      router.push('/auth')
+      return
+    }
+
+    setUser(session.user)
+
+    // Vérifier si profil déjà complet
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name, level, position')
+      .eq('id', session.user.id)
+      .single()
+
+    if (profile?.name && profile?.level) {
+      router.push('/dashboard')
+      return
+    }
+
+    // Pré-remplir avec les données existantes
+    setFormData({
+      name: profile?.name || session.user.user_metadata?.name || '',
+      level: profile?.level?.toString() || '',
+      position: profile?.position || ''
+    })
+
+    setLoading(false)
+  }
+
   async function saveProfile() {
-    if (!user) return
-    
+    if (!formData.name || !formData.level) {
+      alert('Complète ton nom et ton niveau')
+      return
+    }
+
     setSaving(true)
-    
+
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          experience: profile.experience,
-          frequency: profile.frequency,
-          ambiance: profile.ambiance
+          name: formData.name,
+          level: parseInt(formData.level),
+          position: formData.position || null
         })
         .eq('id', user.id)
-      
+
       if (error) throw error
-      
+
       router.push('/dashboard')
     } catch (error) {
-      console.error('Error saving profile:', error)
-      alert('Erreur lors de la sauvegarde. Réessaie.')
+      console.error('Error:', error)
+      alert('Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
     }
   }
 
-  // Options pour chaque étape
-  const experienceOptions = [
-    { id: 'less6months', label: 'Moins de 6 mois', desc: 'Je découvre le padel', emoji: '🌱' },
-    { id: '6months2years', label: '6 mois - 2 ans', desc: 'Je progresse bien', emoji: '📈' },
-    { id: '2to5years', label: '2 - 5 ans', desc: 'Je maîtrise le jeu', emoji: '💪' },
-    { id: 'more5years', label: 'Plus de 5 ans', desc: 'Joueur expérimenté', emoji: '🏆' }
-  ]
+  function nextStep() {
+    if (step === 1 && !formData.name) {
+      alert('Entre ton prénom')
+      return
+    }
+    if (step === 2 && !formData.level) {
+      alert('Sélectionne ton niveau')
+      return
+    }
+    
+    if (step === 3) {
+      saveProfile()
+    } else {
+      setStep(step + 1)
+    }
+  }
 
-  const frequencyOptions = [
-    { id: 'occasional', label: 'Occasionnellement', desc: '1-2 fois par mois', emoji: '🗓️' },
-    { id: 'regular', label: 'Régulièrement', desc: '1 fois par semaine', emoji: '📅' },
-    { id: 'often', label: 'Souvent', desc: '2-3 fois par semaine', emoji: '🔥' },
-    { id: 'intense', label: 'Intensément', desc: '4+ fois par semaine', emoji: '⚡' }
-  ]
-
-  const ambianceOptions = [
-    { id: 'loisir', label: 'Détente', desc: 'Fun et convivial, sans prise de tête', emoji: '😎' },
-    { id: 'mix', label: 'Équilibré', desc: 'Fun mais on joue bien quand même', emoji: '⚡' },
-    { id: 'compet', label: 'Compétitif', desc: 'On est là pour gagner', emoji: '🏆' }
-  ]
-
-  // Affichage loading
   if (loading) {
     return (
       <div style={{
@@ -104,7 +105,7 @@ export default function OnboardingPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f5f5f5',
+        background: '#fafafa',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
         <div style={{ textAlign: 'center' }}>
@@ -118,390 +119,305 @@ export default function OnboardingPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#f5f5f5',
-      padding: 20,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      background: '#fafafa',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      padding: 20
     }}>
-      <div style={{
-        maxWidth: 500,
-        margin: '0 auto',
-        paddingTop: 40
-      }}>
+      <div style={{ maxWidth: 400, margin: '0 auto', paddingTop: 40 }}>
         
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🎾</div>
-          <h1 style={{ fontSize: 24, fontWeight: '700', color: '#1a1a1a' }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>🎾</div>
+          <h1 style={{ fontSize: 24, fontWeight: '700', color: '#1a1a1a', margin: 0 }}>
             PadelMatch
           </h1>
         </div>
 
-        {/* Carte principale */}
-        <div style={{
-          background: '#fff',
-          borderRadius: 24,
-          padding: '40px 32px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
+        {/* Indicateur d'étapes */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          gap: 8, 
+          marginBottom: 32 
         }}>
-          
-          {/* Barre de progression */}
-          <div style={{ marginBottom: 40 }}>
+          {[1, 2, 3].map(s => (
+            <div
+              key={s}
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                background: s <= step ? '#1a1a1a' : '#e5e5e5'
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Étape 1: Nom */}
+        {step === 1 && (
+          <div style={{
+            background: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            border: '1px solid #eee'
+          }}>
+            <h2 style={{ fontSize: 20, fontWeight: '700', margin: '0 0 8px' }}>
+              Comment tu t'appelles ?
+            </h2>
+            <p style={{ color: '#666', margin: '0 0 20px', fontSize: 14 }}>
+              Les autres joueurs verront ce prénom
+            </p>
+
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Ton prénom"
+              autoFocus
+              style={{
+                width: '100%',
+                padding: 16,
+                borderRadius: 12,
+                border: '2px solid #eee',
+                fontSize: 18,
+                marginBottom: 20
+              }}
+            />
+
+            <button
+              onClick={nextStep}
+              style={{
+                width: '100%',
+                padding: 16,
+                background: formData.name ? '#1a1a1a' : '#e5e5e5',
+                color: formData.name ? '#fff' : '#999',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 16,
+                fontWeight: '600',
+                cursor: formData.name ? 'pointer' : 'not-allowed'
+              }}
+            >
+              Continuer →
+            </button>
+          </div>
+        )}
+
+        {/* Étape 2: Niveau */}
+        {step === 2 && (
+          <div style={{
+            background: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            border: '1px solid #eee'
+          }}>
+            <h2 style={{ fontSize: 20, fontWeight: '700', margin: '0 0 8px' }}>
+              Quel est ton niveau ?
+            </h2>
+            <p style={{ color: '#666', margin: '0 0 20px', fontSize: 14 }}>
+              De 1 (débutant) à 10 (pro)
+            </p>
+
+            {/* Échelle visuelle */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between',
-              marginBottom: 8
+              marginBottom: 12,
+              fontSize: 12,
+              color: '#999'
             }}>
-              <span style={{ fontSize: 13, color: '#999' }}>Étape {step}/3</span>
-              <span style={{ fontSize: 13, color: '#999' }}>
-                {step === 1 && 'Ton expérience'}
-                {step === 2 && 'Ta fréquence'}
-                {step === 3 && 'Ton ambiance'}
-              </span>
+              <span>Débutant</span>
+              <span>Pro</span>
             </div>
-            <div style={{
-              display: 'flex',
-              gap: 8
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(5, 1fr)', 
+              gap: 8,
+              marginBottom: 20
             }}>
-              {[1, 2, 3].map(s => (
-                <div
-                  key={s}
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => (
+                <button
+                  key={level}
+                  onClick={() => setFormData({ ...formData, level: level.toString() })}
                   style={{
-                    flex: 1,
-                    height: 6,
-                    borderRadius: 3,
-                    background: step >= s ? '#1a1a1a' : '#e5e5e5',
-                    transition: 'background 0.3s'
+                    padding: '16px 0',
+                    borderRadius: 12,
+                    border: '2px solid',
+                    borderColor: formData.level === level.toString() ? '#1a1a1a' : '#eee',
+                    background: formData.level === level.toString() ? '#1a1a1a' : '#fff',
+                    color: formData.level === level.toString() ? '#fff' : '#666',
+                    fontSize: 18,
+                    fontWeight: '700',
+                    cursor: 'pointer'
                   }}
-                />
+                >
+                  {level}
+                </button>
               ))}
             </div>
-          </div>
 
-          {/* ========== ÉTAPE 1 : EXPÉRIENCE ========== */}
-          {step === 1 && (
-            <>
-              <h2 style={{ 
-                fontSize: 26, 
-                fontWeight: '700', 
-                marginBottom: 8,
-                color: '#1a1a1a'
+            {/* Aide contextuelle */}
+            {formData.level && (
+              <div style={{
+                background: '#f5f5f5',
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 20,
+                fontSize: 13,
+                color: '#666'
               }}>
-                Tu joues depuis combien de temps ?
-              </h2>
-              <p style={{ 
-                color: '#666', 
-                marginBottom: 32,
-                fontSize: 16,
-                lineHeight: 1.5
-              }}>
-                Ça nous aide à te trouver des joueurs de ton niveau.
-              </p>
-
-              <div style={{ display: 'grid', gap: 12 }}>
-                {experienceOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setProfile({ ...profile, experience: opt.id })}
-                    style={{
-                      padding: '20px 24px',
-                      border: profile.experience === opt.id 
-                        ? '2px solid #1a1a1a' 
-                        : '2px solid #e5e5e5',
-                      borderRadius: 16,
-                      cursor: 'pointer',
-                      background: profile.experience === opt.id ? '#fafafa' : '#fff',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16
-                    }}
-                  >
-                    <div style={{ fontSize: 28 }}>{opt.emoji}</div>
-                    <div>
-                      <div style={{ 
-                        fontWeight: '600', 
-                        fontSize: 16,
-                        color: '#1a1a1a',
-                        marginBottom: 2
-                      }}>
-                        {opt.label}
-                      </div>
-                      <div style={{ fontSize: 14, color: '#666' }}>
-                        {opt.desc}
-                      </div>
-                    </div>
-                    {profile.experience === opt.id && (
-                      <div style={{ 
-                        marginLeft: 'auto',
-                        width: 24,
-                        height: 24,
-                        background: '#1a1a1a',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                        fontSize: 14
-                      }}>
-                        ✓
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {parseInt(formData.level) <= 3 && "🌱 Tu découvres le padel, parfait pour progresser !"}
+                {parseInt(formData.level) >= 4 && parseInt(formData.level) <= 6 && "📈 Tu maîtrises les bases et tu progresses bien !"}
+                {parseInt(formData.level) >= 7 && parseInt(formData.level) <= 8 && "💪 Tu as un bon niveau, les matchs sont intenses !"}
+                {parseInt(formData.level) >= 9 && "🏆 Tu es un joueur confirmé, niveau compétition !"}
               </div>
+            )}
 
+            <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={() => profile.experience && setStep(2)}
-                disabled={!profile.experience}
+                onClick={() => setStep(1)}
                 style={{
-                  width: '100%',
-                  padding: '18px',
-                  background: profile.experience ? '#1a1a1a' : '#e5e5e5',
-                  color: profile.experience ? '#fff' : '#999',
+                  padding: 16,
+                  background: '#f5f5f5',
+                  color: '#666',
                   border: 'none',
-                  borderRadius: 14,
+                  borderRadius: 12,
                   fontSize: 16,
                   fontWeight: '600',
-                  cursor: profile.experience ? 'pointer' : 'not-allowed',
-                  marginTop: 32,
-                  transition: 'background 0.2s'
+                  cursor: 'pointer'
                 }}
               >
-                Continuer
+                ←
               </button>
-            </>
-          )}
+              <button
+                onClick={nextStep}
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  background: formData.level ? '#1a1a1a' : '#e5e5e5',
+                  color: formData.level ? '#fff' : '#999',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 16,
+                  fontWeight: '600',
+                  cursor: formData.level ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Continuer →
+              </button>
+            </div>
+          </div>
+        )}
 
-          {/* ========== ÉTAPE 2 : FRÉQUENCE ========== */}
-          {step === 2 && (
-            <>
-              <h2 style={{ 
-                fontSize: 26, 
-                fontWeight: '700', 
-                marginBottom: 8,
-                color: '#1a1a1a'
-              }}>
-                Tu joues à quelle fréquence ?
-              </h2>
-              <p style={{ 
-                color: '#666', 
-                marginBottom: 32,
-                fontSize: 16,
-                lineHeight: 1.5
-              }}>
-                Pour te proposer le bon nombre de parties.
-              </p>
+        {/* Étape 3: Position */}
+        {step === 3 && (
+          <div style={{
+            background: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            border: '1px solid #eee'
+          }}>
+            <h2 style={{ fontSize: 20, fontWeight: '700', margin: '0 0 8px' }}>
+              Ta position préférée ?
+            </h2>
+            <p style={{ color: '#666', margin: '0 0 20px', fontSize: 14 }}>
+              Optionnel, tu peux changer plus tard
+            </p>
 
-              <div style={{ display: 'grid', gap: 12 }}>
-                {frequencyOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setProfile({ ...profile, frequency: opt.id })}
-                    style={{
-                      padding: '20px 24px',
-                      border: profile.frequency === opt.id 
-                        ? '2px solid #1a1a1a' 
-                        : '2px solid #e5e5e5',
-                      borderRadius: 16,
-                      cursor: 'pointer',
-                      background: profile.frequency === opt.id ? '#fafafa' : '#fff',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16
-                    }}
-                  >
-                    <div style={{ fontSize: 28 }}>{opt.emoji}</div>
-                    <div>
-                      <div style={{ 
-                        fontWeight: '600', 
-                        fontSize: 16,
-                        color: '#1a1a1a',
-                        marginBottom: 2
-                      }}>
-                        {opt.label}
-                      </div>
-                      <div style={{ fontSize: 14, color: '#666' }}>
-                        {opt.desc}
-                      </div>
-                    </div>
-                    {profile.frequency === opt.id && (
-                      <div style={{ 
-                        marginLeft: 'auto',
-                        width: 24,
-                        height: 24,
-                        background: '#1a1a1a',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                        fontSize: 14
-                      }}>
-                        ✓
-                      </div>
-                    )}
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              gap: 10,
+              marginBottom: 20
+            }}>
+              {[
+                { id: 'right', emoji: '➡️', label: 'Droite', desc: 'Côté revers (le plus courant)' },
+                { id: 'left', emoji: '⬅️', label: 'Gauche', desc: 'Côté coup droit' },
+                { id: 'both', emoji: '↔️', label: 'Les deux', desc: 'Tu joues des deux côtés' }
+              ].map(pos => (
+                <button
+                  key={pos.id}
+                  onClick={() => setFormData({ ...formData, position: pos.id })}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 16,
+                    borderRadius: 12,
+                    border: '2px solid',
+                    borderColor: formData.position === pos.id ? '#1a1a1a' : '#eee',
+                    background: formData.position === pos.id ? '#f5f5f5' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  <span style={{ fontSize: 24 }}>{pos.emoji}</span>
+                  <div>
+                    <div style={{ fontWeight: '600', color: '#1a1a1a' }}>{pos.label}</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>{pos.desc}</div>
                   </div>
-                ))}
-              </div>
-
-              <div style={{ 
-                display: 'flex', 
-                gap: 12, 
-                marginTop: 32 
-              }}>
-                <button
-                  onClick={() => setStep(1)}
-                  style={{
-                    padding: '18px 24px',
-                    background: '#fff',
-                    color: '#1a1a1a',
-                    border: '2px solid #e5e5e5',
-                    borderRadius: 14,
-                    fontSize: 16,
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Retour
                 </button>
-                <button
-                  onClick={() => profile.frequency && setStep(3)}
-                  disabled={!profile.frequency}
-                  style={{
-                    flex: 1,
-                    padding: '18px',
-                    background: profile.frequency ? '#1a1a1a' : '#e5e5e5',
-                    color: profile.frequency ? '#fff' : '#999',
-                    border: 'none',
-                    borderRadius: 14,
-                    fontSize: 16,
-                    fontWeight: '600',
-                    cursor: profile.frequency ? 'pointer' : 'not-allowed',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  Continuer
-                </button>
-              </div>
-            </>
-          )}
+              ))}
+            </div>
 
-          {/* ========== ÉTAPE 3 : AMBIANCE ========== */}
-          {step === 3 && (
-            <>
-              <h2 style={{ 
-                fontSize: 26, 
-                fontWeight: '700', 
-                marginBottom: 8,
-                color: '#1a1a1a'
-              }}>
-                Quelle ambiance tu recherches ?
-              </h2>
-              <p style={{ 
-                color: '#666', 
-                marginBottom: 32,
-                fontSize: 16,
-                lineHeight: 1.5
-              }}>
-                On te matche avec des joueurs qui veulent la même chose.
-              </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setStep(2)}
+                style={{
+                  padding: 16,
+                  background: '#f5f5f5',
+                  color: '#666',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 16,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ←
+              </button>
+              <button
+                onClick={nextStep}
+                disabled={saving}
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  background: saving ? '#ccc' : '#1a1a1a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 16,
+                  fontWeight: '600',
+                  cursor: saving ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {saving ? 'Création...' : '🎾 C\'est parti !'}
+              </button>
+            </div>
 
-              <div style={{ display: 'grid', gap: 12 }}>
-                {ambianceOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setProfile({ ...profile, ambiance: opt.id })}
-                    style={{
-                      padding: '24px',
-                      border: profile.ambiance === opt.id 
-                        ? '2px solid #1a1a1a' 
-                        : '2px solid #e5e5e5',
-                      borderRadius: 16,
-                      cursor: 'pointer',
-                      background: profile.ambiance === opt.id ? '#fafafa' : '#fff',
-                      transition: 'all 0.2s',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>{opt.emoji}</div>
-                    <div style={{ 
-                      fontWeight: '700', 
-                      fontSize: 18,
-                      color: '#1a1a1a',
-                      marginBottom: 4
-                    }}>
-                      {opt.label}
-                    </div>
-                    <div style={{ fontSize: 14, color: '#666' }}>
-                      {opt.desc}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {/* Skip */}
+            <button
+              onClick={() => {
+                setFormData({ ...formData, position: '' })
+                saveProfile()
+              }}
+              style={{
+                width: '100%',
+                marginTop: 12,
+                padding: 12,
+                background: 'transparent',
+                color: '#999',
+                border: 'none',
+                fontSize: 14,
+                cursor: 'pointer'
+              }}
+            >
+              Passer cette étape
+            </button>
+          </div>
+        )}
 
-              <div style={{ 
-                display: 'flex', 
-                gap: 12, 
-                marginTop: 32 
-              }}>
-                <button
-                  onClick={() => setStep(2)}
-                  style={{
-                    padding: '18px 24px',
-                    background: '#fff',
-                    color: '#1a1a1a',
-                    border: '2px solid #e5e5e5',
-                    borderRadius: 14,
-                    fontSize: 16,
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Retour
-                </button>
-                <button
-                  onClick={saveProfile}
-                  disabled={!profile.ambiance || saving}
-                  style={{
-                    flex: 1,
-                    padding: '18px',
-                    background: profile.ambiance && !saving ? '#2e7d32' : '#e5e5e5',
-                    color: profile.ambiance && !saving ? '#fff' : '#999',
-                    border: 'none',
-                    borderRadius: 14,
-                    fontSize: 16,
-                    fontWeight: '600',
-                    cursor: profile.ambiance && !saving ? 'pointer' : 'not-allowed',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  {saving ? 'Enregistrement...' : 'C\'est parti ! 🎾'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Skip pour plus tard */}
-        <div style={{ 
-          textAlign: 'center', 
-          marginTop: 24 
-        }}>
-          <button
-            onClick={() => router.push('/dashboard')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#999',
-              fontSize: 14,
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
-          >
-            Compléter plus tard
-          </button>
-        </div>
       </div>
     </div>
   )

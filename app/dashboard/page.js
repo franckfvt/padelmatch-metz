@@ -2,74 +2,35 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [matches, setMatches] = useState([])
   const [myMatches, setMyMatches] = useState([])
-  const [groups, setGroups] = useState([])
+  const [availableMatches, setAvailableMatches] = useState([])
   const [clubs, setClubs] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
+  
+  // Modal création rapide
+  const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
-
   const [newMatch, setNewMatch] = useState({
     club_id: '',
     date: '',
     time: '',
-    spots: '3',
-    ambiance: 'mix',
-    level: 'all',
-    price_total: '',
-    private_notes: '',
-    group_id: ''
+    level: 'all'
   })
 
-  const experienceLabels = {
-    'less6months': 'Débutant',
-    '6months2years': 'Intermédiaire',
-    '2to5years': 'Confirmé',
-    'more5years': 'Expert',
-    'all': 'Tous niveaux'
-  }
-
-  const experienceEmojis = {
-    'less6months': '🌱',
-    '6months2years': '📈',
-    '2to5years': '💪',
-    'more5years': '🏆',
-    'all': '🎾'
-  }
-
-  const ambianceLabels = {
-    'loisir': 'Détente',
-    'mix': 'Équilibré',
-    'compet': 'Compétitif'
-  }
-
-  const ambianceEmojis = {
-    'loisir': '😎',
-    'mix': '⚡',
-    'compet': '🏆'
-  }
-
-  const levelOptions = [
-    { id: 'all', label: 'Tous niveaux', emoji: '🎾', desc: 'Ouvert à tous' },
-    { id: 'less6months', label: 'Débutant', emoji: '🌱', desc: 'Moins de 6 mois' },
-    { id: '6months2years', label: 'Intermédiaire', emoji: '📈', desc: '6 mois - 2 ans' },
-    { id: '2to5years', label: 'Confirmé', emoji: '💪', desc: '2 - 5 ans' },
-    { id: 'more5years', label: 'Expert', emoji: '🏆', desc: 'Plus de 5 ans' }
-  ]
-
-  const ambianceOptions = [
-    { id: 'loisir', label: 'Détente', emoji: '😎', desc: 'Fun et convivial' },
-    { id: 'mix', label: 'Équilibré', emoji: '⚡', desc: 'Fun mais on joue bien' },
-    { id: 'compet', label: 'Compétitif', emoji: '🏆', desc: 'On est là pour gagner' }
-  ]
+  // Ouvrir modal si ?create=true
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      setShowCreate(true)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     loadData()
@@ -85,6 +46,7 @@ export default function DashboardPage() {
 
       setUser(session.user)
 
+      // Profil
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -101,62 +63,109 @@ export default function DashboardPage() {
 
       setClubs(clubsData || [])
 
-      // Mes groupes
-      const { data: groupsData } = await supabase
-        .from('group_members')
-        .select(`
-          group_id,
-          player_groups (id, name, description, created_by)
-        `)
-        .eq('user_id', session.user.id)
-
-      setGroups(groupsData?.map(g => g.player_groups).filter(Boolean) || [])
-
-      // Mes parties (où je suis organisateur ou participant)
-      const today = new Date().toISOString().split('T')[0]
-      
+      // Mes parties (organisateur ou participant)
       const { data: myMatchesData } = await supabase
         .from('matches')
         .select(`
           *,
-          clubs (name, address),
-          profiles!matches_organizer_id_fkey (name),
-          match_participants (user_id)
+          clubs (id, name),
+          profiles!matches_organizer_id_fkey (id, name, level, position),
+          match_participants (
+            user_id,
+            profiles (id, name, level, position)
+          )
         `)
-        .or(`organizer_id.eq.${session.user.id},match_participants.user_id.eq.${session.user.id}`)
-        .gte('match_date', today)
+        .or(`organizer_id.eq.${session.user.id}`)
+        .gte('match_date', new Date().toISOString().split('T')[0])
+        .in('status', ['open', 'full'])
         .order('match_date', { ascending: true })
         .order('match_time', { ascending: true })
-        .limit(5)
 
-      setMyMatches(myMatchesData || [])
+      // Parties où je suis participant
+      const { data: participatingData } = await supabase
+        .from('match_participants')
+        .select('match_id')
+        .eq('user_id', session.user.id)
 
-      // Toutes les parties ouvertes
-      const { data: matchesData } = await supabase
+      const participatingIds = participatingData?.map(p => p.match_id) || []
+
+      // Combiner et filtrer
+      let allMyMatches = myMatchesData || []
+      
+      if (participatingIds.length > 0) {
+        const { data: participatingMatches } = await supabase
+          .from('matches')
+          .select(`
+            *,
+            clubs (id, name),
+            profiles!matches_organizer_id_fkey (id, name, level, position),
+            match_participants (
+              user_id,
+              profiles (id, name, level, position)
+            )
+          `)
+          .in('id', participatingIds)
+          .gte('match_date', new Date().toISOString().split('T')[0])
+          .in('status', ['open', 'full'])
+          .order('match_date', { ascending: true })
+
+        // Fusionner sans doublons
+        const existingIds = allMyMatches.map(m => m.id)
+        participatingMatches?.forEach(m => {
+          if (!existingIds.includes(m.id)) {
+            allMyMatches.push(m)
+          }
+        })
+      }
+
+      // Trier par date
+      allMyMatches.sort((a, b) => {
+        const dateA = new Date(`${a.match_date}T${a.match_time}`)
+        const dateB = new Date(`${b.match_date}T${b.match_time}`)
+        return dateA - dateB
+      })
+
+      setMyMatches(allMyMatches)
+
+      // Parties disponibles (pas les miennes)
+      const { data: availableData } = await supabase
         .from('matches')
         .select(`
           *,
-          clubs (name, address),
-          profiles!matches_organizer_id_fkey (name),
-          match_participants (user_id, profiles (name))
+          clubs (id, name),
+          profiles!matches_organizer_id_fkey (id, name, level, position),
+          match_participants (
+            user_id,
+            profiles (id, name, level, position)
+          )
         `)
+        .neq('organizer_id', session.user.id)
         .eq('status', 'open')
-        .gte('match_date', today)
+        .gte('match_date', new Date().toISOString().split('T')[0])
         .order('match_date', { ascending: true })
-        .order('match_time', { ascending: true })
         .limit(10)
 
-      setMatches(matchesData || [])
+      // Filtrer celles où je suis déjà inscrit
+      const available = (availableData || []).filter(m => 
+        !participatingIds.includes(m.id)
+      )
+
+      setAvailableMatches(available)
       setLoading(false)
 
     } catch (error) {
-      console.error('Error loading data:', error)
+      console.error('Error:', error)
       setLoading(false)
     }
   }
 
   async function createMatch(e) {
     e.preventDefault()
+    if (!newMatch.club_id || !newMatch.date || !newMatch.time) {
+      alert('Remplis le club, la date et l\'heure')
+      return
+    }
+
     setCreating(true)
 
     try {
@@ -167,12 +176,9 @@ export default function DashboardPage() {
           club_id: parseInt(newMatch.club_id),
           match_date: newMatch.date,
           match_time: newMatch.time,
-          spots_total: 4,
-          spots_available: parseInt(newMatch.spots),
-          ambiance: newMatch.ambiance,
           level_required: newMatch.level,
-          price_total: newMatch.price_total ? parseInt(newMatch.price_total) * 100 : 0,
-          private_notes: newMatch.private_notes || null,
+          spots_total: 4,
+          spots_available: 3,
           status: 'open'
         })
         .select()
@@ -180,29 +186,13 @@ export default function DashboardPage() {
 
       if (error) throw error
 
-      // Si un groupe est sélectionné, inviter les membres
-      if (newMatch.group_id) {
-        // TODO: Envoyer notifications aux membres du groupe
-      }
-
-      setShowCreateModal(false)
-      setNewMatch({
-        club_id: '',
-        date: '',
-        time: '',
-        spots: '3',
-        ambiance: 'mix',
-        level: 'all',
-        price_total: '',
-        private_notes: '',
-        group_id: ''
-      })
-      
+      // Fermer modal et aller sur la partie
+      setShowCreate(false)
       router.push(`/dashboard/match/${data.id}`)
 
     } catch (error) {
       console.error('Error creating match:', error)
-      alert('Erreur lors de la création de la partie')
+      alert('Erreur lors de la création')
     } finally {
       setCreating(false)
     }
@@ -210,21 +200,39 @@ export default function DashboardPage() {
 
   function formatDate(dateStr) {
     const date = new Date(dateStr)
-    const options = { weekday: 'short', day: 'numeric', month: 'short' }
-    return date.toLocaleDateString('fr-FR', options)
+    const today = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Aujourd'hui"
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return "Demain"
+    } else {
+      return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+    }
   }
 
   function formatTime(timeStr) {
     return timeStr?.slice(0, 5) || ''
   }
 
-  function getMinDate() {
-    return new Date().toISOString().split('T')[0]
+  function getPlayerCount(match) {
+    return 1 + (match.match_participants?.length || 0)
+  }
+
+  function getLevelLabel(level) {
+    const labels = {
+      'all': 'Tous niveaux',
+      '1': '1', '2': '2', '3': '3', '4': '4', '5': '5',
+      '6': '6', '7': '7', '8': '8', '9': '9', '10': '10'
+    }
+    return labels[level] || level
   }
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: 60 }}>
+      <div style={{ padding: 20, textAlign: 'center' }}>
         <div style={{ fontSize: 32, marginBottom: 16 }}>🎾</div>
         <div style={{ color: '#666' }}>Chargement...</div>
       </div>
@@ -232,177 +240,62 @@ export default function DashboardPage() {
   }
 
   return (
-    <div>
-      {/* Header avec stats */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 }}>
-          Salut {profile?.name || 'Joueur'} 👋
-        </h1>
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <span style={{ color: '#666', fontSize: 14 }}>
-            🎾 {profile?.matches_played || 0} parties jouées
-          </span>
-          <span style={{ color: '#666', fontSize: 14 }}>
-            🏆 {profile?.matches_won || 0} victoires
-          </span>
-          {profile?.current_streak > 0 && (
-            <span style={{ color: '#2e7d32', fontSize: 14, fontWeight: '600' }}>
-              🔥 {profile.current_streak} victoires d'affilée
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Actions rapides */}
+    <div style={{ padding: 20, maxWidth: 600, margin: '0 auto' }}>
+      
+      {/* Header avec bouton créer */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: 12,
-        marginBottom: 32
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24
       }}>
-        <div
-          onClick={() => setShowCreateModal(true)}
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: '700', color: '#1a1a1a', margin: 0 }}>
+            Salut {profile?.name?.split(' ')[0]} 👋
+          </h1>
+          <p style={{ color: '#666', margin: '4px 0 0', fontSize: 14 }}>
+            Prêt à jouer ?
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
           style={{
+            padding: '12px 20px',
             background: '#1a1a1a',
-            borderRadius: 16,
-            padding: 20,
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            fontSize: 14,
+            fontWeight: '600',
             cursor: 'pointer',
-            textAlign: 'center'
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🎾</div>
-          <div style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
-            Créer une partie
-          </div>
-        </div>
-
-        <Link href="/dashboard/clubs" style={{ textDecoration: 'none' }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: 16,
-            padding: 20,
-            border: '2px solid #e5e5e5',
-            textAlign: 'center',
-            height: '100%',
-            boxSizing: 'border-box'
-          }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
-            <div style={{ color: '#1a1a1a', fontWeight: '600', fontSize: 14 }}>
-              Trouver une partie
-            </div>
-          </div>
-        </Link>
-
-        <Link href="/dashboard/groups" style={{ textDecoration: 'none' }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: 16,
-            padding: 20,
-            border: '2px solid #e5e5e5',
-            textAlign: 'center',
-            height: '100%',
-            boxSizing: 'border-box'
-          }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>👥</div>
-            <div style={{ color: '#1a1a1a', fontWeight: '600', fontSize: 14 }}>
-              Mes groupes
-            </div>
-            {groups.length > 0 && (
-              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                {groups.length} groupe{groups.length > 1 ? 's' : ''}
-              </div>
-            )}
-          </div>
-        </Link>
-
-        <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: 16,
-            padding: 20,
-            border: '2px solid #e5e5e5',
-            textAlign: 'center',
-            height: '100%',
-            boxSizing: 'border-box'
-          }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
-            <div style={{ color: '#1a1a1a', fontWeight: '600', fontSize: 14 }}>
-              Mes stats
-            </div>
-          </div>
-        </Link>
+          <span style={{ fontSize: 18 }}>+</span>
+          Créer
+        </button>
       </div>
 
       {/* Mes prochaines parties */}
-      {myMatches.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a', marginBottom: 16 }}>
-            🗓️ Mes prochaines parties
-          </h2>
-          <div style={{ display: 'grid', gap: 12 }}>
-            {myMatches.map(match => {
-              const isOrganizer = match.organizer_id === user?.id
-              return (
-                <Link 
-                  href={`/dashboard/match/${match.id}`} 
-                  key={match.id}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <div style={{
-                    background: '#fff',
-                    borderRadius: 12,
-                    padding: 16,
-                    border: '2px solid #2e7d32',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1a1a1a', marginBottom: 4 }}>
-                        {formatDate(match.match_date)} à {formatTime(match.match_time)}
-                      </div>
-                      <div style={{ fontSize: 14, color: '#666' }}>
-                        📍 {match.clubs?.name}
-                      </div>
-                    </div>
-                    <div style={{
-                      background: isOrganizer ? '#1a1a1a' : '#e8f5e9',
-                      color: isOrganizer ? '#fff' : '#2e7d32',
-                      padding: '6px 12px',
-                      borderRadius: 8,
-                      fontSize: 12,
-                      fontWeight: '600'
-                    }}>
-                      {isOrganizer ? 'Organisateur' : 'Inscrit'}
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Parties disponibles */}
-      <div>
-        <h2 style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a', marginBottom: 16 }}>
-          🎾 Parties disponibles
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 12 }}>
+          📅 Mes prochaines parties
         </h2>
 
-        {matches.length === 0 ? (
+        {myMatches.length === 0 ? (
           <div style={{
             background: '#fff',
             borderRadius: 16,
-            padding: 40,
+            padding: 32,
             textAlign: 'center',
             border: '1px solid #eee'
           }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
-            <p style={{ color: '#666', marginBottom: 16 }}>
-              Aucune partie disponible pour le moment
-            </p>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🎾</div>
+            <p style={{ color: '#666', marginBottom: 16 }}>Aucune partie prévue</p>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => setShowCreate(true)}
               style={{
                 padding: '12px 24px',
                 background: '#1a1a1a',
@@ -414,158 +307,226 @@ export default function DashboardPage() {
                 cursor: 'pointer'
               }}
             >
-              Créer la première partie
+              Créer ma première partie
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: 12 }}>
-            {matches.map(match => {
-              const isOrganizer = match.organizer_id === user?.id
-              const isParticipant = match.match_participants?.some(p => p.user_id === user?.id)
-              const isInvolved = isOrganizer || isParticipant
-              const pricePerPerson = match.price_total ? Math.round(match.price_total / 100 / match.spots_total) : 0
-
-              return (
-                <Link 
-                  href={`/dashboard/match/${match.id}`}
-                  key={match.id}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <div style={{
-                    background: '#fff',
-                    borderRadius: 16,
-                    padding: 20,
-                    border: isInvolved ? '2px solid #2e7d32' : '1px solid #eee'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 12 }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                          <span style={{ fontWeight: '700', color: '#1a1a1a' }}>
-                            {formatDate(match.match_date)}
-                          </span>
-                          <span style={{ 
-                            background: '#2e7d32', 
-                            color: '#fff',
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            fontSize: 13,
-                            fontWeight: '600'
-                          }}>
-                            {formatTime(match.match_time)}
-                          </span>
-                          {pricePerPerson > 0 && (
-                            <span style={{
-                              background: '#fef3c7',
-                              color: '#92400e',
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              fontSize: 13,
-                              fontWeight: '600'
-                            }}>
-                              💰 {pricePerPerson}€/pers
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>
-                          📍 {match.clubs?.name}
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {match.level_required && match.level_required !== 'all' && (
-                            <span style={{
-                              fontSize: 12,
-                              background: '#e8f5e9',
-                              color: '#2e7d32',
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              fontWeight: '500'
-                            }}>
-                              {experienceEmojis[match.level_required]} {experienceLabels[match.level_required]}
-                            </span>
-                          )}
-                          <span style={{
-                            fontSize: 12,
-                            background: match.ambiance === 'compet' ? '#fef3c7' : 
-                                       match.ambiance === 'loisir' ? '#dbeafe' : '#f3f4f6',
-                            color: match.ambiance === 'compet' ? '#92400e' : 
-                                   match.ambiance === 'loisir' ? '#1e40af' : '#4b5563',
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            fontWeight: '500'
-                          }}>
-                            {ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}
-                          </span>
-                          <span style={{
-                            fontSize: 12,
-                            background: '#f5f5f5',
-                            color: '#666',
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            fontWeight: '500'
-                          }}>
-                            {match.spots_available} place{match.spots_available > 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{
-                        background: isInvolved ? '#2e7d32' : '#1a1a1a',
-                        color: '#fff',
-                        padding: '10px 20px',
-                        borderRadius: 10,
-                        fontSize: 14,
-                        fontWeight: '600'
-                      }}>
-                        {isInvolved ? 'Voir' : 'Rejoindre'}
-                      </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {myMatches.map(match => (
+              <Link
+                key={match.id}
+                href={`/dashboard/match/${match.id}`}
+                style={{
+                  background: '#fff',
+                  borderRadius: 16,
+                  padding: 16,
+                  border: '1px solid #eee',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  display: 'block'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ 
+                      fontSize: 14, 
+                      fontWeight: '600', 
+                      color: '#1a1a1a',
+                      marginBottom: 4
+                    }}>
+                      {match.clubs?.name}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#666' }}>
+                      {formatDate(match.match_date)} à {formatTime(match.match_time)}
                     </div>
                   </div>
-                </Link>
-              )
-            })}
+                  <div style={{
+                    background: match.status === 'full' ? '#dcfce7' : '#fef3c7',
+                    color: match.status === 'full' ? '#166534' : '#92400e',
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: '600'
+                  }}>
+                    {getPlayerCount(match)}/4
+                  </div>
+                </div>
+
+                {/* Joueurs */}
+                <div style={{ 
+                  display: 'flex', 
+                  gap: 8, 
+                  marginTop: 12,
+                  flexWrap: 'wrap'
+                }}>
+                  {/* Organisateur */}
+                  <span style={{
+                    background: '#f5f5f5',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: '#1a1a1a'
+                  }}>
+                    👑 {match.profiles?.name?.split(' ')[0]}
+                  </span>
+                  
+                  {/* Participants */}
+                  {match.match_participants?.map(p => (
+                    <span key={p.user_id} style={{
+                      background: '#f5f5f5',
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      color: '#666'
+                    }}>
+                      {p.profiles?.name?.split(' ')[0]}
+                    </span>
+                  ))}
+                  
+                  {/* Places restantes */}
+                  {Array(4 - getPlayerCount(match)).fill(0).map((_, i) => (
+                    <span key={i} style={{
+                      background: '#fff',
+                      border: '1px dashed #ddd',
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      color: '#999'
+                    }}>
+                      ?
+                    </span>
+                  ))}
+                </div>
+
+                {match.organizer_id === user?.id && (
+                  <div style={{
+                    marginTop: 10,
+                    fontSize: 11,
+                    color: '#2e7d32',
+                    fontWeight: '500'
+                  }}>
+                    👑 Tu organises
+                  </div>
+                )}
+              </Link>
+            ))}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Modal Création */}
-      {showCreateModal && (
+      {/* Parties disponibles */}
+      {availableMatches.length > 0 && (
+        <section>
+          <h2 style={{ fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 12 }}>
+            🔥 Parties à rejoindre
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {availableMatches.map(match => (
+              <Link
+                key={match.id}
+                href={`/dashboard/match/${match.id}`}
+                style={{
+                  background: '#fff',
+                  borderRadius: 16,
+                  padding: 16,
+                  border: '1px solid #eee',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  display: 'block'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ 
+                      fontSize: 14, 
+                      fontWeight: '600', 
+                      color: '#1a1a1a',
+                      marginBottom: 4
+                    }}>
+                      {match.clubs?.name}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#666' }}>
+                      {formatDate(match.match_date)} à {formatTime(match.match_time)}
+                    </div>
+                    {match.level_required && match.level_required !== 'all' && (
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#2e7d32',
+                        marginTop: 4 
+                      }}>
+                        Niveau {getLevelLabel(match.level_required)}+
+                      </div>
+                    )}
+                  </div>
+                  <div style={{
+                    background: '#fef3c7',
+                    color: '#92400e',
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: '600'
+                  }}>
+                    {getPlayerCount(match)}/4
+                  </div>
+                </div>
+
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: 8, 
+                  marginTop: 10,
+                  fontSize: 13,
+                  color: '#666'
+                }}>
+                  <span>Organisé par {match.profiles?.name?.split(' ')[0]}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Modal création rapide */}
+      {showCreate && (
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          inset: 0,
           background: 'rgba(0,0,0,0.5)',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-end',
           justifyContent: 'center',
-          padding: 20,
-          zIndex: 1000
-        }}>
+          zIndex: 200,
+          padding: 20
+        }}
+        onClick={(e) => e.target === e.currentTarget && setShowCreate(false)}
+        >
           <div style={{
             background: '#fff',
-            borderRadius: 24,
-            padding: 32,
+            borderRadius: '24px 24px 0 0',
+            padding: 24,
             width: '100%',
             maxWidth: 500,
-            maxHeight: '90vh',
+            maxHeight: '80vh',
             overflow: 'auto'
           }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
               alignItems: 'center',
               marginBottom: 24
             }}>
-              <h2 style={{ fontSize: 22, fontWeight: '700' }}>
-                Créer une partie
+              <h2 style={{ fontSize: 20, fontWeight: '700', margin: 0 }}>
+                🎾 Nouvelle partie
               </h2>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => setShowCreate(false)}
                 style={{
-                  background: 'none',
+                  background: '#f5f5f5',
                   border: 'none',
-                  fontSize: 24,
+                  borderRadius: 8,
+                  padding: '8px 12px',
                   cursor: 'pointer',
-                  color: '#999'
+                  fontSize: 16
                 }}
               >
                 ✕
@@ -575,280 +536,158 @@ export default function DashboardPage() {
             <form onSubmit={createMatch}>
               {/* Club */}
               <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  Club *
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: 14, 
+                  fontWeight: '600',
+                  marginBottom: 8,
+                  color: '#1a1a1a'
+                }}>
+                  📍 Où ?
                 </label>
                 <select
                   value={newMatch.club_id}
-                  onChange={e => setNewMatch({ ...newMatch, club_id: e.target.value })}
-                  required
+                  onChange={(e) => setNewMatch({ ...newMatch, club_id: e.target.value })}
                   style={{
                     width: '100%',
-                    padding: '14px 16px',
-                    border: '2px solid #e5e5e5',
+                    padding: 14,
                     borderRadius: 12,
-                    fontSize: 15,
-                    boxSizing: 'border-box',
+                    border: '2px solid #eee',
+                    fontSize: 16,
                     background: '#fff'
                   }}
+                  required
                 >
-                  <option value="">Sélectionne un club</option>
+                  <option value="">Choisis un club</option>
                   {clubs.map(club => (
                     <option key={club.id} value={club.id}>{club.name}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Date et Heure */}
+              {/* Date et Heure sur même ligne */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                 <div>
-                  <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                    Date *
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: 14, 
+                    fontWeight: '600',
+                    marginBottom: 8,
+                    color: '#1a1a1a'
+                  }}>
+                    📅 Quand ?
                   </label>
                   <input
                     type="date"
                     value={newMatch.date}
-                    onChange={e => setNewMatch({ ...newMatch, date: e.target.value })}
-                    min={getMinDate()}
-                    required
+                    onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })}
+                    min={new Date().toISOString().split('T')[0]}
                     style={{
                       width: '100%',
-                      padding: '14px 16px',
-                      border: '2px solid #e5e5e5',
+                      padding: 14,
                       borderRadius: 12,
-                      fontSize: 15,
-                      boxSizing: 'border-box'
+                      border: '2px solid #eee',
+                      fontSize: 16
                     }}
+                    required
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                    Heure *
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: 14, 
+                    fontWeight: '600',
+                    marginBottom: 8,
+                    color: '#1a1a1a'
+                  }}>
+                    🕐 Heure
                   </label>
                   <input
                     type="time"
                     value={newMatch.time}
-                    onChange={e => setNewMatch({ ...newMatch, time: e.target.value })}
+                    onChange={(e) => setNewMatch({ ...newMatch, time: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: 14,
+                      borderRadius: 12,
+                      border: '2px solid #eee',
+                      fontSize: 16
+                    }}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '14px 16px',
-                      border: '2px solid #e5e5e5',
-                      borderRadius: 12,
-                      fontSize: 15,
-                      boxSizing: 'border-box'
-                    }}
                   />
                 </div>
               </div>
 
-              {/* Joueurs recherchés */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  Combien de joueurs tu cherches ? *
+              {/* Niveau (optionnel) */}
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: 14, 
+                  fontWeight: '600',
+                  marginBottom: 8,
+                  color: '#1a1a1a'
+                }}>
+                  🎯 Niveau minimum <span style={{ color: '#999', fontWeight: '400' }}>(optionnel)</span>
                 </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {['1', '2', '3'].map(num => (
-                    <div
-                      key={num}
-                      onClick={() => setNewMatch({ ...newMatch, spots: num })}
-                      style={{
-                        flex: 1,
-                        padding: '14px',
-                        border: newMatch.spots === num ? '2px solid #1a1a1a' : '2px solid #e5e5e5',
-                        borderRadius: 12,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        fontWeight: '600',
-                        background: newMatch.spots === num ? '#fafafa' : '#fff'
-                      }}
-                    >
-                      {num}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Prix du terrain */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  💰 Prix total du terrain (optionnel)
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="number"
-                    value={newMatch.price_total}
-                    onChange={e => setNewMatch({ ...newMatch, price_total: e.target.value })}
-                    placeholder="Ex: 60"
-                    min="0"
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewMatch({ ...newMatch, level: 'all' })}
                     style={{
-                      width: '100%',
-                      padding: '14px 16px',
-                      paddingRight: 50,
-                      border: '2px solid #e5e5e5',
-                      borderRadius: 12,
-                      fontSize: 15,
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                  <span style={{
-                    position: 'absolute',
-                    right: 16,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: '#999',
-                    fontWeight: '600'
-                  }}>
-                    €
-                  </span>
-                </div>
-                {newMatch.price_total && (
-                  <p style={{ fontSize: 13, color: '#2e7d32', marginTop: 8 }}>
-                    → {Math.round(parseInt(newMatch.price_total) / 4)}€ par personne
-                  </p>
-                )}
-              </div>
-
-              {/* Niveau recherché */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  Niveau recherché *
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                  {levelOptions.slice(0, 3).map(opt => (
-                    <div
-                      key={opt.id}
-                      onClick={() => setNewMatch({ ...newMatch, level: opt.id })}
-                      style={{
-                        padding: '12px 8px',
-                        border: newMatch.level === opt.id ? '2px solid #2e7d32' : '2px solid #e5e5e5',
-                        borderRadius: 12,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        background: newMatch.level === opt.id ? '#e8f5e9' : '#fff'
-                      }}
-                    >
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.emoji}</div>
-                      <div style={{ fontSize: 12, fontWeight: '600' }}>{opt.label}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 8 }}>
-                  {levelOptions.slice(3).map(opt => (
-                    <div
-                      key={opt.id}
-                      onClick={() => setNewMatch({ ...newMatch, level: opt.id })}
-                      style={{
-                        padding: '12px 8px',
-                        border: newMatch.level === opt.id ? '2px solid #2e7d32' : '2px solid #e5e5e5',
-                        borderRadius: 12,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        background: newMatch.level === opt.id ? '#e8f5e9' : '#fff'
-                      }}
-                    >
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.emoji}</div>
-                      <div style={{ fontSize: 12, fontWeight: '600' }}>{opt.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Ambiance */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  Ambiance *
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                  {ambianceOptions.map(opt => (
-                    <div
-                      key={opt.id}
-                      onClick={() => setNewMatch({ ...newMatch, ambiance: opt.id })}
-                      style={{
-                        padding: '12px 8px',
-                        border: newMatch.ambiance === opt.id ? '2px solid #2e7d32' : '2px solid #e5e5e5',
-                        borderRadius: 12,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        background: newMatch.ambiance === opt.id ? '#e8f5e9' : '#fff'
-                      }}
-                    >
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.emoji}</div>
-                      <div style={{ fontSize: 12, fontWeight: '600' }}>{opt.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Notes privées */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  📝 Notes privées (optionnel)
-                </label>
-                <textarea
-                  value={newMatch.private_notes}
-                  onChange={e => setNewMatch({ ...newMatch, private_notes: e.target.value })}
-                  placeholder="Ex: Terrain n°3, code portail 1234, RDV au bar 15min avant..."
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    border: '2px solid #e5e5e5',
-                    borderRadius: 12,
-                    fontSize: 15,
-                    boxSizing: 'border-box',
-                    resize: 'vertical'
-                  }}
-                />
-                <p style={{ fontSize: 12, color: '#999', marginTop: 6 }}>
-                  Visible uniquement par les joueurs inscrits
-                </p>
-              </div>
-
-              {/* Inviter un groupe */}
-              {groups.length > 0 && (
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                    👥 Inviter un groupe (optionnel)
-                  </label>
-                  <select
-                    value={newMatch.group_id}
-                    onChange={e => setNewMatch({ ...newMatch, group_id: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '14px 16px',
-                      border: '2px solid #e5e5e5',
-                      borderRadius: 12,
-                      fontSize: 15,
-                      boxSizing: 'border-box',
-                      background: '#fff'
+                      padding: '10px 16px',
+                      borderRadius: 10,
+                      border: '2px solid',
+                      borderColor: newMatch.level === 'all' ? '#1a1a1a' : '#eee',
+                      background: newMatch.level === 'all' ? '#1a1a1a' : '#fff',
+                      color: newMatch.level === 'all' ? '#fff' : '#666',
+                      fontSize: 14,
+                      fontWeight: '500',
+                      cursor: 'pointer'
                     }}
                   >
-                    <option value="">Pas de groupe</option>
-                    {groups.map(group => (
-                      <option key={group.id} value={group.id}>{group.name}</option>
-                    ))}
-                  </select>
+                    Tous
+                  </button>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setNewMatch({ ...newMatch, level: level.toString() })}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        border: '2px solid',
+                        borderColor: newMatch.level === level.toString() ? '#1a1a1a' : '#eee',
+                        background: newMatch.level === level.toString() ? '#1a1a1a' : '#fff',
+                        color: newMatch.level === level.toString() ? '#fff' : '#666',
+                        fontSize: 14,
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        minWidth: 44
+                      }}
+                    >
+                      {level}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
 
-              {/* Bouton */}
+              {/* Bouton créer */}
               <button
                 type="submit"
-                disabled={creating || !newMatch.club_id || !newMatch.date || !newMatch.time}
+                disabled={creating}
                 style={{
                   width: '100%',
-                  padding: '18px',
-                  background: creating || !newMatch.club_id || !newMatch.date || !newMatch.time ? '#e5e5e5' : '#1a1a1a',
-                  color: creating || !newMatch.club_id || !newMatch.date || !newMatch.time ? '#999' : '#fff',
+                  padding: 16,
+                  background: creating ? '#ccc' : '#1a1a1a',
+                  color: '#fff',
                   border: 'none',
-                  borderRadius: 14,
+                  borderRadius: 12,
                   fontSize: 16,
                   fontWeight: '600',
-                  cursor: creating || !newMatch.club_id || !newMatch.date || !newMatch.time ? 'not-allowed' : 'pointer'
+                  cursor: creating ? 'not-allowed' : 'pointer'
                 }}
               >
-                {creating ? 'Création...' : 'Créer la partie'}
+                {creating ? 'Création...' : '🎾 Créer la partie'}
               </button>
             </form>
           </div>
