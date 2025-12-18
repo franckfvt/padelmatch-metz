@@ -25,6 +25,7 @@ export default function MatchPage() {
   const [showSOSModal, setShowSOSModal] = useState(false)
   const [showResultModal, setShowResultModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showCalendarModal, setShowCalendarModal] = useState(false)
   
   // États
   const [copied, setCopied] = useState(false)
@@ -518,6 +519,47 @@ export default function MatchPage() {
     return timeStr?.slice(0, 5) || ''
   }
 
+  function generateCalendarLinks() {
+    if (!match) return null
+    
+    const title = `🎾 Padel - ${match.clubs?.name}`
+    const startDate = new Date(`${match.match_date}T${match.match_time}`)
+    const endDate = new Date(startDate.getTime() + 90 * 60 * 1000) // +1h30
+    
+    const formatDateGoogle = (date) => date.toISOString().replace(/-|:|\.\d+/g, '')
+    const formatDateICS = (date) => date.toISOString().replace(/-|:|\.\d+/g, '').slice(0, -1)
+    
+    // Google Calendar
+    const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatDateGoogle(startDate)}/${formatDateGoogle(endDate)}&location=${encodeURIComponent(match.clubs?.address || match.clubs?.name || '')}&details=${encodeURIComponent(`Partie de padel organisée via PadelMatch\n\n${window.location.origin}/dashboard/match/${matchId}`)}`
+    
+    // ICS pour Apple/Outlook
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:${formatDateICS(startDate)}Z
+DTEND:${formatDateICS(endDate)}Z
+SUMMARY:${title}
+LOCATION:${match.clubs?.address || match.clubs?.name || ''}
+DESCRIPTION:Partie de padel organisée via PadelMatch
+END:VEVENT
+END:VCALENDAR`
+    
+    return { googleUrl, icsContent }
+  }
+
+  function downloadICS() {
+    const { icsContent } = generateCalendarLinks()
+    const blob = new Blob([icsContent], { type: 'text/calendar' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `padel-${match.match_date}.ics`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
   function isOrganizer() {
     return user?.id === match?.organizer_id
   }
@@ -637,7 +679,7 @@ export default function MatchPage() {
         </div>
 
         {/* Boutons d'action */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
           <button
             onClick={() => setShowInviteModal(true)}
             style={{
@@ -649,10 +691,28 @@ export default function MatchPage() {
               borderRadius: 10,
               fontSize: 14,
               fontWeight: '600',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              minWidth: 100
             }}
           >
             🔗 Inviter
+          </button>
+          
+          {/* Bouton calendrier */}
+          <button
+            onClick={() => setShowCalendarModal(true)}
+            style={{
+              padding: '10px 16px',
+              background: '#eff6ff',
+              color: '#1e40af',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            📅
           </button>
           
           {getPlayerCount() < 4 && (
@@ -1123,6 +1183,40 @@ export default function MatchPage() {
                   {match.score_set3_a && ` / ${match.score_set3_a}-${match.score_set3_b}`}
                 </div>
               )}
+              
+              {/* Bouton télécharger carte victoire */}
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/og/victory/${matchId}`)
+                    const blob = await response.blob()
+                    const url = window.URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `victoire-padelmatch-${matchId}.png`
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                    window.URL.revokeObjectURL(url)
+                  } catch (error) {
+                    console.error('Download error:', error)
+                    alert('Erreur lors du téléchargement')
+                  }
+                }}
+                style={{
+                  marginTop: 16,
+                  padding: '12px 24px',
+                  background: '#1a1a1a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                📥 Télécharger la carte victoire
+              </button>
             </div>
           )}
 
@@ -1810,6 +1904,97 @@ export default function MatchPage() {
               }}
             >
               Enregistrer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Calendrier */}
+      {showCalendarModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 200,
+          padding: 20
+        }}
+        onClick={(e) => e.target === e.currentTarget && setShowCalendarModal(false)}
+        >
+          <div style={{
+            background: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            width: '100%',
+            maxWidth: 400
+          }}>
+            <h2 style={{ fontSize: 18, fontWeight: '700', margin: '0 0 8px' }}>
+              📅 Ajouter au calendrier
+            </h2>
+            <p style={{ color: '#666', fontSize: 14, margin: '0 0 20px' }}>
+              Pour recevoir un rappel avant le match
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <a
+                href={generateCalendarLinks()?.googleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  padding: 14,
+                  background: '#fff',
+                  border: '2px solid #eee',
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  color: '#1a1a1a'
+                }}
+              >
+                <span>📆</span> Google Calendar
+              </a>
+              
+              <button
+                onClick={downloadICS}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  padding: 14,
+                  background: '#fff',
+                  border: '2px solid #eee',
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>🍎</span> Apple / Outlook
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowCalendarModal(false)}
+              style={{
+                width: '100%',
+                marginTop: 16,
+                padding: 12,
+                background: '#f5f5f5',
+                color: '#666',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 14,
+                cursor: 'pointer'
+              }}
+            >
+              Fermer
             </button>
           </div>
         </div>
