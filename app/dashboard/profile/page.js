@@ -286,7 +286,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
             <button
               onClick={copyProfileLink}
               style={{
@@ -321,6 +321,41 @@ export default function ProfilePage() {
               👁️ Voir
             </Link>
           </div>
+          
+          {/* Télécharger la carte */}
+          <button
+            onClick={async () => {
+              try {
+                const response = await fetch(`/api/og/card/${profile?.id}`)
+                const blob = await response.blob()
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `padelmatch-${profile?.name?.toLowerCase().replace(/\s+/g, '-')}.png`
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                window.URL.revokeObjectURL(url)
+              } catch (error) {
+                console.error('Download error:', error)
+                alert('Erreur lors du téléchargement')
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '12px 20px',
+              background: '#f5f5f5',
+              color: '#1a1a1a',
+              border: 'none',
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: '600',
+              cursor: 'pointer',
+              marginBottom: 16
+            }}
+          >
+            📥 Télécharger ma carte (pour stories)
+          </button>
 
           {/* Exemple d'utilisation */}
           <div style={{

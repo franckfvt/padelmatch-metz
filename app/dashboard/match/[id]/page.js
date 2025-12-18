@@ -257,11 +257,27 @@ export default function MatchPage() {
     if (!confirm('Tu veux vraiment quitter cette partie ?')) return
 
     try {
+      // Calculer si c'est une annulation tardive (< 24h avant le match)
+      const matchDateTime = new Date(`${match.match_date}T${match.match_time}`)
+      const now = new Date()
+      const hoursUntilMatch = (matchDateTime - now) / (1000 * 60 * 60)
+      const cancellationType = hoursUntilMatch < 24 ? 'late_cancel' : 'early_cancel'
+
+      // Marquer l'annulation
       await supabase
         .from('match_participants')
-        .delete()
+        .update({ 
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString()
+        })
         .eq('match_id', matchId)
         .eq('user_id', user.id)
+
+      // Mettre à jour le score de fiabilité via RPC
+      await supabase.rpc('update_reliability_score', {
+        p_user_id: user.id,
+        p_action: cancellationType
+      })
 
       await supabase
         .from('matches')
@@ -280,6 +296,35 @@ export default function MatchPage() {
       router.push('/dashboard')
     } catch (error) {
       console.error('Error:', error)
+    }
+  }
+
+  async function markNoShow(participantId, participantUserId, participantName) {
+    if (!confirm(`${participantName} n'est pas venu(e) ? Son score de fiabilité sera impacté.`)) return
+
+    try {
+      // Marquer comme no-show
+      await supabase
+        .from('match_participants')
+        .update({ showed_up: false })
+        .eq('id', participantId)
+
+      // Mettre à jour le score de fiabilité
+      await supabase.rpc('update_reliability_score', {
+        p_user_id: participantUserId,
+        p_action: 'no_show'
+      })
+
+      await supabase.from('match_messages').insert({
+        match_id: parseInt(matchId),
+        user_id: user.id,
+        message: `⚠️ ${participantName} n'est pas venu(e)`
+      })
+
+      loadData()
+    } catch (error) {
+      console.error('Error marking no-show:', error)
+      alert('Erreur lors du signalement')
     }
   }
 
@@ -395,6 +440,12 @@ export default function MatchPage() {
             })
             .eq('id', playerId)
         }
+        
+        // Améliorer la fiabilité pour avoir participé
+        await supabase.rpc('update_reliability_score', {
+          p_user_id: playerId,
+          p_action: 'completed'
+        })
       }
 
       // Update losers
@@ -414,6 +465,12 @@ export default function MatchPage() {
             })
             .eq('id', playerId)
         }
+        
+        // Améliorer la fiabilité pour avoir participé
+        await supabase.rpc('update_reliability_score', {
+          p_user_id: playerId,
+          p_action: 'completed'
+        })
       }
 
       await supabase.from('match_messages').insert({
@@ -467,6 +524,12 @@ export default function MatchPage() {
 
   function isParticipant() {
     return participants.some(p => p.user_id === user?.id)
+  }
+
+  function isMatchPast() {
+    if (!match?.match_date || !match?.match_time) return false
+    const matchDateTime = new Date(`${match.match_date}T${match.match_time}`)
+    return new Date() > matchDateTime
   }
 
   function getPlayerCount() {
@@ -947,6 +1010,72 @@ export default function MatchPage() {
                           →B
                         </button>
                       </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section présences (après l'heure du match) */}
+          {isOrganizer() && match?.status !== 'completed' && isMatchPast() && (
+            <div style={{
+              background: '#fffbeb',
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 16,
+              border: '1px solid #fcd34d'
+            }}>
+              <h3 style={{ fontSize: 14, fontWeight: '600', margin: '0 0 12px', color: '#92400e' }}>
+                📋 Qui était présent ?
+              </h3>
+              <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>
+                Signale les absents pour mettre à jour leur score de fiabilité.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {participants.map(p => (
+                  <div 
+                    key={p.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      background: '#fff',
+                      borderRadius: 10,
+                      border: '1px solid #eee'
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontWeight: '500' }}>{p.profiles?.name}</span>
+                      {p.showed_up === false && (
+                        <span style={{ 
+                          marginLeft: 8,
+                          fontSize: 11,
+                          background: '#fee2e2',
+                          color: '#dc2626',
+                          padding: '2px 6px',
+                          borderRadius: 4
+                        }}>
+                          Absent signalé
+                        </span>
+                      )}
+                    </div>
+                    {p.showed_up !== false && (
+                      <button
+                        onClick={() => markNoShow(p.id, p.user_id, p.profiles?.name)}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#fee2e2',
+                          color: '#dc2626',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Absent
+                      </button>
                     )}
                   </div>
                 ))}
