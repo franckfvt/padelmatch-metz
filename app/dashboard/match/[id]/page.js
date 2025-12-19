@@ -653,6 +653,14 @@ END:VCALENDAR`
     }
     // Ajouter les participants de l'équipe A
     participants.filter(p => p.team === 'A').forEach(p => players.push(p))
+    // Ajouter les invitations en attente pour l'équipe A
+    pendingInvites.filter(inv => inv.team === 'A').forEach(inv => players.push({
+      id: `invite-${inv.id}`,
+      isPendingInvite: true,
+      invitee_name: inv.invitee_name,
+      invitee_contact: inv.invitee_contact,
+      invite_token: inv.invite_token
+    }))
     return players
   }
 
@@ -668,6 +676,14 @@ END:VCALENDAR`
       })
     }
     participants.filter(p => p.team === 'B').forEach(p => players.push(p))
+    // Ajouter les invitations en attente pour l'équipe B
+    pendingInvites.filter(inv => inv.team === 'B').forEach(inv => players.push({
+      id: `invite-${inv.id}`,
+      isPendingInvite: true,
+      invitee_name: inv.invitee_name,
+      invitee_contact: inv.invitee_contact,
+      invite_token: inv.invite_token
+    }))
     return players
   }
 
@@ -1082,12 +1098,38 @@ END:VCALENDAR`
                           borderRadius: 12,
                           padding: player ? 12 : 16,
                           textAlign: 'center',
-                          border: player ? 'none' : '2px dashed rgba(255,255,255,0.4)',
-                          cursor: player ? 'pointer' : 'default',
+                          border: player ? (player.isPendingInvite ? '2px dashed #f59e0b' : 'none') : '2px dashed rgba(255,255,255,0.4)',
+                          cursor: player && !player.isPendingInvite ? 'pointer' : 'default',
                           transition: 'transform 0.1s',
                         }}
                       >
                         {player ? (
+                          player.isPendingInvite ? (
+                            /* Invitation en attente */
+                            <>
+                              <div style={{ fontSize: 24, marginBottom: 4 }}>⏳</div>
+                              <div style={{ fontWeight: '600', color: '#1a1a1a', fontSize: 14 }}>
+                                {player.invitee_name || 'Invité'}
+                              </div>
+                              <div style={{ 
+                                fontSize: 9, 
+                                background: '#f59e0b', 
+                                color: '#fff', 
+                                padding: '2px 6px', 
+                                borderRadius: 4, 
+                                display: 'inline-block',
+                                marginTop: 4,
+                                fontWeight: '600'
+                              }}>
+                                EN ATTENTE
+                              </div>
+                              <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
+                                {player.invitee_contact?.includes('@') 
+                                  ? player.invitee_contact 
+                                  : player.invitee_contact}
+                              </div>
+                            </>
+                          ) : (
                           <>
                             {/* Photo mini */}
                             {player.profiles?.avatar_url ? (
@@ -1154,7 +1196,7 @@ END:VCALENDAR`
                               </button>
                             )}
                           </>
-                        ) : (
+                          )) : (
                           <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
                             Libre
                           </div>
@@ -1203,12 +1245,38 @@ END:VCALENDAR`
                           borderRadius: 12,
                           padding: player ? 12 : 16,
                           textAlign: 'center',
-                          border: player ? 'none' : '2px dashed rgba(255,255,255,0.4)',
-                          cursor: player ? 'pointer' : 'default',
+                          border: player ? (player.isPendingInvite ? '2px dashed #f59e0b' : 'none') : '2px dashed rgba(255,255,255,0.4)',
+                          cursor: player && !player.isPendingInvite ? 'pointer' : 'default',
                           transition: 'transform 0.1s',
                         }}
                       >
                         {player ? (
+                          player.isPendingInvite ? (
+                            /* Invitation en attente */
+                            <>
+                              <div style={{ fontSize: 24, marginBottom: 4 }}>⏳</div>
+                              <div style={{ fontWeight: '600', color: '#1a1a1a', fontSize: 14 }}>
+                                {player.invitee_name || 'Invité'}
+                              </div>
+                              <div style={{ 
+                                fontSize: 9, 
+                                background: '#f59e0b', 
+                                color: '#fff', 
+                                padding: '2px 6px', 
+                                borderRadius: 4, 
+                                display: 'inline-block',
+                                marginTop: 4,
+                                fontWeight: '600'
+                              }}>
+                                EN ATTENTE
+                              </div>
+                              <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
+                                {player.invitee_contact?.includes('@') 
+                                  ? player.invitee_contact 
+                                  : player.invitee_contact}
+                              </div>
+                            </>
+                          ) : (
                           <>
                             {/* Photo mini */}
                             {player.profiles?.avatar_url ? (
@@ -1275,6 +1343,7 @@ END:VCALENDAR`
                               </button>
                             )}
                           </>
+                          )
                         ) : (
                           <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
                             Libre
