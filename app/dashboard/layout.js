@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import PlayerCard from '@/app/components/PlayerCard'
 
 export default function DashboardLayout({ children }) {
   const router = useRouter()
@@ -12,8 +11,8 @@ export default function DashboardLayout({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showCardModal, setShowCardModal] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -35,7 +34,7 @@ export default function DashboardLayout({ children }) {
       .eq('id', session.user.id)
       .single()
 
-    if (!profileData?.experience) {
+    if (!profileData?.experience && !profileData?.level) {
       router.push('/onboarding')
       return
     }
@@ -51,6 +50,13 @@ export default function DashboardLayout({ children }) {
     { href: '/dashboard/polls', label: 'Sondages', icon: '🗓️' },
     { href: '/dashboard/profile', label: 'Profil', icon: '👤' },
   ]
+
+  function copyLink() {
+    const link = `${window.location.origin}/player/${profile?.id}`
+    navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   if (loading) {
     return (
@@ -69,13 +75,24 @@ export default function DashboardLayout({ children }) {
     )
   }
 
+  // Helper pour couleur niveau
+  const getLevelColor = (level) => {
+    const lvl = parseInt(level) || 5
+    if (lvl >= 8) return '#f59e0b'
+    if (lvl >= 6) return '#a855f7'
+    if (lvl >= 4) return '#3b82f6'
+    return '#22c55e'
+  }
+
+  const levelColor = getLevelColor(profile?.level)
+
   return (
     <div style={{
       minHeight: '100vh',
       background: '#f5f5f5',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      {/* Header Desktop */}
+      {/* Header */}
       <header style={{
         background: '#fff',
         borderBottom: '1px solid #eee',
@@ -86,141 +103,61 @@ export default function DashboardLayout({ children }) {
         <div style={{
           maxWidth: 1200,
           margin: '0 auto',
-          padding: '16px 24px',
+          padding: '12px 20px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 28 }}>🎾</span>
-            <span style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a' }}>PadelMatch</span>
+          {/* Logo */}
+          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 24 }}>🎾</span>
+            <span style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a' }}>PadelMatch</span>
           </Link>
 
-          {/* Nav Desktop */}
-          <nav style={{ display: 'flex', gap: 8 }} className="desktop-nav">
-            {navItems.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: 10,
-                  textDecoration: 'none',
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: pathname === item.href ? '#1a1a1a' : '#666',
-                  background: pathname === item.href ? '#f5f5f5' : 'transparent'
-                }}
-              >
-                {item.icon} {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Profil */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Bouton Ma Carte */}
             <button
               onClick={() => setShowCardModal(true)}
               style={{
-                padding: '8px 16px',
+                padding: '8px 14px',
                 background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
                 color: '#fff',
                 border: 'none',
-                borderRadius: 10,
+                borderRadius: 8,
                 fontSize: 13,
                 fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
+                cursor: 'pointer'
               }}
             >
               🎴 Ma carte
             </button>
-            <div style={{ textAlign: 'right', display: 'none' }} className="desktop-profile">
-              <div style={{ fontSize: 14, fontWeight: '600', color: '#1a1a1a' }}>
-                {profile?.name}
-              </div>
-              <div style={{ fontSize: 12, color: '#666' }}>
-                🎾 {profile?.matches_played || 0} parties · 🏆 {profile?.matches_won || 0} wins
-              </div>
-            </div>
+
+            {/* Avatar */}
             <Link href="/dashboard/profile">
               <div style={{
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 background: '#f5f5f5',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 18,
+                fontSize: 16,
                 cursor: 'pointer'
               }}>
                 👤
               </div>
             </Link>
-
-            {/* Menu Mobile Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              style={{
-                display: 'none',
-                background: 'none',
-                border: 'none',
-                fontSize: 24,
-                cursor: 'pointer',
-                padding: 8
-              }}
-              className="mobile-menu-btn"
-            >
-              {mobileMenuOpen ? '✕' : '☰'}
-            </button>
           </div>
         </div>
-
-        {/* Menu Mobile */}
-        {mobileMenuOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            background: '#fff',
-            borderBottom: '1px solid #eee',
-            padding: 16,
-            display: 'none'
-          }} className="mobile-menu">
-            {navItems.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                style={{
-                  display: 'block',
-                  padding: '14px 16px',
-                  borderRadius: 10,
-                  textDecoration: 'none',
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: pathname === item.href ? '#1a1a1a' : '#666',
-                  background: pathname === item.href ? '#f5f5f5' : 'transparent',
-                  marginBottom: 4
-                }}
-              >
-                {item.icon} {item.label}
-              </Link>
-            ))}
-          </div>
-        )}
       </header>
 
       {/* Main Content */}
       <main style={{
         maxWidth: 1200,
         margin: '0 auto',
-        padding: '32px 24px'
+        padding: '24px 20px 100px'
       }}>
         {children}
       </main>
@@ -233,11 +170,11 @@ export default function DashboardLayout({ children }) {
         right: 0,
         background: '#fff',
         borderTop: '1px solid #eee',
-        display: 'none',
+        display: 'flex',
         justifyContent: 'space-around',
-        padding: '12px 0',
-        paddingBottom: 'max(12px, env(safe-area-inset-bottom))'
-      }} className="mobile-bottom-nav">
+        padding: '8px 0',
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))'
+      }}>
         {navItems.map(item => (
           <Link
             key={item.href}
@@ -246,48 +183,19 @@ export default function DashboardLayout({ children }) {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 4,
+              gap: 2,
               textDecoration: 'none',
               fontSize: 10,
               fontWeight: '600',
-              color: pathname === item.href ? '#2e7d32' : '#666',
-              padding: '4px 12px'
+              color: pathname === item.href ? '#2e7d32' : '#999',
+              padding: '4px 8px'
             }}
           >
-            <span style={{ fontSize: 22 }}>{item.icon}</span>
+            <span style={{ fontSize: 20 }}>{item.icon}</span>
             <span>{item.label}</span>
           </Link>
         ))}
       </nav>
-
-      {/* Styles responsives */}
-      <style jsx global>{`
-        @media (max-width: 768px) {
-          .desktop-nav {
-            display: none !important;
-          }
-          .desktop-profile {
-            display: none !important;
-          }
-          .mobile-menu-btn {
-            display: block !important;
-          }
-          .mobile-menu {
-            display: block !important;
-          }
-          .mobile-bottom-nav {
-            display: flex !important;
-          }
-          main {
-            padding-bottom: 100px !important;
-          }
-        }
-        @media (min-width: 769px) {
-          .desktop-profile {
-            display: block !important;
-          }
-        }
-      `}</style>
 
       {/* Modal Ma Carte */}
       {showCardModal && (
@@ -295,86 +203,155 @@ export default function DashboardLayout({ children }) {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.8)',
+            background: 'rgba(0,0,0,0.85)',
             zIndex: 1000,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: 20
+            padding: 16
           }}
           onClick={() => setShowCardModal(false)}
         >
           <div 
             style={{
-              background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)',
-              borderRadius: 24,
-              padding: 24,
-              maxWidth: 500,
+              background: '#111',
+              borderRadius: 20,
+              padding: 20,
               width: '100%',
-              maxHeight: '90vh',
-              overflow: 'auto'
+              maxWidth: 400
             }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <h2 style={{ color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 8 }}>
-                🎴 Ta carte joueur
-              </h2>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>
-                Partage-la pour trouver des partenaires !
-              </p>
+            {/* Carte simplifiée inline */}
+            <div style={{
+              background: '#0a0a0f',
+              borderRadius: 12,
+              overflow: 'hidden',
+              border: `2px solid ${levelColor}`,
+              marginBottom: 16
+            }}>
+              {/* Header carte */}
+              <div style={{
+                background: `linear-gradient(135deg, ${levelColor}20, transparent)`,
+                padding: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12
+              }}>
+                {/* Niveau */}
+                <div style={{
+                  width: 60,
+                  height: 60,
+                  background: `linear-gradient(135deg, ${levelColor}30, ${levelColor}10)`,
+                  borderRadius: 12,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `2px solid ${levelColor}`
+                }}>
+                  <span style={{ fontSize: 28, fontWeight: '900', color: levelColor }}>
+                    {profile?.level || '?'}
+                  </span>
+                  <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>NIVEAU</span>
+                </div>
+
+                {/* Nom + Style */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 4 }}>
+                    {profile?.name || 'Joueur'}
+                  </div>
+                  <div style={{
+                    display: 'inline-block',
+                    padding: '4px 10px',
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: 20,
+                    fontSize: 11,
+                    color: 'rgba(255,255,255,0.7)'
+                  }}>
+                    {profile?.ambiance === 'compet' ? '🏆 Compétitif' : 
+                     profile?.ambiance === 'loisir' ? '😎 Détente' : '⚡ Équilibré'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Infos */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 1,
+                background: 'rgba(255,255,255,0.05)'
+              }}>
+                {[
+                  { label: 'Poste', value: profile?.position === 'right' ? 'Droite' : profile?.position === 'left' ? 'Gauche' : 'Polyvalent' },
+                  { label: 'Fréquence', value: profile?.frequency === 'intense' ? '4x+/sem' : profile?.frequency === 'often' ? '2-3x/sem' : profile?.frequency === 'regular' ? '1x/sem' : '1-2x/mois' },
+                  { label: 'Expérience', value: profile?.experience === 'more5years' ? '+5 ans' : profile?.experience === '2to5years' ? '2-5 ans' : profile?.experience === '6months2years' ? '6m-2ans' : '<6 mois' },
+                  { label: 'Région', value: profile?.region || 'France' }
+                ].map((item, i) => (
+                  <div key={i} style={{
+                    padding: 12,
+                    background: '#0a0a0f',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: '700', color: '#fff', marginBottom: 2 }}>
+                      {item.value}
+                    </div>
+                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      {item.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                padding: '8px 16px',
+                background: 'rgba(255,255,255,0.03)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6
+              }}>
+                <span style={{ fontSize: 12 }}>🎾</span>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>PADELMATCH</span>
+              </div>
             </div>
 
-            <PlayerCard 
-              player={{
-                name: profile?.name,
-                level: profile?.level,
-                position: profile?.position,
-                ambiance: profile?.ambiance,
-                frequency: profile?.frequency,
-                experience: profile?.experience,
-                region: profile?.region,
-                avatar_url: profile?.avatar_url
-              }} 
-              standalone 
-            />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
-              <button
-                onClick={() => {
-                  const link = `${window.location.origin}/player/${profile?.id}`
-                  navigator.clipboard.writeText(link)
-                  alert('Lien copié ! 🎾')
-                }}
-                style={{
-                  padding: '14px',
-                  background: '#1877f2',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: 15,
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                📋 Copier le lien
-              </button>
-              <button
-                onClick={() => setShowCardModal(false)}
-                style={{
-                  padding: '14px',
-                  background: 'rgba(255,255,255,0.1)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: 15,
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                Fermer
-              </button>
-            </div>
+            {/* Boutons */}
+            <button
+              onClick={copyLink}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: copied ? '#22c55e' : '#1877f2',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 15,
+                fontWeight: '600',
+                cursor: 'pointer',
+                marginBottom: 10
+              }}
+            >
+              {copied ? '✓ Lien copié !' : '📋 Copier le lien'}
+            </button>
+            
+            <button
+              onClick={() => setShowCardModal(false)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'rgba(255,255,255,0.1)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 15,
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              Fermer
+            </button>
           </div>
         </div>
       )}
