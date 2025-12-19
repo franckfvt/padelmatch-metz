@@ -53,13 +53,14 @@ export default function DashboardPage() {
 
       const today = new Date().toISOString().split('T')[0]
       
-      // Parties où je suis organisateur
+      // Parties où je suis organisateur (avec date ou flexibles)
       const { data: orgMatches } = await supabase
         .from('matches')
         .select(`*, clubs (name, address), profiles!matches_organizer_id_fkey (name)`)
         .eq('organizer_id', session.user.id)
-        .gte('match_date', today)
-        .order('match_date', { ascending: true })
+        .in('status', ['open', 'full'])
+        .or(`match_date.gte.${today},match_date.is.null`)
+        .order('match_date', { ascending: true, nullsFirst: false })
 
       // Parties où je suis participant
       const { data: participations } = await supabase
@@ -75,8 +76,9 @@ export default function DashboardPage() {
           .from('matches')
           .select(`*, clubs (name, address), profiles!matches_organizer_id_fkey (name)`)
           .in('id', matchIds)
-          .gte('match_date', today)
-          .order('match_date', { ascending: true })
+          .in('status', ['open', 'full'])
+          .or(`match_date.gte.${today},match_date.is.null`)
+          .order('match_date', { ascending: true, nullsFirst: false })
         
         partMatches = partData || []
       }
@@ -88,9 +90,13 @@ export default function DashboardPage() {
         return acc
       }, [])
       
+      // Trier : les parties avec date d'abord, puis les flexibles
       uniqueMyMatches.sort((a, b) => {
-        const dateA = new Date(a.match_date + 'T' + a.match_time)
-        const dateB = new Date(b.match_date + 'T' + b.match_time)
+        if (!a.match_date && !b.match_date) return 0
+        if (!a.match_date) return 1
+        if (!b.match_date) return -1
+        const dateA = new Date(a.match_date + 'T' + (a.match_time || '00:00'))
+        const dateB = new Date(b.match_date + 'T' + (b.match_time || '00:00'))
         return dateA - dateB
       })
 
@@ -115,7 +121,10 @@ export default function DashboardPage() {
     }
   }
 
-  function formatDate(dateStr) {
+  function formatDate(dateStr, flexibleDay = null) {
+    if (!dateStr) {
+      return flexibleDay ? flexibleDay : 'Date flexible'
+    }
     const date = new Date(dateStr)
     const today = new Date()
     const tomorrow = new Date(today)
@@ -127,8 +136,13 @@ export default function DashboardPage() {
     return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
   }
 
-  function formatTime(timeStr) {
-    return timeStr?.slice(0, 5) || ''
+  function formatTime(timeStr, flexiblePeriod = null) {
+    if (timeStr) return timeStr.slice(0, 5)
+    if (flexiblePeriod) {
+      const periods = { matin: 'Matin', aprem: 'Après-midi', soir: 'Soir' }
+      return periods[flexiblePeriod] || flexiblePeriod
+    }
+    return ''
   }
 
   function getFilteredMatches() {
@@ -243,11 +257,11 @@ export default function DashboardPage() {
                   >
                     <div>
                       <div style={{ fontSize: 13, color: '#2e7d32', fontWeight: '600', marginBottom: 4 }}>
-                        {formatDate(match.match_date)} · {formatTime(match.match_time)}
+                        {formatDate(match.match_date, match.flexible_day)} · {formatTime(match.match_time, match.flexible_period)}
                         {isOrganizer && <span style={{ marginLeft: 8, color: '#92400e' }}>👑</span>}
                       </div>
                       <div style={{ fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 4 }}>
-                        {match.clubs?.name || match.flexible_city || 'À définir'}
+                        {match.clubs?.name || match.city || 'Lieu à définir'}
                       </div>
                       <div style={{ fontSize: 13, color: '#888' }}>
                         ⭐ {match.level_min}-{match.level_max} · {ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}

@@ -18,9 +18,12 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import MatchCard from './MatchCard'
 
 export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, userId }) {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [clubs, setClubs] = useState([])
   const [favoriteClubIds, setFavoriteClubIds] = useState([])
@@ -345,26 +348,45 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
   async function handleSubmit() {
     setLoading(true)
     try {
+      // Construire les données du match
       const matchData = {
         organizer_id: userId,
-        organizer_team: formData.organizer_team,
-        club_id: formData.club_id,
-        match_date: formData.date || null,
-        match_time: formData.time || null,
-        flexible_day: formData.dateType === 'flexible' ? formData.flexibleDays.join(',') : null, // CHANGÉ : join tableau
-        flexible_period: formData.dateType === 'flexible' ? formData.flexiblePeriod : null,
-        has_booked: formData.hasBooked,
-        city: formData.locationType === 'city' ? formData.city : null,
-        radius: formData.locationType === 'city' ? formData.radius : null,
+        status: 'open',
         spots_total: 4,
         spots_available: getSpotsNeeded(),
         level_min: formData.level_min,
         level_max: formData.level_max,
-        ambiance: formData.ambiance,
-        price_total: formData.price_total ? parseInt(formData.price_total) * 100 : null,
-        payment_method: formData.paymentMethod,
-        status: 'open'
+        ambiance: formData.ambiance
       }
+
+      // Club ou ville
+      if (formData.locationType === 'club' && formData.club_id) {
+        matchData.club_id = formData.club_id
+      } else if (formData.locationType === 'city' && formData.city) {
+        matchData.city = formData.city
+        matchData.radius = formData.radius || 10
+      }
+
+      // Date/heure précise ou flexible
+      if (formData.dateType === 'precise') {
+        if (formData.date) matchData.match_date = formData.date
+        if (formData.time) matchData.match_time = formData.time
+      } else {
+        if (formData.flexibleDays.length > 0) {
+          matchData.flexible_day = formData.flexibleDays.join(',')
+        }
+        if (formData.flexiblePeriod) {
+          matchData.flexible_period = formData.flexiblePeriod
+        }
+      }
+
+      // Optionnels (seulement si définis)
+      if (formData.organizer_team) matchData.organizer_team = formData.organizer_team
+      if (formData.hasBooked !== null) matchData.has_booked = formData.hasBooked
+      if (formData.price_total) matchData.price_total = parseInt(formData.price_total) * 100
+      if (formData.paymentMethod) matchData.payment_method = formData.paymentMethod
+
+      console.log('Creating match with data:', matchData)
 
       const { data: match, error } = await supabase
         .from('matches')
@@ -372,7 +394,12 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
         .select(`*, clubs (id, name, address)`)
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error:', error)
+        throw error
+      }
+
+      console.log('Match created:', match)
 
       // Séparer les partenaires inscrits des manuels
       const registeredPartners = formData.partners.filter(p => !p.isManual)
@@ -383,11 +410,21 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
         const participantsData = registeredPartners.map(p => ({
           match_id: match.id,
           user_id: p.id,
-          team: p.team,
+          team: p.team || null,
           status: 'confirmed',
           added_by_organizer: true
         }))
-        await supabase.from('match_participants').insert(participantsData)
+        
+        console.log('Adding registered partners:', participantsData)
+        
+        const { error: partError } = await supabase
+          .from('match_participants')
+          .insert(participantsData)
+        
+        if (partError) {
+          console.error('Error adding participants:', partError)
+          // Ne pas faire échouer la création du match pour ça
+        }
       }
 
       // Ajouter les partenaires MANUELS dans pending_invites
@@ -396,18 +433,28 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
           match_id: match.id,
           invited_by: userId,
           invitee_name: p.name,
-          team: p.team,
+          team: p.team || null,
           status: 'pending',
           invite_token: crypto.randomUUID()
         }))
-        await supabase.from('pending_invites').insert(invitesData)
+        
+        console.log('Adding manual partners:', invitesData)
+        
+        const { error: inviteError } = await supabase
+          .from('pending_invites')
+          .insert(invitesData)
+        
+        if (inviteError) {
+          console.error('Error adding invites:', inviteError)
+          // Ne pas faire échouer la création du match pour ça
+        }
       }
 
       setMatchCreated(match)
       setStep(6)
     } catch (error) {
       console.error('Error creating match:', error)
-      alert('Erreur lors de la création')
+      alert(`Erreur: ${error.message || 'Erreur lors de la création'}`)
     }
     setLoading(false)
   }
@@ -1486,58 +1533,26 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                 <p style={{ color: '#666', fontSize: 14 }}>Partage-la pour trouver des joueurs</p>
               </div>
 
-              {/* Carte de match */}
-              <div style={{
-                background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-                borderRadius: 16,
-                padding: 20,
-                color: '#fff',
-                marginBottom: 20
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>🎾 PADELMATCH</div>
-                    <div style={{ fontSize: 18, fontWeight: '700' }}>
-                      {matchCreated.clubs?.name || formData.city || 'Partie de padel'}
-                    </div>
-                  </div>
-                  <div style={{
-                    background: getSpotsNeeded() === 0 ? '#22c55e' : '#f59e0b',
-                    padding: '6px 10px',
-                    borderRadius: 8,
-                    fontSize: 12,
-                    fontWeight: '600'
-                  }}>
-                    {getSpotsNeeded() === 0 ? 'COMPLET' : `${getSpotsNeeded()} PLACE${getSpotsNeeded() > 1 ? 'S' : ''}`}
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                  <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>📅 DATE</div>
-                    <div style={{ fontWeight: '600' }}>
-                      {formData.date
-                        ? new Date(formData.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-                        : formData.flexibleDays.length > 0 
-                          ? formData.flexibleDays.join(', ')
-                          : '?'
-                      }
-                    </div>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>🕐 HEURE</div>
-                    <div style={{ fontWeight: '600' }}>{formData.time || formData.flexiblePeriod || '?'}</div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '6px 12px', borderRadius: 20, fontSize: 12 }}>
-                    ⭐ Niveau {formData.level_min}-{formData.level_max}
-                  </span>
-                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '6px 12px', borderRadius: 20, fontSize: 12 }}>
-                    {formData.ambiance === 'compet' ? '🏆 Compétitif' : formData.ambiance === 'loisir' ? '😎 Détente' : '⚡ Équilibré'}
-                  </span>
-                </div>
+              {/* Carte de match style FIFA */}
+              <div style={{ marginBottom: 20 }}>
+                <MatchCard 
+                  match={{
+                    ...matchCreated,
+                    match_date: formData.date || null,
+                    match_time: formData.time || null,
+                    flexible_day: formData.flexibleDays.join(', '),
+                    flexible_period: formData.flexiblePeriod,
+                    level_min: formData.level_min,
+                    level_max: formData.level_max,
+                    ambiance: formData.ambiance,
+                    spots_available: getSpotsNeeded(),
+                    spots_total: 4,
+                    price_total: formData.price_total ? parseInt(formData.price_total) * 100 : null,
+                    profiles: profile
+                  }}
+                  standalone
+                  size="normal"
+                />
               </div>
 
               {/* Boutons */}
@@ -1563,12 +1578,13 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                 onClick={() => {
                   onSuccess?.(matchCreated)
                   onClose()
+                  router.push(`/dashboard/match/${matchCreated.id}`)
                 }}
                 style={{
                   width: '100%',
                   padding: 16,
-                  background: '#f5f5f5',
-                  color: '#1a1a1a',
+                  background: '#1a1a1a',
+                  color: '#fff',
                   border: 'none',
                   borderRadius: 12,
                   fontSize: 16,
