@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import PlayerCardModal from '@/app/components/PlayerCardModal'
 
 // === ICÔNES SVG ===
 const Icons = {
@@ -42,13 +43,6 @@ const Icons = {
       <circle cx="12" cy="7" r="4"/>
     </svg>
   ),
-  chart: ({ color = 'currentColor', size = 24 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="20" x2="18" y2="10"/>
-    <line x1="12" y1="20" x2="12" y2="4"/>
-    <line x1="6" y1="20" x2="6" y2="14"/>
-  </svg>
-),
   trophy: ({ color = 'currentColor', size = 24 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
@@ -57,6 +51,13 @@ const Icons = {
       <path d="M10 22V8a6 6 0 1 1 12 0v14"/>
       <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
       <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+    </svg>
+  ),
+  chart: ({ color = 'currentColor', size = 24 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/>
+      <line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
     </svg>
   ),
   stats: ({ color = 'currentColor', size = 24 }) => (
@@ -268,7 +269,7 @@ export default function DashboardLayout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const [copiedCard, setCopiedCard] = useState(false)
+  const [showPlayerCard, setShowPlayerCard] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -313,11 +314,11 @@ export default function DashboardLayout({ children }) {
   }
 
   const navItems = [
-  { href: '/dashboard', label: 'Accueil', icon: 'home' },
-  { href: '/dashboard/matches', label: 'Mes parties', icon: 'tennis' },
-  { href: '/dashboard/stats', label: 'Stats', icon: 'chart' },  // ← Nouveau
-  { href: '/dashboard/profile', label: 'Profil', icon: 'user' },
-]
+    { href: '/dashboard', label: 'Accueil', icon: 'home' },
+    { href: '/dashboard/matches', label: 'Mes parties', icon: 'tennis' },
+    { href: '/dashboard/stats', label: 'Stats', icon: 'chart' },
+    { href: '/dashboard/profile', label: 'Profil', icon: 'user' },
+  ]
 
   const getIcon = (iconName, isActive) => {
     const IconComponent = Icons[iconName]
@@ -401,33 +402,6 @@ export default function DashboardLayout({ children }) {
           {/* Profil */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* Cloche de notifications */}
-            {/* Bouton Copier ma carte */}
-            <button
-              onClick={() => {
-                const link = `${window.location.origin}/player/${profile?.id}`
-                navigator.clipboard.writeText(link)
-                setCopiedCard(true)
-                setTimeout(() => setCopiedCard(false), 2000)
-              }}
-              style={{
-                background: copiedCard ? '#dcfce7' : '#f5f5f5',
-                border: 'none',
-                padding: '8px 12px',
-                borderRadius: 8,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 13,
-                fontWeight: '600',
-                color: copiedCard ? '#166534' : '#666',
-                transition: 'all 0.2s'
-              }}
-            >
-              {copiedCard ? '✓' : '📋'} 
-              <span className="desktop-profile">{copiedCard ? 'Copié !' : 'Ma carte'}</span>
-            </button>
-
             <button
               onClick={() => setShowNotifications(true)}
               style={{
@@ -460,6 +434,27 @@ export default function DashboardLayout({ children }) {
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
+            </button>
+
+            {/* Bouton Ma carte */}
+            <button
+              onClick={() => setShowPlayerCard(true)}
+              style={{
+                background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+                color: '#fff',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+              className="desktop-card-btn"
+            >
+              🎴 Ma carte
             </button>
 
             <div style={{ textAlign: 'right' }} className="desktop-profile">
@@ -556,6 +551,30 @@ export default function DashboardLayout({ children }) {
                 </Link>
               )
             })}
+            {/* Bouton Ma carte dans le menu mobile */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false)
+                setShowPlayerCard(true)
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '14px 16px',
+                borderRadius: 10,
+                fontSize: 16,
+                fontWeight: '600',
+                color: '#fff',
+                background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+                border: 'none',
+                width: '100%',
+                cursor: 'pointer',
+                marginTop: 8
+              }}
+            >
+              🎴 Ma carte
+            </button>
           </div>
         )}
       </header>
@@ -611,6 +630,14 @@ export default function DashboardLayout({ children }) {
         />
       )}
 
+      {/* Modal Ma carte */}
+      <PlayerCardModal
+        isOpen={showPlayerCard}
+        onClose={() => setShowPlayerCard(false)}
+        profile={profile}
+        userId={user?.id}
+      />
+
       {/* Bottom Nav Mobile */}
       <nav style={{
         position: 'fixed',
@@ -648,6 +675,27 @@ export default function DashboardLayout({ children }) {
             </Link>
           )
         })}
+        {/* Bouton Ma carte dans la bottom nav */}
+        <button
+          onClick={() => setShowPlayerCard(true)}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            fontSize: 10,
+            fontWeight: '600',
+            color: '#1a1a1a',
+            padding: '4px 8px',
+            minWidth: 60,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          <span style={{ fontSize: 20 }}>🎴</span>
+          <span>Carte</span>
+        </button>
       </nav>
 
       {/* Styles responsives */}
@@ -661,6 +709,9 @@ export default function DashboardLayout({ children }) {
             display: none !important;
           }
           .desktop-profile {
+            display: none !important;
+          }
+          .desktop-card-btn {
             display: none !important;
           }
           .mobile-menu-btn {
@@ -679,6 +730,9 @@ export default function DashboardLayout({ children }) {
         @media (min-width: 769px) {
           .desktop-profile {
             display: block !important;
+          }
+          .desktop-card-btn {
+            display: flex !important;
           }
         }
       `}</style>
