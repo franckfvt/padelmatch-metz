@@ -3,12 +3,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import CreateMatchModal from '@/app/components/CreateMatchModal'
 
 export default function MesPartiesPage() {
+  const router = useRouter()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('upcoming') // upcoming, history, stats
+  const [showCreateModal, setShowCreateModal] = useState(false)
   
   // Data
   const [upcomingMatches, setUpcomingMatches] = useState([])
@@ -180,13 +184,40 @@ export default function MesPartiesPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: '700', marginBottom: 8 }}>
-          Mes parties
-        </h1>
-        <p style={{ color: '#666', fontSize: 15 }}>
-          Tes prochaines parties, ton historique et tes statistiques
-        </p>
+      <div style={{ 
+        marginBottom: 24,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: '700', marginBottom: 4 }}>
+            Mes parties
+          </h1>
+          <p style={{ color: '#666', fontSize: 14 }}>
+            Tes prochaines parties et ton historique
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            padding: '12px 20px',
+            background: '#22c55e',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 10,
+            fontSize: 15,
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          + Créer une partie
+        </button>
       </div>
 
       {/* Tabs */}
@@ -251,20 +282,21 @@ export default function MesPartiesPage() {
               <p style={{ color: '#666', marginBottom: 20 }}>
                 Crée une partie ou rejoins-en une !
               </p>
-              <Link 
-                href="/dashboard"
+              <button 
+                onClick={() => setShowCreateModal(true)}
                 style={{
-                  display: 'inline-block',
                   padding: '14px 28px',
-                  background: '#2e7d32',
+                  background: '#22c55e',
                   color: '#fff',
                   borderRadius: 12,
-                  textDecoration: 'none',
-                  fontWeight: '600'
+                  border: 'none',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: 15
                 }}
               >
                 Créer une partie
-              </Link>
+              </button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -618,6 +650,18 @@ export default function MesPartiesPage() {
           )}
         </div>
       )}
+
+      {/* Modal création de partie */}
+      <CreateMatchModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={(match) => {
+          setShowCreateModal(false)
+          router.push(`/dashboard/match/${match.id}`)
+        }}
+        profile={profile}
+        userId={user?.id}
+      />
     </div>
   )
 }
