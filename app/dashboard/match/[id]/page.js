@@ -32,6 +32,7 @@ export default function MatchPage() {
   // États
   const [copied, setCopied] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
+  const [favorites, setFavorites] = useState([])
   
   // Résultat
   const [winner, setWinner] = useState('')
@@ -132,6 +133,14 @@ export default function MatchPage() {
 
         setPendingRequests(pendingData || [])
       }
+
+      // Charger mes favoris
+      const { data: favoritesData } = await supabase
+        .from('player_favorites')
+        .select('favorite_id')
+        .eq('user_id', session.user.id)
+      
+      setFavorites(favoritesData?.map(f => f.favorite_id) || [])
 
       await loadMessages()
       setLoading(false)
@@ -505,6 +514,41 @@ export default function MatchPage() {
     setShowSOSModal(false)
   }
 
+  // === GESTION DES FAVORIS ===
+  
+  function isFavorite(playerId) {
+    return favorites.includes(playerId)
+  }
+
+  async function toggleFavorite(playerId, playerName) {
+    if (!playerId || playerId === user?.id) return
+    
+    try {
+      if (isFavorite(playerId)) {
+        // Retirer des favoris
+        await supabase
+          .from('player_favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('favorite_id', playerId)
+        
+        setFavorites(favorites.filter(id => id !== playerId))
+      } else {
+        // Ajouter aux favoris
+        await supabase
+          .from('player_favorites')
+          .insert({
+            user_id: user.id,
+            favorite_id: playerId
+          })
+        
+        setFavorites([...favorites, playerId])
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    }
+  }
+
   function formatDate(dateStr) {
     if (!dateStr) return ''
     const date = new Date(dateStr)
@@ -587,13 +631,14 @@ END:VCALENDAR`
   // Préparer les équipes pour l'affichage
   function getTeamA() {
     const players = []
-    // L'organisateur peut être dans l'équipe A
-    if (match?.organizer_team === 'A') {
+    // L'organisateur est dans l'équipe A par défaut (sauf s'il a choisi B)
+    if (!match?.organizer_team || match?.organizer_team === 'A') {
       players.push({
         id: 'orga',
         user_id: match.organizer_id,
         profiles: match.profiles,
-        isOrganizer: true
+        isOrganizer: true,
+        has_paid: true // L'orga est considéré comme ayant payé (il paye le terrain)
       })
     }
     // Ajouter les participants de l'équipe A
@@ -608,7 +653,8 @@ END:VCALENDAR`
         id: 'orga',
         user_id: match.organizer_id,
         profiles: match.profiles,
-        isOrganizer: true
+        isOrganizer: true,
+        has_paid: true
       })
     }
     participants.filter(p => p.team === 'B').forEach(p => players.push(p))
@@ -616,17 +662,8 @@ END:VCALENDAR`
   }
 
   function getUnassigned() {
-    const players = []
-    if (!match?.organizer_team) {
-      players.push({
-        id: 'orga',
-        user_id: match?.organizer_id,
-        profiles: match?.profiles,
-        isOrganizer: true
-      })
-    }
-    participants.filter(p => !p.team).forEach(p => players.push(p))
-    return players
+    // L'organisateur n'est plus jamais "non assigné" - il est toujours en équipe A par défaut
+    return participants.filter(p => !p.team)
   }
 
   if (loading) {
@@ -795,21 +832,50 @@ END:VCALENDAR`
               border: '1px solid #eee'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
-                    {request.duo_with ? '👥 ' : ''}{request.profiles?.name}
-                    {request.duo_with && ` + ${request.duo_profile?.name || 'Partenaire'}`}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#666' }}>
-                    ⭐ {request.profiles?.level}/10 • 🎾 {request.profiles?.position === 'left' ? 'Gauche' : request.profiles?.position === 'right' ? 'Droite' : 'Les deux'}
-                    {request.profiles?.reliability_score && ` • ✅ ${request.profiles.reliability_score}%`}
+                <div 
+                  onClick={() => {
+                    setSelectedPlayer(request)
+                    setShowPlayerModal(true)
+                  }}
+                  style={{ cursor: 'pointer', flex: 1 }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {request.profiles?.avatar_url ? (
+                      <img 
+                        src={request.profiles.avatar_url} 
+                        alt="" 
+                        style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} 
+                      />
+                    ) : (
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        background: '#f5f5f5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 16
+                      }}>👤</div>
+                    )}
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
+                        {request.duo_with ? '👥 ' : ''}{request.profiles?.name}
+                        {request.duo_with && ` + ${request.duo_profile?.name || 'Partenaire'}`}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666' }}>
+                        ⭐ {request.profiles?.level}/10 
+                        {request.profiles?.ambiance && ` • ${request.profiles.ambiance === 'loisir' ? '😎' : request.profiles.ambiance === 'compet' ? '🏆' : '⚡'}`}
+                        {request.profiles?.reliability_score && ` • ✅ ${request.profiles.reliability_score}%`}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     onClick={() => acceptRequest(request.id, request.user_id, request.duo_with)}
                     style={{
-                      padding: '8px 12px',
+                      padding: '8px 14px',
                       background: '#dcfce7',
                       color: '#166534',
                       border: 'none',
@@ -819,12 +885,12 @@ END:VCALENDAR`
                       cursor: 'pointer'
                     }}
                   >
-                    ✓
+                    ✓ Accepter
                   </button>
                   <button
                     onClick={() => refuseRequest(request.id, request.duo_with)}
                     style={{
-                      padding: '8px 12px',
+                      padding: '8px 14px',
                       background: '#fee2e2',
                       color: '#dc2626',
                       border: 'none',
@@ -945,7 +1011,7 @@ END:VCALENDAR`
                               />
                             ) : null}
                             <div style={{ fontWeight: '600', color: '#1a1a1a', fontSize: 14 }}>
-                              {player.isOrganizer && '👑 '}{player.profiles?.name}
+                              {isFavorite(player.profiles?.id) && <span style={{ color: '#fbbf24' }}>⭐ </span>}{player.isOrganizer && '👑 '}{player.profiles?.name}
                             </div>
                             {player.isOrganizer && (
                               <div style={{ 
@@ -1066,7 +1132,7 @@ END:VCALENDAR`
                               />
                             ) : null}
                             <div style={{ fontWeight: '600', color: '#1a1a1a', fontSize: 14 }}>
-                              {player.isOrganizer && '👑 '}{player.profiles?.name}
+                              {isFavorite(player.profiles?.id) && <span style={{ color: '#fbbf24' }}>⭐ </span>}{player.isOrganizer && '👑 '}{player.profiles?.name}
                             </div>
                             {player.isOrganizer && (
                               <div style={{ 
@@ -1155,7 +1221,7 @@ END:VCALENDAR`
                     }}
                   >
                     <span style={{ fontWeight: '500' }}>
-                      {player.isOrganizer && '👑 '}{player.profiles?.name}
+                      {isFavorite(player.profiles?.id) && <span style={{ color: '#fbbf24' }}>⭐ </span>}{player.isOrganizer && '👑 '}{player.profiles?.name}
                     </span>
                     <span style={{ fontSize: 12, color: '#666' }}>
                       {player.profiles?.level}/10
@@ -2501,8 +2567,34 @@ END:VCALENDAR`
               </div>
             )}
 
+            {/* Bouton Favoris */}
+            {selectedPlayer.profiles?.id && selectedPlayer.profiles.id !== user?.id && (
+              <div style={{ padding: '0 16px 16px' }}>
+                <button
+                  onClick={() => toggleFavorite(selectedPlayer.profiles.id, selectedPlayer.profiles.name)}
+                  style={{
+                    width: '100%',
+                    padding: 14,
+                    background: isFavorite(selectedPlayer.profiles.id) ? '#fef3c7' : '#fff',
+                    color: isFavorite(selectedPlayer.profiles.id) ? '#92400e' : '#666',
+                    border: isFavorite(selectedPlayer.profiles.id) ? '2px solid #fbbf24' : '2px solid #eee',
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
+                  }}
+                >
+                  {isFavorite(selectedPlayer.profiles.id) ? '⭐ Dans mes favoris' : '☆ Ajouter aux favoris'}
+                </button>
+              </div>
+            )}
+
             {/* Actions */}
-            <div style={{ padding: 16, display: 'flex', gap: 10 }}>
+            <div style={{ padding: '0 16px 16px', display: 'flex', gap: 10 }}>
               <button
                 onClick={() => setShowPlayerModal(false)}
                 style={{
