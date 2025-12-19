@@ -42,6 +42,13 @@ const Icons = {
       <circle cx="12" cy="7" r="4"/>
     </svg>
   ),
+  chart: ({ color = 'currentColor', size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+),
   trophy: ({ color = 'currentColor', size = 24 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
@@ -261,6 +268,7 @@ export default function DashboardLayout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [copiedCard, setCopiedCard] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -305,10 +313,11 @@ export default function DashboardLayout({ children }) {
   }
 
   const navItems = [
-    { href: '/dashboard', label: 'Accueil', icon: 'home' },
-    { href: '/dashboard/matches', label: 'Mes parties', icon: 'tennis' },
-    { href: '/dashboard/profile', label: 'Profil', icon: 'user' },
-  ]
+  { href: '/dashboard', label: 'Accueil', icon: 'home' },
+  { href: '/dashboard/matches', label: 'Mes parties', icon: 'tennis' },
+  { href: '/dashboard/stats', label: 'Stats', icon: 'chart' },  // ← Nouveau
+  { href: '/dashboard/profile', label: 'Profil', icon: 'user' },
+]
 
   const getIcon = (iconName, isActive) => {
     const IconComponent = Icons[iconName]
@@ -392,6 +401,33 @@ export default function DashboardLayout({ children }) {
           {/* Profil */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* Cloche de notifications */}
+            {/* Bouton Copier ma carte */}
+            <button
+              onClick={() => {
+                const link = `${window.location.origin}/player/${profile?.id}`
+                navigator.clipboard.writeText(link)
+                setCopiedCard(true)
+                setTimeout(() => setCopiedCard(false), 2000)
+              }}
+              style={{
+                background: copiedCard ? '#dcfce7' : '#f5f5f5',
+                border: 'none',
+                padding: '8px 12px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13,
+                fontWeight: '600',
+                color: copiedCard ? '#166534' : '#666',
+                transition: 'all 0.2s'
+              }}
+            >
+              {copiedCard ? '✓' : '📋'} 
+              <span className="desktop-profile">{copiedCard ? 'Copié !' : 'Ma carte'}</span>
+            </button>
+
             <button
               onClick={() => setShowNotifications(true)}
               style={{

@@ -112,6 +112,20 @@ export default function DashboardPage() {
 
       setProfile(profileData)
 
+      // Initialiser les valeurs par défaut du formulaire basées sur le profil
+      if (profileData) {
+        const userLevel = profileData.level || 5
+        const levelMin = Math.max(1, userLevel - 2)
+        const levelMax = Math.min(10, userLevel + 2)
+        
+        setNewMatch(prev => ({
+          ...prev,
+          level_min: levelMin.toString(),
+          level_max: levelMax.toString(),
+          ambiance: profileData.ambiance || 'mix'
+        }))
+      }
+
       // Clubs
       const { data: clubsData } = await supabase
         .from('clubs')
@@ -779,24 +793,52 @@ export default function DashboardPage() {
             border: '1px solid #eee'
           }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
-            <p style={{ color: '#666', marginBottom: 16 }}>
-              Aucune partie disponible pour le moment
+            <h3 style={{ fontSize: 18, fontWeight: '600', marginBottom: 8, color: '#1a1a1a' }}>
+              Pas encore de partie près de chez toi
+            </h3>
+            <p style={{ color: '#666', marginBottom: 20, fontSize: 14 }}>
+              Sois le premier à organiser ! Ou partage ton profil sur les groupes Facebook pour te faire inviter.
             </p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              style={{
-                padding: '12px 24px',
-                background: '#1a1a1a',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              Créer la première partie
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 280, margin: '0 auto' }}>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{
+                  padding: '14px 24px',
+                  background: '#2e7d32',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                🎾 Créer une partie
+              </button>
+              <button
+                onClick={() => {
+                  const link = `${window.location.origin}/player/${profile?.id}`
+                  navigator.clipboard.writeText(link)
+                  setCopiedProfile(true)
+                  setTimeout(() => setCopiedProfile(false), 2000)
+                }}
+                style={{
+                  padding: '14px 24px',
+                  background: copiedProfile ? '#dcfce7' : '#f5f5f5',
+                  color: copiedProfile ? '#166534' : '#666',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                {copiedProfile ? '✓ Lien copié !' : '📋 Copier mon lien PadelMatch'}
+              </button>
+            </div>
+            <p style={{ color: '#999', fontSize: 12, marginTop: 16 }}>
+              💡 Colle ton lien quand tu réponds "Moi !" sur Facebook
+            </p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 12 }}>
@@ -966,42 +1008,36 @@ export default function DashboardPage() {
             </div>
 
             <form onSubmit={createMatch}>
-              {/* === MODE TERRAIN / FLEXIBLE === */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  Tu as déjà réservé un terrain ?
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div
+              {/* === MODE TERRAIN (défaut) avec option flexible discrète === */}
+              {newMatch.mode === 'flexible' ? (
+                <div style={{ 
+                  marginBottom: 16, 
+                  padding: 12, 
+                  background: '#dbeafe', 
+                  borderRadius: 10,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: 13, color: '#1e40af' }}>
+                    🔍 Mode "Je cherche un créneau"
+                  </span>
+                  <button
+                    type="button"
                     onClick={() => setNewMatch({ ...newMatch, mode: 'terrain' })}
                     style={{
-                      padding: 14,
-                      border: newMatch.mode === 'terrain' ? '2px solid #2e7d32' : '2px solid #eee',
-                      borderRadius: 12,
+                      background: 'none',
+                      border: 'none',
+                      color: '#1e40af',
+                      fontSize: 12,
                       cursor: 'pointer',
-                      textAlign: 'center',
-                      background: newMatch.mode === 'terrain' ? '#e8f5e9' : '#fff'
+                      textDecoration: 'underline'
                     }}
                   >
-                    <div style={{ fontSize: 24, marginBottom: 4 }}>🏟️</div>
-                    <div style={{ fontSize: 13, fontWeight: '600' }}>Oui, j'ai un terrain</div>
-                  </div>
-                  <div
-                    onClick={() => setNewMatch({ ...newMatch, mode: 'flexible' })}
-                    style={{
-                      padding: 14,
-                      border: newMatch.mode === 'flexible' ? '2px solid #1e40af' : '2px solid #eee',
-                      borderRadius: 12,
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      background: newMatch.mode === 'flexible' ? '#dbeafe' : '#fff'
-                    }}
-                  >
-                    <div style={{ fontSize: 24, marginBottom: 4 }}>🔍</div>
-                    <div style={{ fontSize: 13, fontWeight: '600' }}>Non, je cherche</div>
-                  </div>
+                    J'ai déjà un terrain →
+                  </button>
                 </div>
-              </div>
+              ) : null}
 
               {/* === MODE TERRAIN === */}
               {newMatch.mode === 'terrain' && (
@@ -1051,6 +1087,24 @@ export default function DashboardPage() {
                         style={inputStyle}
                       />
                     </div>
+                  </div>
+                  
+                  {/* Lien discret vers mode flexible */}
+                  <div style={{ marginBottom: 16, textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setNewMatch({ ...newMatch, mode: 'flexible' })}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#666',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Je n'ai pas encore réservé de terrain →
+                    </button>
                   </div>
                 </>
               )}
