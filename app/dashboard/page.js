@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [myMatches, setMyMatches] = useState([])
   const [groups, setGroups] = useState([])
   const [clubs, setClubs] = useState([])
+  const [favorites, setFavorites] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -21,11 +22,30 @@ export default function DashboardPage() {
   const [copied, setCopied] = useState(false)
   const [copiedProfile, setCopiedProfile] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  
+  // Recherche joueur pour duo
+  const [duoSearch, setDuoSearch] = useState('')
+  const [duoSearchResults, setDuoSearchResults] = useState([])
+  const [searchingDuo, setSearchingDuo] = useState(false)
 
+  // État du nouveau match
   const [newMatch, setNewMatch] = useState({
+    // Mode
+    mode: 'terrain', // 'terrain' ou 'flexible'
+    
+    // Mode Terrain
     club_id: '',
     date: '',
     time: '',
+    
+    // Mode Flexible
+    city: '',
+    radius: '20',
+    flexible_dates: [], // ['2024-01-15', '2024-01-16']
+    time_start: '08:00',
+    time_end: '22:00',
+    
+    // Commun
     spots: '3',
     ambiance: 'mix',
     level_min: '1',
@@ -33,7 +53,15 @@ export default function DashboardPage() {
     price_total: '',
     description: '',
     private_notes: '',
-    group_id: ''
+    group_id: '',
+    
+    // Duo
+    is_duo: false,
+    duo_type: 'existing', // 'existing' ou 'invite'
+    duo_player_id: '',
+    duo_player_name: '',
+    duo_invite_contact: '', // email ou téléphone
+    duo_invite_name: ''
   })
 
   const ambianceLabels = {
@@ -95,7 +123,18 @@ export default function DashboardPage() {
 
       setGroups(groupsData?.map(g => g.player_groups).filter(Boolean) || [])
 
-      // === FIX P0: Mes parties avec 2 requêtes séparées ===
+      // Mes favoris (pour le duo)
+      const { data: favoritesData } = await supabase
+        .from('player_favorites')
+        .select(`
+          favorite_id,
+          profiles:favorite_id (id, name, level, avatar_url)
+        `)
+        .eq('user_id', session.user.id)
+
+      setFavorites(favoritesData?.map(f => f.profiles).filter(Boolean) || [])
+
+      // === Mes parties avec 2 requêtes séparées ===
       const today = new Date().toISOString().split('T')[0]
       
       // 1. Parties où je suis organisateur
@@ -176,28 +215,83 @@ export default function DashboardPage() {
     }
   }
 
+  // Recherche de joueur pour duo
+  async function searchDuoPlayer(query) {
+    if (query.length < 2) {
+      setDuoSearchResults([])
+      return
+    }
+
+    setSearchingDuo(true)
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name, level, avatar_url')
+        .neq('id', user.id)
+        .ilike('name', `%${query}%`)
+        .limit(5)
+
+      setDuoSearchResults(data || [])
+    } catch (error) {
+      console.error('Error searching:', error)
+    }
+    setSearchingDuo(false)
+  }
+
+  // Debounce pour la recherche
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (duoSearch) searchDuoPlayer(duoSearch)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [duoSearch])
+
   async function createMatch(e) {
     e.preventDefault()
     setCreating(true)
 
     try {
+      // Déterminer le nombre de spots (si duo, on cherche 2 ou 1 joueur de moins)
+      let spotsAvailable = parseInt(newMatch.spots)
+      if (newMatch.is_duo) {
+        spotsAvailable = Math.max(1, spotsAvailable - 1) // On est 2, donc 1 spot de moins
+      }
+
+      // Créer le match
+      const matchData = {
+        organizer_id: user.id,
+        match_date: newMatch.mode === 'terrain' ? newMatch.date : (newMatch.flexible_dates[0] || newMatch.date),
+        match_time: newMatch.mode === 'terrain' ? newMatch.time : newMatch.time_start,
+        spots_total: 4,
+        spots_available: spotsAvailable,
+        ambiance: newMatch.ambiance,
+        level_min: parseInt(newMatch.level_min),
+        level_max: parseInt(newMatch.level_max),
+        price_total: newMatch.price_total ? parseInt(newMatch.price_total) * 100 : 0,
+        description: newMatch.description || null,
+        private_notes: newMatch.private_notes || null,
+        status: 'open',
+        organizer_team: 'A', // L'orga est toujours en équipe A
+        
+        // Mode flexible
+        is_flexible: newMatch.mode === 'flexible',
+        flexible_city: newMatch.mode === 'flexible' ? newMatch.city : null,
+        flexible_radius: newMatch.mode === 'flexible' ? parseInt(newMatch.radius) : null,
+        flexible_dates: newMatch.mode === 'flexible' && newMatch.flexible_dates.length > 0 
+          ? newMatch.flexible_dates 
+          : null,
+        flexible_time_start: newMatch.mode === 'flexible' ? newMatch.time_start : null,
+        flexible_time_end: newMatch.mode === 'flexible' ? newMatch.time_end : null,
+      }
+
+      // Si mode terrain, ajouter le club
+      if (newMatch.mode === 'terrain' && newMatch.club_id) {
+        matchData.club_id = parseInt(newMatch.club_id)
+      }
+
       const { data, error } = await supabase
         .from('matches')
-        .insert({
-          organizer_id: user.id,
-          club_id: parseInt(newMatch.club_id),
-          match_date: newMatch.date,
-          match_time: newMatch.time,
-          spots_total: 4,
-          spots_available: parseInt(newMatch.spots),
-          ambiance: newMatch.ambiance,
-          level_min: parseInt(newMatch.level_min),
-          level_max: parseInt(newMatch.level_max),
-          price_total: newMatch.price_total ? parseInt(newMatch.price_total) * 100 : 0,
-          description: newMatch.description || null,
-          private_notes: newMatch.private_notes || null,
-          status: 'open'
-        })
+        .insert(matchData)
         .select(`
           *,
           clubs (name, address)
@@ -206,25 +300,44 @@ export default function DashboardPage() {
 
       if (error) throw error
 
+      // Si duo avec joueur existant, l'ajouter comme participant
+      if (newMatch.is_duo && newMatch.duo_type === 'existing' && newMatch.duo_player_id) {
+        await supabase
+          .from('match_participants')
+          .insert({
+            match_id: data.id,
+            user_id: newMatch.duo_player_id,
+            status: 'pending', // En attente de confirmation
+            team: 'A', // Même équipe que l'orga
+            duo_with: user.id // Lié à l'orga
+          })
+        
+        // Envoyer une notification (TODO: implémenter les notifications)
+      }
+
+      // Si duo avec invitation par contact
+      if (newMatch.is_duo && newMatch.duo_type === 'invite' && newMatch.duo_invite_contact) {
+        await supabase
+          .from('pending_invites')
+          .insert({
+            match_id: data.id,
+            inviter_id: user.id,
+            invitee_name: newMatch.duo_invite_name || 'Partenaire',
+            invitee_contact: newMatch.duo_invite_contact,
+            team: 'A',
+            status: 'pending'
+          })
+        
+        // TODO: Envoyer SMS ou email d'invitation
+      }
+
       // Fermer modal création, ouvrir modal succès
       setShowCreateModal(false)
       setCreatedMatch(data)
       setShowSuccessModal(true)
       
       // Reset form
-      setNewMatch({
-        club_id: '',
-        date: '',
-        time: '',
-        spots: '3',
-        ambiance: 'mix',
-        level_min: '1',
-        level_max: '10',
-        price_total: '',
-        description: '',
-        private_notes: '',
-        group_id: ''
-      })
+      resetForm()
       
       // Recharger les données
       loadData()
@@ -235,6 +348,60 @@ export default function DashboardPage() {
     } finally {
       setCreating(false)
     }
+  }
+
+  function resetForm() {
+    setNewMatch({
+      mode: 'terrain',
+      club_id: '',
+      date: '',
+      time: '',
+      city: '',
+      radius: '20',
+      flexible_dates: [],
+      time_start: '08:00',
+      time_end: '22:00',
+      spots: '3',
+      ambiance: 'mix',
+      level_min: '1',
+      level_max: '10',
+      price_total: '',
+      description: '',
+      private_notes: '',
+      group_id: '',
+      is_duo: false,
+      duo_type: 'existing',
+      duo_player_id: '',
+      duo_player_name: '',
+      duo_invite_contact: '',
+      duo_invite_name: ''
+    })
+    setDuoSearch('')
+    setDuoSearchResults([])
+    setShowAdvanced(false)
+  }
+
+  function toggleFlexibleDate(date) {
+    const dates = newMatch.flexible_dates
+    if (dates.includes(date)) {
+      setNewMatch({ ...newMatch, flexible_dates: dates.filter(d => d !== date) })
+    } else {
+      setNewMatch({ ...newMatch, flexible_dates: [...dates, date].sort() })
+    }
+  }
+
+  function getNext7Days() {
+    const days = []
+    const today = new Date()
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() + i)
+      days.push({
+        date: date.toISOString().split('T')[0],
+        label: i === 0 ? "Auj." : i === 1 ? "Demain" : date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
+      })
+    }
+    return days
   }
 
   function formatDate(dateStr) {
@@ -263,7 +430,7 @@ export default function DashboardPage() {
   }
 
   function shareWhatsApp() {
-    const text = `🎾 Padel - ${formatDate(createdMatch.match_date)} à ${formatTime(createdMatch.match_time)}\n📍 ${createdMatch.clubs?.name}\n\nRejoins-nous !\n${getInviteLink()}`
+    const text = `🎾 Padel - ${formatDate(createdMatch.match_date)} à ${formatTime(createdMatch.match_time)}\n📍 ${createdMatch.clubs?.name || createdMatch.flexible_city || 'À définir'}\n\nRejoins-nous !\n${getInviteLink()}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
@@ -415,6 +582,23 @@ export default function DashboardPage() {
           </div>
         </Link>
 
+        <Link href="/dashboard/stats" style={{ textDecoration: 'none' }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 14,
+            padding: 16,
+            border: '2px solid #e5e5e5',
+            textAlign: 'center',
+            height: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 6 }}>📊</div>
+            <div style={{ color: '#1a1a1a', fontWeight: '600', fontSize: 13 }}>
+              Mes stats
+            </div>
+          </div>
+        </Link>
+
         <Link href="/dashboard/groups" style={{ textDecoration: 'none' }}>
           <div style={{
             background: '#fff',
@@ -488,6 +672,18 @@ export default function DashboardPage() {
                               👑 ORGA
                             </span>
                           )}
+                          {match.is_flexible && (
+                            <span style={{
+                              background: '#dbeafe',
+                              color: '#1e40af',
+                              padding: '2px 8px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: '700'
+                            }}>
+                              📍 FLEXIBLE
+                            </span>
+                          )}
                           <span style={{ fontWeight: '700', color: '#1a1a1a' }}>
                             {formatDate(match.match_date)}
                           </span>
@@ -503,7 +699,7 @@ export default function DashboardPage() {
                           </span>
                         </div>
                         <div style={{ color: '#666', fontSize: 14 }}>
-                          📍 {match.clubs?.name}
+                          📍 {match.clubs?.name || match.flexible_city || 'À définir'}
                         </div>
                       </div>
                       <div style={{
@@ -582,6 +778,18 @@ export default function DashboardPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 12 }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                          {match.is_flexible && (
+                            <span style={{
+                              background: '#dbeafe',
+                              color: '#1e40af',
+                              padding: '2px 8px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: '700'
+                            }}>
+                              📍 FLEXIBLE
+                            </span>
+                          )}
                           <span style={{ fontWeight: '700', color: '#1a1a1a' }}>
                             {formatDate(match.match_date)}
                           </span>
@@ -609,7 +817,7 @@ export default function DashboardPage() {
                           )}
                         </div>
                         <div style={{ color: '#666', fontSize: 14, marginBottom: 6 }}>
-                          📍 {match.clubs?.name}
+                          📍 {match.clubs?.name || match.flexible_city || 'À définir'}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {match.level_min && match.level_max && (
@@ -685,9 +893,9 @@ export default function DashboardPage() {
           <div style={{
             background: '#fff',
             borderRadius: 24,
-            padding: 28,
+            padding: 24,
             width: '100%',
-            maxWidth: 480,
+            maxWidth: 500,
             maxHeight: '90vh',
             overflow: 'auto'
           }}>
@@ -695,13 +903,13 @@ export default function DashboardPage() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 24
+              marginBottom: 20
             }}>
-              <h2 style={{ fontSize: 22, fontWeight: '700', margin: 0 }}>
+              <h2 style={{ fontSize: 20, fontWeight: '700', margin: 0 }}>
                 🎾 Créer une partie
               </h2>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => { setShowCreateModal(false); resetForm() }}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -715,60 +923,443 @@ export default function DashboardPage() {
             </div>
 
             <form onSubmit={createMatch}>
-              {/* Club */}
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
-                  📍 Club *
+              {/* === MODE TERRAIN / FLEXIBLE === */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
+                  Tu as déjà réservé un terrain ?
                 </label>
-                <select
-                  value={newMatch.club_id}
-                  onChange={e => setNewMatch({ ...newMatch, club_id: e.target.value })}
-                  required
-                  style={inputStyle}
-                >
-                  <option value="">Sélectionne un club</option>
-                  {clubs.map(club => (
-                    <option key={club.id} value={club.id}>{club.name}</option>
-                  ))}
-                </select>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div
+                    onClick={() => setNewMatch({ ...newMatch, mode: 'terrain' })}
+                    style={{
+                      padding: 14,
+                      border: newMatch.mode === 'terrain' ? '2px solid #2e7d32' : '2px solid #eee',
+                      borderRadius: 12,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      background: newMatch.mode === 'terrain' ? '#e8f5e9' : '#fff'
+                    }}
+                  >
+                    <div style={{ fontSize: 24, marginBottom: 4 }}>🏟️</div>
+                    <div style={{ fontSize: 13, fontWeight: '600' }}>Oui, j'ai un terrain</div>
+                  </div>
+                  <div
+                    onClick={() => setNewMatch({ ...newMatch, mode: 'flexible' })}
+                    style={{
+                      padding: 14,
+                      border: newMatch.mode === 'flexible' ? '2px solid #1e40af' : '2px solid #eee',
+                      borderRadius: 12,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      background: newMatch.mode === 'flexible' ? '#dbeafe' : '#fff'
+                    }}
+                  >
+                    <div style={{ fontSize: 24, marginBottom: 4 }}>🔍</div>
+                    <div style={{ fontSize: 13, fontWeight: '600' }}>Non, je cherche</div>
+                  </div>
+                </div>
               </div>
 
-              {/* Date et Heure */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
-                <div>
-                  <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
-                    📅 Date *
-                  </label>
-                  <input
-                    type="date"
-                    value={newMatch.date}
-                    onChange={e => setNewMatch({ ...newMatch, date: e.target.value })}
-                    min={getMinDate()}
-                    required
-                    style={inputStyle}
-                  />
+              {/* === MODE TERRAIN === */}
+              {newMatch.mode === 'terrain' && (
+                <>
+                  {/* Club */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                      📍 Club *
+                    </label>
+                    <select
+                      value={newMatch.club_id}
+                      onChange={e => setNewMatch({ ...newMatch, club_id: e.target.value })}
+                      required
+                      style={inputStyle}
+                    >
+                      <option value="">Sélectionne un club</option>
+                      {clubs.map(club => (
+                        <option key={club.id} value={club.id}>{club.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Date et Heure */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                    <div>
+                      <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                        📅 Date *
+                      </label>
+                      <input
+                        type="date"
+                        value={newMatch.date}
+                        onChange={e => setNewMatch({ ...newMatch, date: e.target.value })}
+                        min={getMinDate()}
+                        required
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                        🕐 Heure *
+                      </label>
+                      <input
+                        type="time"
+                        value={newMatch.time}
+                        onChange={e => setNewMatch({ ...newMatch, time: e.target.value })}
+                        required
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* === MODE FLEXIBLE === */}
+              {newMatch.mode === 'flexible' && (
+                <>
+                  {/* Ville */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                      📍 Ville ou zone *
+                    </label>
+                    <input
+                      type="text"
+                      value={newMatch.city}
+                      onChange={e => setNewMatch({ ...newMatch, city: e.target.value })}
+                      placeholder="Ex: Metz, Paris 15e..."
+                      required
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  {/* Rayon */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                      🎯 Rayon de recherche
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {['5', '10', '20', '30', '50'].map(km => (
+                        <div
+                          key={km}
+                          onClick={() => setNewMatch({ ...newMatch, radius: km })}
+                          style={{
+                            flex: 1,
+                            padding: '10px 6px',
+                            border: newMatch.radius === km ? '2px solid #1e40af' : '2px solid #eee',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            fontWeight: '600',
+                            fontSize: 13,
+                            background: newMatch.radius === km ? '#dbeafe' : '#fff'
+                          }}
+                        >
+                          {km}km
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dates flexibles */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                      📅 Quand es-tu dispo ? (sélectionne plusieurs jours)
+                    </label>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {getNext7Days().map(day => (
+                        <div
+                          key={day.date}
+                          onClick={() => toggleFlexibleDate(day.date)}
+                          style={{
+                            padding: '10px 14px',
+                            border: newMatch.flexible_dates.includes(day.date) 
+                              ? '2px solid #1e40af' 
+                              : '2px solid #eee',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            background: newMatch.flexible_dates.includes(day.date) ? '#dbeafe' : '#fff',
+                            fontWeight: '500',
+                            fontSize: 13
+                          }}
+                        >
+                          {day.label}
+                        </div>
+                      ))}
+                    </div>
+                    <input
+                      type="date"
+                      onChange={e => {
+                        if (e.target.value && !newMatch.flexible_dates.includes(e.target.value)) {
+                          toggleFlexibleDate(e.target.value)
+                        }
+                      }}
+                      min={getMinDate()}
+                      style={{ ...inputStyle, marginTop: 8 }}
+                      placeholder="Autre date..."
+                    />
+                  </div>
+
+                  {/* Heures flexibles */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                    <div>
+                      <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                        🕐 À partir de
+                      </label>
+                      <input
+                        type="time"
+                        value={newMatch.time_start}
+                        onChange={e => setNewMatch({ ...newMatch, time_start: e.target.value })}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                        Jusqu'à
+                      </label>
+                      <input
+                        type="time"
+                        value={newMatch.time_end}
+                        onChange={e => setNewMatch({ ...newMatch, time_end: e.target.value })}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* === DUO === */}
+              <div style={{ 
+                marginBottom: 16, 
+                padding: 16, 
+                background: newMatch.is_duo ? '#fef3c7' : '#f9fafb',
+                borderRadius: 12,
+                border: newMatch.is_duo ? '2px solid #fbbf24' : '1px solid #eee'
+              }}>
+                <div 
+                  onClick={() => setNewMatch({ ...newMatch, is_duo: !newMatch.is_duo })}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 12,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 6,
+                    border: newMatch.is_duo ? '2px solid #fbbf24' : '2px solid #d1d5db',
+                    background: newMatch.is_duo ? '#fbbf24' : '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontWeight: '700'
+                  }}>
+                    {newMatch.is_duo && '✓'}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: '600', color: '#1a1a1a' }}>👥 Je suis en duo</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>Ton partenaire sera dans ton équipe</div>
+                  </div>
                 </div>
-                <div>
-                  <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
-                    🕐 Heure *
-                  </label>
-                  <input
-                    type="time"
-                    value={newMatch.time}
-                    onChange={e => setNewMatch({ ...newMatch, time: e.target.value })}
-                    required
-                    style={inputStyle}
-                  />
-                </div>
+
+                {newMatch.is_duo && (
+                  <div style={{ marginTop: 16 }}>
+                    {/* Type de duo */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => setNewMatch({ ...newMatch, duo_type: 'existing' })}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          border: newMatch.duo_type === 'existing' ? '2px solid #92400e' : '2px solid #eee',
+                          borderRadius: 8,
+                          background: newMatch.duo_type === 'existing' ? '#fef3c7' : '#fff',
+                          fontWeight: '600',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          color: '#1a1a1a'
+                        }}
+                      >
+                        🎾 Joueur inscrit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewMatch({ ...newMatch, duo_type: 'invite' })}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          border: newMatch.duo_type === 'invite' ? '2px solid #92400e' : '2px solid #eee',
+                          borderRadius: 8,
+                          background: newMatch.duo_type === 'invite' ? '#fef3c7' : '#fff',
+                          fontWeight: '600',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          color: '#1a1a1a'
+                        }}
+                      >
+                        ✉️ Inviter quelqu'un
+                      </button>
+                    </div>
+
+                    {/* Joueur existant */}
+                    {newMatch.duo_type === 'existing' && (
+                      <div>
+                        {/* Favoris */}
+                        {favorites.length > 0 && !newMatch.duo_player_id && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>⭐ Tes favoris</div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              {favorites.slice(0, 4).map(fav => (
+                                <div
+                                  key={fav.id}
+                                  onClick={() => setNewMatch({ 
+                                    ...newMatch, 
+                                    duo_player_id: fav.id,
+                                    duo_player_name: fav.name
+                                  })}
+                                  style={{
+                                    padding: '8px 12px',
+                                    background: '#fff',
+                                    border: '1px solid #eee',
+                                    borderRadius: 8,
+                                    cursor: 'pointer',
+                                    fontSize: 13,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6
+                                  }}
+                                >
+                                  {fav.avatar_url ? (
+                                    <img src={fav.avatar_url} alt="" style={{ width: 20, height: 20, borderRadius: '50%' }} />
+                                  ) : '👤'}
+                                  {fav.name}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recherche */}
+                        {!newMatch.duo_player_id ? (
+                          <div>
+                            <input
+                              type="text"
+                              value={duoSearch}
+                              onChange={e => setDuoSearch(e.target.value)}
+                              placeholder="Rechercher un joueur..."
+                              style={inputStyle}
+                            />
+                            {duoSearchResults.length > 0 && (
+                              <div style={{
+                                background: '#fff',
+                                border: '1px solid #eee',
+                                borderRadius: 8,
+                                marginTop: 4,
+                                maxHeight: 150,
+                                overflow: 'auto'
+                              }}>
+                                {duoSearchResults.map(player => (
+                                  <div
+                                    key={player.id}
+                                    onClick={() => {
+                                      setNewMatch({
+                                        ...newMatch,
+                                        duo_player_id: player.id,
+                                        duo_player_name: player.name
+                                      })
+                                      setDuoSearch('')
+                                      setDuoSearchResults([])
+                                    }}
+                                    style={{
+                                      padding: '10px 12px',
+                                      cursor: 'pointer',
+                                      borderBottom: '1px solid #f5f5f5',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 10
+                                    }}
+                                  >
+                                    {player.avatar_url ? (
+                                      <img src={player.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                                    ) : (
+                                      <div style={{ width: 28, height: 28, background: '#e5e5e5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👤</div>
+                                    )}
+                                    <div>
+                                      <div style={{ fontWeight: '600', fontSize: 14 }}>{player.name}</div>
+                                      <div style={{ fontSize: 12, color: '#666' }}>⭐ {player.level}/10</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{
+                            padding: 12,
+                            background: '#fff',
+                            borderRadius: 8,
+                            border: '2px solid #22c55e',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 18 }}>✓</span>
+                              <span style={{ fontWeight: '600' }}>{newMatch.duo_player_name}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setNewMatch({ ...newMatch, duo_player_id: '', duo_player_name: '' })}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#dc2626',
+                                cursor: 'pointer',
+                                fontSize: 18
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Invitation */}
+                    {newMatch.duo_type === 'invite' && (
+                      <div>
+                        <input
+                          type="text"
+                          value={newMatch.duo_invite_name}
+                          onChange={e => setNewMatch({ ...newMatch, duo_invite_name: e.target.value })}
+                          placeholder="Prénom de ton partenaire"
+                          style={{ ...inputStyle, marginBottom: 8 }}
+                        />
+                        <input
+                          type="text"
+                          value={newMatch.duo_invite_contact}
+                          onChange={e => setNewMatch({ ...newMatch, duo_invite_contact: e.target.value })}
+                          placeholder="Téléphone ou email"
+                          style={inputStyle}
+                        />
+                        <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>
+                          📱 Un lien d'invitation sera envoyé pour confirmer sa présence
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Joueurs recherchés */}
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
                   👥 Combien de joueurs tu cherches ? *
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {['1', '2', '3'].map(num => (
+                  {(newMatch.is_duo ? ['1', '2'] : ['1', '2', '3']).map(num => (
                     <div
                       key={num}
                       onClick={() => setNewMatch({ ...newMatch, spots: num })}
@@ -787,16 +1378,21 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
+                {newMatch.is_duo && (
+                  <div style={{ fontSize: 12, color: '#666', marginTop: 6 }}>
+                    💡 Tu es en duo, donc {parseInt(newMatch.spots) + 2} joueurs au total
+                  </div>
+                )}
               </div>
 
               {/* Niveau min/max */}
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
-                  ⭐ Niveau recherché *
+                  ⭐ Niveau recherché
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 10, alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>Min</div>
+                    <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>Min</div>
                     <select
                       value={newMatch.level_min}
                       onChange={e => setNewMatch({ ...newMatch, level_min: e.target.value })}
@@ -807,9 +1403,9 @@ export default function DashboardPage() {
                       ))}
                     </select>
                   </div>
-                  <div style={{ color: '#999', fontWeight: '600', paddingTop: 20 }}>→</div>
+                  <div style={{ color: '#999', fontWeight: '600', paddingTop: 18 }}>→</div>
                   <div>
-                    <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>Max</div>
+                    <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>Max</div>
                     <select
                       value={newMatch.level_max}
                       onChange={e => setNewMatch({ ...newMatch, level_max: e.target.value })}
@@ -821,15 +1417,12 @@ export default function DashboardPage() {
                     </select>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: '#2e7d32', marginTop: 6 }}>
-                  💡 Laisse 1-10 pour accepter tous les niveaux
-                </div>
               </div>
 
               {/* Ambiance */}
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
-                  Ambiance *
+                  Ambiance
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                   {ambianceOptions.map(opt => (
@@ -850,20 +1443,6 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-
-              {/* Description */}
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
-                  ✏️ Description (optionnel)
-                </label>
-                <textarea
-                  value={newMatch.description}
-                  onChange={e => setNewMatch({ ...newMatch, description: e.target.value })}
-                  placeholder="Ex: Match détendu entre potes, débutants bienvenus !"
-                  rows={2}
-                  style={{ ...inputStyle, resize: 'vertical' }}
-                />
               </div>
 
               {/* Options avancées */}
@@ -887,40 +1466,56 @@ export default function DashboardPage() {
 
               {showAdvanced && (
                 <>
-                  {/* Prix */}
-                  <div style={{ marginBottom: 18 }}>
+                  {/* Description */}
+                  <div style={{ marginBottom: 16 }}>
                     <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
-                      💰 Prix total du terrain
+                      ✏️ Description
                     </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="number"
-                        value={newMatch.price_total}
-                        onChange={e => setNewMatch({ ...newMatch, price_total: e.target.value })}
-                        placeholder="Ex: 60"
-                        min="0"
-                        style={{ ...inputStyle, paddingRight: 40 }}
-                      />
-                      <span style={{
-                        position: 'absolute',
-                        right: 14,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: '#999',
-                        fontWeight: '600'
-                      }}>
-                        €
-                      </span>
-                    </div>
-                    {newMatch.price_total && (
-                      <p style={{ fontSize: 12, color: '#2e7d32', marginTop: 4 }}>
-                        → {Math.round(parseInt(newMatch.price_total) / 4)}€ par personne
-                      </p>
-                    )}
+                    <textarea
+                      value={newMatch.description}
+                      onChange={e => setNewMatch({ ...newMatch, description: e.target.value })}
+                      placeholder="Ex: Match détendu, débutants bienvenus !"
+                      rows={2}
+                      style={{ ...inputStyle, resize: 'vertical' }}
+                    />
                   </div>
 
+                  {/* Prix */}
+                  {newMatch.mode === 'terrain' && (
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                        💰 Prix total du terrain
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="number"
+                          value={newMatch.price_total}
+                          onChange={e => setNewMatch({ ...newMatch, price_total: e.target.value })}
+                          placeholder="Ex: 60"
+                          min="0"
+                          style={{ ...inputStyle, paddingRight: 40 }}
+                        />
+                        <span style={{
+                          position: 'absolute',
+                          right: 14,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#999',
+                          fontWeight: '600'
+                        }}>
+                          €
+                        </span>
+                      </div>
+                      {newMatch.price_total && (
+                        <p style={{ fontSize: 12, color: '#2e7d32', marginTop: 4 }}>
+                          → {Math.round(parseInt(newMatch.price_total) / 4)}€ par personne
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Notes privées */}
-                  <div style={{ marginBottom: 18 }}>
+                  <div style={{ marginBottom: 16 }}>
                     <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
                       🔒 Notes privées
                     </label>
@@ -935,42 +1530,23 @@ export default function DashboardPage() {
                       Visible uniquement par les joueurs inscrits
                     </p>
                   </div>
-
-                  {/* Groupe */}
-                  {groups.length > 0 && (
-                    <div style={{ marginBottom: 18 }}>
-                      <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
-                        👥 Inviter un groupe
-                      </label>
-                      <select
-                        value={newMatch.group_id}
-                        onChange={e => setNewMatch({ ...newMatch, group_id: e.target.value })}
-                        style={inputStyle}
-                      >
-                        <option value="">Pas de groupe</option>
-                        {groups.map(group => (
-                          <option key={group.id} value={group.id}>{group.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                 </>
               )}
 
               {/* Bouton */}
               <button
                 type="submit"
-                disabled={creating || !newMatch.club_id || !newMatch.date || !newMatch.time}
+                disabled={creating || (newMatch.mode === 'terrain' && (!newMatch.club_id || !newMatch.date || !newMatch.time)) || (newMatch.mode === 'flexible' && (!newMatch.city || newMatch.flexible_dates.length === 0))}
                 style={{
                   width: '100%',
                   padding: '16px',
-                  background: creating || !newMatch.club_id || !newMatch.date || !newMatch.time ? '#e5e5e5' : '#1a1a1a',
-                  color: creating || !newMatch.club_id || !newMatch.date || !newMatch.time ? '#999' : '#fff',
+                  background: creating ? '#e5e5e5' : '#1a1a1a',
+                  color: creating ? '#999' : '#fff',
                   border: 'none',
                   borderRadius: 12,
                   fontSize: 16,
                   fontWeight: '600',
-                  cursor: creating || !newMatch.club_id || !newMatch.date || !newMatch.time ? 'not-allowed' : 'pointer'
+                  cursor: creating ? 'not-allowed' : 'pointer'
                 }}
               >
                 {creating ? 'Création...' : 'Créer la partie 🎾'}
@@ -1008,9 +1584,35 @@ export default function DashboardPage() {
               Partie créée !
             </h2>
             <p style={{ color: '#666', marginBottom: 20, fontSize: 14 }}>
-              {formatDate(createdMatch.match_date)} à {formatTime(createdMatch.match_time)}<br />
-              📍 {createdMatch.clubs?.name}
+              {createdMatch.is_flexible ? (
+                <>
+                  📍 {createdMatch.flexible_city} ({createdMatch.flexible_radius}km)<br />
+                  Dates flexibles
+                </>
+              ) : (
+                <>
+                  {formatDate(createdMatch.match_date)} à {formatTime(createdMatch.match_time)}<br />
+                  📍 {createdMatch.clubs?.name}
+                </>
+              )}
             </p>
+
+            {/* Mémo partage */}
+            <div style={{
+              background: '#e8f5e9',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+              textAlign: 'left',
+              border: '1px solid #a5d6a7'
+            }}>
+              <div style={{ fontSize: 13, fontWeight: '600', color: '#2e7d32', marginBottom: 4 }}>
+                💡 Partage ce lien pour remplir ta partie !
+              </div>
+              <div style={{ fontSize: 12, color: '#2e7d32' }}>
+                Les joueurs verront tous les détails et pourront s'inscrire en 1 clic.
+              </div>
+            </div>
 
             {/* Lien d'invitation */}
             <div style={{
@@ -1078,23 +1680,6 @@ export default function DashboardPage() {
               >
                 Facebook
               </button>
-            </div>
-
-            {/* Astuce */}
-            <div style={{
-              background: '#eff6ff',
-              borderRadius: 10,
-              padding: 12,
-              marginBottom: 16,
-              textAlign: 'left',
-              border: '1px solid #bfdbfe'
-            }}>
-              <div style={{ fontSize: 12, fontWeight: '600', color: '#1e40af', marginBottom: 2 }}>
-                💡 Astuce Facebook
-              </div>
-              <div style={{ fontSize: 12, color: '#1e40af' }}>
-                Colle ce lien dans ton groupe padel. Les joueurs verront les détails et pourront rejoindre en 1 clic !
-              </div>
             </div>
 
             {/* Actions */}
