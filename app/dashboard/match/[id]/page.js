@@ -115,13 +115,16 @@ export default function MatchPage() {
         match_time: matchData.match_time || ''
       })
 
-      const { data: participantsData } = await supabase
+      const { data: participantsData, error: partError } = await supabase
         .from('match_participants')
-        .select(`*, profiles (id, name, level, position, ambiance, avatar_url, reliability_score, phone), duo_profile:profiles!match_participants_duo_with_fkey (id, name, level)`)
+        .select(`*, profiles (id, name, level, position, ambiance, avatar_url, reliability_score, phone)`)
         .eq('match_id', matchId)
         .in('status', ['confirmed', 'pending'])
       
       // Debug: voir les participants chargés
+      if (partError) {
+        console.error('Error loading participants:', partError)
+      }
       console.log('Participants loaded:', participantsData?.map(p => ({
         id: p.id,
         name: p.profiles?.name,
@@ -141,7 +144,7 @@ export default function MatchPage() {
       if (matchData.organizer_id === session.user.id) {
         const { data: pendingData } = await supabase
           .from('match_participants')
-          .select(`*, profiles (id, name, level, position, avatar_url, reliability_score), duo_profile:profiles!match_participants_duo_with_fkey (id, name)`)
+          .select(`*, profiles (id, name, level, position, avatar_url, reliability_score)`)
           .eq('match_id', matchId)
           .eq('status', 'pending')
         setPendingRequests(pendingData || [])
