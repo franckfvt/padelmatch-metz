@@ -4,27 +4,28 @@ export default function HomePage() {
   return (
     <div style={{
       minHeight: '100vh',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      background: '#fff'
     }}>
       
-      {/* Navigation */}
+      {/* Navigation - épurée */}
       <nav style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '20px 40px',
-        maxWidth: 1200,
+        maxWidth: 1100,
         margin: '0 auto'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 28 }}>🎾</span>
-          <span style={{ fontSize: 22, fontWeight: '700', color: '#1a1a1a' }}>PadelMatch</span>
+          <span style={{ fontSize: 26 }}>🎾</span>
+          <span style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a' }}>PadelMatch</span>
         </div>
         <Link href="/auth" style={{
-          padding: '12px 24px',
+          padding: '10px 20px',
           background: '#1a1a1a',
           color: '#fff',
-          borderRadius: 10,
+          borderRadius: 8,
           textDecoration: 'none',
           fontSize: 14,
           fontWeight: '600'
@@ -33,722 +34,302 @@ export default function HomePage() {
         </Link>
       </nav>
 
-      {/* Hero */}
+      {/* Hero - simplifié, plus de respiration */}
       <section style={{
-        padding: '60px 40px 80px',
+        padding: '80px 40px 100px',
         textAlign: 'center',
-        maxWidth: 900,
+        maxWidth: 700,
         margin: '0 auto'
       }}>
-        <div style={{
-          display: 'inline-block',
-          background: '#e8f5e9',
-          color: '#2e7d32',
-          padding: '8px 16px',
-          borderRadius: 20,
-          fontSize: 14,
-          fontWeight: '600',
-          marginBottom: 24
-        }}>
-          🎾 Gratuit • Sans pub • Made in France
-        </div>
-        
         <h1 style={{
-          fontSize: 'clamp(36px, 6vw, 56px)',
-          fontWeight: '800',
+          fontSize: 'clamp(40px, 7vw, 64px)',
+          fontWeight: '700',
           color: '#1a1a1a',
           lineHeight: 1.1,
-          marginBottom: 24
+          marginBottom: 20,
+          letterSpacing: '-0.02em'
         }}>
-          Trouve des joueurs
-          <br />
+          Trouve des joueurs<br />
           <span style={{ color: '#2e7d32' }}>de ton niveau</span>
         </h1>
         
         <p style={{
-          fontSize: 'clamp(18px, 2.5vw, 22px)',
+          fontSize: 18,
           color: '#666',
-          maxWidth: 600,
+          maxWidth: 480,
           margin: '0 auto 40px',
           lineHeight: 1.6
         }}>
-          Crée ta partie, invite tes potes ou trouve de nouveaux partenaires. 
-          Chaque joueur a un profil avec son niveau et son ambiance.
+          Crée ta partie, partage le lien, et joue avec des joueurs 
+          qui te correspondent. Simple.
         </p>
         
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/auth" style={{
-            padding: '18px 36px',
-            background: '#1a1a1a',
-            color: '#fff',
-            borderRadius: 14,
-            textDecoration: 'none',
-            fontSize: 17,
-            fontWeight: '600'
-          }}>
-            Créer ma partie
-          </Link>
-          <Link href="/auth" style={{
-            padding: '18px 36px',
-            background: '#fff',
-            color: '#1a1a1a',
-            borderRadius: 14,
-            textDecoration: 'none',
-            fontSize: 17,
-            fontWeight: '600',
-            border: '2px solid #e5e5e5'
-          }}>
-            Rejoindre une partie
-          </Link>
-        </div>
-
-        {/* Mini features - sans stats */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 40,
-          marginTop: 60,
-          flexWrap: 'wrap'
+        {/* UN seul CTA principal */}
+        <Link href="/auth" style={{
+          display: 'inline-block',
+          padding: '16px 40px',
+          background: '#1a1a1a',
+          color: '#fff',
+          borderRadius: 12,
+          textDecoration: 'none',
+          fontSize: 16,
+          fontWeight: '600'
         }}>
-          <div>
-            <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>🎯</div>
-            <div style={{ fontSize: 14, color: '#666', marginTop: 4 }}>Matchmaking par niveau</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>⭐</div>
-            <div style={{ fontSize: 14, color: '#666', marginTop: 4 }}>Score de fiabilité</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>📱</div>
-            <div style={{ fontSize: 14, color: '#666', marginTop: 4 }}>Partage facile</div>
-          </div>
-        </div>
+          Commencer gratuitement
+        </Link>
+        
+        <p style={{ marginTop: 16, fontSize: 13, color: '#999' }}>
+          Gratuit • Sans pub • Made in France 🇫🇷
+        </p>
       </section>
 
-      {/* Le problème */}
+      {/* Features - 3 colonnes épurées */}
       <section style={{
         padding: '80px 40px',
         background: '#fafafa'
       }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: 'clamp(28px, 4vw, 40px)',
-            fontWeight: '700',
-            color: '#1a1a1a',
-            textAlign: 'center',
-            marginBottom: 48
-          }}>
-            Le problème avec WhatsApp
-          </h2>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: 24
-          }}>
-            <div style={{
-              background: '#fff',
-              padding: 32,
-              borderRadius: 20,
-              border: '1px solid #eee'
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>🤷</div>
-              <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Niveau inconnu
-              </h3>
-              <p style={{ color: '#666', lineHeight: 1.6 }}>
-                Quelqu'un répond "moi !" sur le groupe, mais tu connais pas son niveau. Mauvaise surprise sur le terrain.
-              </p>
-            </div>
-            
-            <div style={{
-              background: '#fff',
-              padding: 32,
-              borderRadius: 20,
-              border: '1px solid #eee'
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>😵</div>
-              <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Messages noyés
-              </h3>
-              <p style={{ color: '#666', lineHeight: 1.6 }}>
-                "Qui vient samedi ?" 15 réponses en vrac, tu recomptes 3 fois, et tu sais toujours pas qui vient.
-              </p>
-            </div>
-            
-            <div style={{
-              background: '#fff',
-              padding: 32,
-              borderRadius: 20,
-              border: '1px solid #eee'
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>💨</div>
-              <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Annulations
-              </h3>
-              <p style={{ color: '#666', lineHeight: 1.6 }}>
-                "Désolé je peux plus" 2h avant. Tu dois tout relancer pour trouver un remplaçant.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* La solution */}
-      <section style={{
-        padding: '80px 40px',
-        background: '#1a1a1a',
-        color: '#fff'
-      }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: 'clamp(28px, 4vw, 40px)',
-            fontWeight: '700',
-            textAlign: 'center',
-            marginBottom: 16
-          }}>
-            PadelMatch résout tout
-          </h2>
-          <p style={{
-            fontSize: 18,
-            color: '#999',
-            textAlign: 'center',
-            marginBottom: 48,
-            maxWidth: 600,
-            margin: '0 auto 48px'
-          }}>
-            Chaque joueur a un profil. Tu sais avec qui tu joues.
-          </p>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: 24
-          }}>
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              padding: 32,
-              borderRadius: 20
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>🎯</div>
-              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Matchmaking par niveau</h3>
-              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
-                Chaque joueur a un niveau de 1 à 10. Tu sais exactement avec qui tu joues avant de confirmer.
-              </p>
-            </div>
-            
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              padding: 32,
-              borderRadius: 20
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>⭐</div>
-              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Score de fiabilité</h3>
-              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
-                Les joueurs qui annulent au dernier moment voient leur score baisser. Fini les lapins !
-              </p>
-            </div>
-            
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              padding: 32,
-              borderRadius: 20
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>🔗</div>
-              <h3 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Partage en 1 clic</h3>
-              <p style={{ color: '#999', fontSize: 16, lineHeight: 1.6 }}>
-                Partage ta partie sur WhatsApp ou tes groupes Facebook. Chaque joueur qui clique voit les détails.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Comment ça marche */}
-      <section style={{
-        padding: '80px 40px'
-      }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: 'clamp(28px, 4vw, 40px)',
-            fontWeight: '700',
-            color: '#1a1a1a',
-            textAlign: 'center',
-            marginBottom: 48
-          }}>
-            Comment ça marche ?
-          </h2>
-          
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: 32
+            gap: 40
           }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: 60,
-                height: 60,
-                background: '#e8f5e9',
-                color: '#2e7d32',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                fontWeight: '700',
-                margin: '0 auto 20px'
-              }}>
-                1
-              </div>
-              <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Crée ton profil
+            <div>
+              <div style={{ fontSize: 32, marginBottom: 16 }}>🎯</div>
+              <h3 style={{ fontSize: 18, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 }}>
+                Matchmaking par niveau
               </h3>
-              <p style={{ color: '#666', lineHeight: 1.6 }}>
-                En 30 secondes : ton prénom, ton niveau (1-10), et l'ambiance que tu recherches.
+              <p style={{ fontSize: 15, color: '#666', lineHeight: 1.6 }}>
+                Chaque joueur indique son niveau. Tu sais avec qui tu vas jouer avant de t'inscrire.
               </p>
             </div>
             
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: 60,
-                height: 60,
-                background: '#e8f5e9',
-                color: '#2e7d32',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                fontWeight: '700',
-                margin: '0 auto 20px'
-              }}>
-                2
-              </div>
-              <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Crée ou rejoins
+            <div>
+              <div style={{ fontSize: 32, marginBottom: 16 }}>⭐</div>
+              <h3 style={{ fontSize: 18, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 }}>
+                Score de fiabilité
               </h3>
-              <p style={{ color: '#666', lineHeight: 1.6 }}>
-                Tu as un terrain ? Crée ta partie. Tu cherches une partie ? Rejoins-en une qui te correspond.
+              <p style={{ fontSize: 15, color: '#666', lineHeight: 1.6 }}>
+                Fini les annulations de dernière minute. Les joueurs fiables sont récompensés.
               </p>
             </div>
             
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: 60,
-                height: 60,
-                background: '#2e7d32',
-                color: '#fff',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                fontWeight: '700',
-                margin: '0 auto 20px'
-              }}>
-                3
-              </div>
-              <h3 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 }}>
-                Joue avec les bons joueurs
+            <div>
+              <div style={{ fontSize: 32, marginBottom: 16 }}>📱</div>
+              <h3 style={{ fontSize: 18, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 }}>
+                Partage en 1 clic
               </h3>
-              <p style={{ color: '#666', lineHeight: 1.6 }}>
-                Tu connais le niveau et la fiabilité de chacun. Plus de mauvaises surprises.
+              <p style={{ fontSize: 15, color: '#666', lineHeight: 1.6 }}>
+                Crée ta partie, copie le lien, et partage-le où tu veux. C'est tout.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Exemple de profils - DESIGN CARTE RÉALISTE */}
+      {/* Comment ça marche - simplifié */}
       <section style={{
         padding: '80px 40px',
-        background: '#fafafa'
+        background: '#fff'
       }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{
-            fontSize: 'clamp(28px, 4vw, 36px)',
+            fontSize: 32,
             fontWeight: '700',
             color: '#1a1a1a',
+            marginBottom: 48
+          }}>
+            Comment ça marche
+          </h2>
+          
+          <div style={{ textAlign: 'left' }}>
+            {[
+              { num: '1', title: 'Crée ta partie', desc: 'Club, date, heure. C\'est tout ce dont tu as besoin.' },
+              { num: '2', title: 'Partage le lien', desc: 'WhatsApp, Facebook, SMS... où tu veux.' },
+              { num: '3', title: 'Les joueurs s\'inscrivent', desc: 'Ils voient les détails et rejoignent en 1 clic.' },
+            ].map((step, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                gap: 20,
+                marginBottom: i < 2 ? 32 : 0,
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: '#1a1a1a',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '700',
+                  fontSize: 16,
+                  flexShrink: 0
+                }}>
+                  {step.num}
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 17, fontWeight: '600', color: '#1a1a1a', marginBottom: 4 }}>
+                    {step.title}
+                  </h3>
+                  <p style={{ fontSize: 15, color: '#666', margin: 0 }}>
+                    {step.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Exemple de carte joueur - une seule */}
+      <section style={{
+        padding: '80px 40px',
+        background: '#1a1a1a'
+      }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <h2 style={{
+            fontSize: 32,
+            fontWeight: '700',
+            color: '#fff',
             textAlign: 'center',
             marginBottom: 16
           }}>
-            Chaque joueur a sa carte
+            Chaque joueur a un profil
           </h2>
           <p style={{
-            fontSize: 18,
-            color: '#666',
+            fontSize: 16,
+            color: '#888',
             textAlign: 'center',
             marginBottom: 48
           }}>
-            Tu sais exactement avec qui tu vas jouer
+            Tu sais exactement avec qui tu joues
           </p>
           
+          {/* UNE seule carte, centrée */}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: 24,
-            maxWidth: 1000,
-            margin: '0 auto'
+            maxWidth: 320,
+            margin: '0 auto',
+            background: 'linear-gradient(145deg, #2d3748 0%, #1a202c 100%)',
+            borderRadius: 20,
+            padding: 24,
+            color: '#fff'
           }}>
-            {/* Carte 1 - Marie */}
-            <div style={{
-              background: 'linear-gradient(145deg, #2d3748 0%, #1a202c 100%)',
-              borderRadius: 20,
-              padding: 24,
-              color: '#fff',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.15)'
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'flex-start',
+              marginBottom: 16
             }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'flex-start',
-                marginBottom: 16
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>🎾</span>
+                <span style={{ fontSize: 11, fontWeight: '600', opacity: 0.7 }}>PADELMATCH</span>
+              </div>
+              <div style={{
+                background: 'rgba(74, 222, 128, 0.2)',
+                color: '#4ade80',
+                padding: '4px 10px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: '600'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>🎾</span>
-                  <span style={{ fontSize: 11, fontWeight: '600', opacity: 0.7 }}>PADELMATCH</span>
-                </div>
-                <div style={{
-                  background: 'rgba(34, 197, 94, 0.2)',
-                  color: '#4ade80',
-                  padding: '4px 10px',
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: '600'
-                }}>
-                  ✓ 98%
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-                <div style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #f472b6 0%, #c084fc 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 24,
-                  border: '3px solid rgba(255,255,255,0.2)'
-                }}>
-                  👩
-                </div>
-                <div>
-                  <h3 style={{ fontSize: 22, fontWeight: '700', margin: 0 }}>Marie</h3>
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>Joue 2x/semaine</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-                <span style={{
-                  background: '#fbbf24',
-                  color: '#1a1a1a',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: '700'
-                }}>
-                  ⭐ 6/10
-                </span>
-                <span style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13
-                }}>
-                  😎 Détente
-                </span>
-                <span style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13
-                }}>
-                  🎾 Droite
-                </span>
-              </div>
-
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(3, 1fr)', 
-                gap: 10,
-                paddingTop: 14,
-                borderTop: '1px solid rgba(255,255,255,0.1)'
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700' }}>24</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>parties</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700' }}>58%</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>victoires</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700', color: '#fbbf24' }}>🔥3</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>série</div>
-                </div>
+                ✓ 98%
               </div>
             </div>
 
-            {/* Carte 2 - Thomas */}
-            <div style={{
-              background: 'linear-gradient(145deg, #2d3748 0%, #1a202c 100%)',
-              borderRadius: 20,
-              padding: 24,
-              color: '#fff',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.15)'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'flex-start',
-                marginBottom: 16
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 24
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>🎾</span>
-                  <span style={{ fontSize: 11, fontWeight: '600', opacity: 0.7 }}>PADELMATCH</span>
-                </div>
-                <div style={{
-                  background: 'rgba(34, 197, 94, 0.2)',
-                  color: '#4ade80',
-                  padding: '4px 10px',
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: '600'
-                }}>
-                  ✓ 100%
-                </div>
+                👨
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-                <div style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 24,
-                  border: '3px solid rgba(255,255,255,0.2)'
-                }}>
-                  👨
-                </div>
-                <div>
-                  <h3 style={{ fontSize: 22, fontWeight: '700', margin: 0 }}>Thomas</h3>
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>Joue 3x/semaine</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-                <span style={{
-                  background: '#fbbf24',
-                  color: '#1a1a1a',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: '700'
-                }}>
-                  ⭐ 8/10
-                </span>
-                <span style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13
-                }}>
-                  🏆 Compétitif
-                </span>
-                <span style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13
-                }}>
-                  🎾 Gauche
-                </span>
-              </div>
-
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(3, 1fr)', 
-                gap: 10,
-                paddingTop: 14,
-                borderTop: '1px solid rgba(255,255,255,0.1)'
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700' }}>67</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>parties</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700' }}>72%</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>victoires</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700', color: '#fbbf24' }}>🔥8</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>série</div>
-                </div>
+              <div>
+                <h3 style={{ fontSize: 20, fontWeight: '700', margin: 0 }}>Thomas</h3>
+                <div style={{ fontSize: 12, opacity: 0.6 }}>Metz • Revers à 2 mains</div>
               </div>
             </div>
 
-            {/* Carte 3 - Lucas */}
-            <div style={{
-              background: 'linear-gradient(145deg, #2d3748 0%, #1a202c 100%)',
-              borderRadius: 20,
-              padding: 24,
-              color: '#fff',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.15)'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'flex-start',
-                marginBottom: 16
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{
+                background: '#fbbf24',
+                color: '#1a1a1a',
+                padding: '5px 12px',
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: '700'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>🎾</span>
-                  <span style={{ fontSize: 11, fontWeight: '600', opacity: 0.7 }}>PADELMATCH</span>
-                </div>
-                <div style={{
-                  background: 'rgba(251, 191, 36, 0.2)',
-                  color: '#fbbf24',
-                  padding: '4px 10px',
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: '600'
-                }}>
-                  ⚠ 75%
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-                <div style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 24,
-                  border: '3px solid rgba(255,255,255,0.2)'
-                }}>
-                  👦
-                </div>
-                <div>
-                  <h3 style={{ fontSize: 22, fontWeight: '700', margin: 0 }}>Lucas</h3>
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>Joue 1x/semaine</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-                <span style={{
-                  background: '#fbbf24',
-                  color: '#1a1a1a',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: '700'
-                }}>
-                  ⭐ 3/10
-                </span>
-                <span style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13
-                }}>
-                  ⚡ Équilibré
-                </span>
-                <span style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 13
-                }}>
-                  🎾 Les deux
-                </span>
-              </div>
-
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(3, 1fr)', 
-                gap: 10,
-                paddingTop: 14,
-                borderTop: '1px solid rgba(255,255,255,0.1)'
+                ⭐ 6/10
+              </span>
+              <span style={{
+                background: 'rgba(255,255,255,0.1)',
+                padding: '5px 12px',
+                borderRadius: 6,
+                fontSize: 13
               }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700' }}>8</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>parties</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700' }}>38%</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>victoires</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: '700', color: '#666' }}>🔥0</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>série</div>
-                </div>
-              </div>
+                ⚡ Équilibré
+              </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Final */}
+      {/* CTA Final - simplifié */}
       <section style={{
         padding: '80px 40px',
         background: '#2e7d32',
-        color: '#fff',
         textAlign: 'center'
       }}>
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+        <div style={{ maxWidth: 500, margin: '0 auto' }}>
           <h2 style={{
-            fontSize: 'clamp(28px, 4vw, 40px)',
+            fontSize: 32,
             fontWeight: '700',
+            color: '#fff',
             marginBottom: 16
           }}>
-            Prêt à jouer avec les bons partenaires ?
+            Prêt à jouer ?
           </h2>
           <p style={{
-            fontSize: 18,
-            opacity: 0.9,
+            fontSize: 16,
+            color: 'rgba(255,255,255,0.8)',
             marginBottom: 32
           }}>
-            Crée ton profil gratuitement en 30 secondes.
+            Crée ton profil en 30 secondes.
           </p>
           <Link href="/auth" style={{
             display: 'inline-block',
-            padding: '18px 36px',
+            padding: '16px 40px',
             background: '#fff',
             color: '#2e7d32',
-            borderRadius: 14,
+            borderRadius: 12,
             textDecoration: 'none',
-            fontSize: 17,
+            fontSize: 16,
             fontWeight: '700'
           }}>
-            Créer mon profil gratuit
+            Créer mon profil
           </Link>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer - minimal */}
       <footer style={{
-        padding: '40px',
+        padding: '32px 40px',
         background: '#1a1a1a',
-        color: '#999',
         textAlign: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
-          <span style={{ fontSize: 24 }}>🎾</span>
-          <span style={{ fontSize: 18, fontWeight: '700', color: '#fff' }}>PadelMatch</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: 20 }}>🎾</span>
+          <span style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>PadelMatch</span>
         </div>
-        <p style={{ fontSize: 14 }}>
-          Fait avec ❤️ pour les joueurs de padel
-        </p>
-        <p style={{ fontSize: 13, marginTop: 16 }}>
-          © 2024 PadelMatch. Tous droits réservés.
+        <p style={{ fontSize: 13, color: '#666' }}>
+          © 2024 PadelMatch
         </p>
       </footer>
     </div>

@@ -6,108 +6,15 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import PlayerCardModal from '@/app/components/PlayerCardModal'
 
-// === ICÔNES SVG ===
-const Icons = {
-  home: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-      <polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  ),
-  tennis: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-      <path d="M2 12h20"/>
-    </svg>
-  ),
-  users: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  ),
-  calendar: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-      <line x1="16" y1="2" x2="16" y2="6"/>
-      <line x1="8" y1="2" x2="8" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-  ),
-  user: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
-    </svg>
-  ),
-  trophy: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
-      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
-      <path d="M4 22h16"/>
-      <path d="M10 22V8a6 6 0 1 1 12 0v14"/>
-      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
-      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
-    </svg>
-  ),
-  chart: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/>
-      <line x1="12" y1="20" x2="12" y2="4"/>
-      <line x1="6" y1="20" x2="6" y2="14"/>
-    </svg>
-  ),
-  stats: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/>
-      <line x1="12" y1="20" x2="12" y2="4"/>
-      <line x1="6" y1="20" x2="6" y2="14"/>
-    </svg>
-  ),
-  menu: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="3" y1="12" x2="21" y2="12"/>
-      <line x1="3" y1="6" x2="21" y2="6"/>
-      <line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-  ),
-  x: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18"/>
-      <line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
-  ),
-  bell: ({ color = 'currentColor', size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-    </svg>
-  ),
-}
-
-// Logo PadelMatch
-const Logo = ({ size = 32 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
-    {/* Raquette de padel stylisée */}
-    <circle cx="16" cy="12" r="10" fill="#2e7d32" opacity="0.2"/>
-    <circle cx="16" cy="12" r="10" stroke="#2e7d32" strokeWidth="2" fill="none"/>
-    {/* Grille de la raquette */}
-    <line x1="16" y1="4" x2="16" y2="20" stroke="#2e7d32" strokeWidth="1.5"/>
-    <line x1="8" y1="12" x2="24" y2="12" stroke="#2e7d32" strokeWidth="1.5"/>
-    <line x1="10" y1="6" x2="22" y2="18" stroke="#2e7d32" strokeWidth="1" opacity="0.5"/>
-    <line x1="22" y1="6" x2="10" y2="18" stroke="#2e7d32" strokeWidth="1" opacity="0.5"/>
-    {/* Manche */}
-    <rect x="14" y="20" width="4" height="8" rx="2" fill="#2e7d32"/>
-    {/* Balle */}
-    <circle cx="24" cy="24" r="4" fill="#fbbf24"/>
-    <path d="M22 22 Q24 24 22 26" stroke="#fff" strokeWidth="1" fill="none"/>
-  </svg>
+// Logo simple
+const Logo = () => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <span style={{ fontSize: 22 }}>🎾</span>
+    <span style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a' }}>PadelMatch</span>
+  </div>
 )
 
-// Panneau de notifications
+// Panneau de notifications - simplifié
 function NotificationPanel({ userId, onClose }) {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
@@ -122,30 +29,19 @@ function NotificationPanel({ userId, onClose }) {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(30)
+      .limit(20)
     
     setNotifications(data || [])
     setLoading(false)
   }
 
   async function markAsRead(id) {
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', id)
-    
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-    )
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
   }
 
   async function markAllRead() {
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', userId)
-      .eq('is_read', false)
-    
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false)
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
   }
 
@@ -174,49 +70,30 @@ function NotificationPanel({ userId, onClose }) {
   const unread = notifications.filter(n => !n.is_read).length
 
   return (
-    <>
-      {/* Header */}
-      <div style={{
-        padding: '16px 20px',
-        borderBottom: '1px solid #eee',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: '700', margin: 0 }}>Notifications</h3>
-          {unread > 0 && <span style={{ fontSize: 12, color: '#666' }}>{unread} non lue{unread > 1 ? 's' : ''}</span>}
+          <h3 style={{ fontSize: 18, fontWeight: '600', margin: 0 }}>Notifications</h3>
+          {unread > 0 && <span style={{ fontSize: 13, color: '#666' }}>{unread} non lue{unread > 1 ? 's' : ''}</span>}
         </div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer' }}>×</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#999' }}>×</button>
       </div>
 
-      {/* Actions */}
       {unread > 0 && (
-        <div style={{ padding: '8px 20px', borderBottom: '1px solid #f0f0f0' }}>
-          <button
-            onClick={markAllRead}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#2e7d32',
-              fontSize: 13,
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid #f0f0f0' }}>
+          <button onClick={markAllRead} style={{ background: 'none', border: 'none', color: '#2e7d32', fontSize: 13, fontWeight: '600', cursor: 'pointer' }}>
             Tout marquer comme lu
           </button>
         </div>
       )}
 
-      {/* Liste */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>Chargement...</div>
         ) : notifications.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔔</div>
-            <p style={{ color: '#666', margin: 0 }}>Aucune notification</p>
+          <div style={{ padding: 60, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.4 }}>🔔</div>
+            <p style={{ color: '#999', margin: 0, fontSize: 14 }}>Aucune notification</p>
           </div>
         ) : (
           notifications.map(notif => (
@@ -224,39 +101,26 @@ function NotificationPanel({ userId, onClose }) {
               key={notif.id}
               onClick={() => !notif.is_read && markAsRead(notif.id)}
               style={{
-                padding: 16,
-                borderBottom: '1px solid #f0f0f0',
-                background: notif.is_read ? '#fff' : '#f8fafc',
+                padding: '16px 20px',
+                borderBottom: '1px solid #f5f5f5',
+                background: notif.is_read ? '#fff' : '#fafafa',
                 cursor: 'pointer',
                 display: 'flex',
                 gap: 12
               }}
             >
-              <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: notif.is_read ? '#f5f5f5' : '#e8f5e9',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18
-              }}>
-                {getIcon(notif.type)}
-              </div>
+              <div style={{ fontSize: 18 }}>{getIcon(notif.type)}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: notif.is_read ? '500' : '600', fontSize: 14 }}>{notif.title}</div>
+                <div style={{ fontSize: 14, fontWeight: notif.is_read ? '400' : '600', color: '#1a1a1a' }}>{notif.title}</div>
                 <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{notif.message}</div>
-                <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>{formatTime(notif.created_at)}</div>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>{formatTime(notif.created_at)}</div>
               </div>
-              {!notif.is_read && (
-                <div style={{ width: 8, height: 8, borderRadius: 4, background: '#2e7d32', alignSelf: 'center' }} />
-              )}
+              {!notif.is_read && <div style={{ width: 8, height: 8, borderRadius: 4, background: '#2e7d32', alignSelf: 'center' }} />}
             </div>
           ))
         )}
       </div>
-    </>
+    </div>
   )
 }
 
@@ -266,10 +130,10 @@ export default function DashboardLayout({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [showPlayerCard, setShowPlayerCard] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -298,8 +162,6 @@ export default function DashboardLayout({ children }) {
 
     setProfile(profileData)
     setLoading(false)
-
-    // Charger les notifications non lues
     loadNotifications(session.user.id)
   }
 
@@ -314,17 +176,10 @@ export default function DashboardLayout({ children }) {
   }
 
   const navItems = [
-    { href: '/dashboard', label: 'Accueil', icon: 'home' },
-    { href: '/dashboard/matches', label: 'Mes parties', icon: 'tennis' },
-    { href: '/dashboard/stats', label: 'Stats', icon: 'chart' },
-    { href: '/dashboard/profile', label: 'Profil', icon: 'user' },
+    { href: '/dashboard', label: 'Accueil' },
+    { href: '/dashboard/matches', label: 'Mes parties' },
+    { href: '/dashboard/stats', label: 'Stats' },
   ]
-
-  const getIcon = (iconName, isActive) => {
-    const IconComponent = Icons[iconName]
-    if (!IconComponent) return null
-    return <IconComponent size={20} color={isActive ? '#2e7d32' : '#666'} />
-  }
 
   if (loading) {
     return (
@@ -336,8 +191,8 @@ export default function DashboardLayout({ children }) {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <Logo size={64} />
-          <div style={{ color: '#666', marginTop: 16 }}>Chargement...</div>
+          <div style={{ fontSize: 40 }}>🎾</div>
+          <div style={{ color: '#666', marginTop: 16, fontSize: 14 }}>Chargement...</div>
         </div>
       </div>
     )
@@ -346,10 +201,10 @@ export default function DashboardLayout({ children }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#f5f5f5',
+      background: '#fafafa',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      {/* Header Desktop */}
+      {/* Header */}
       <header style={{
         background: '#fff',
         borderBottom: '1px solid #eee',
@@ -358,20 +213,19 @@ export default function DashboardLayout({ children }) {
         zIndex: 100
       }}>
         <div style={{
-          maxWidth: 1200,
+          maxWidth: 1100,
           margin: '0 auto',
           padding: '12px 24px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Logo size={36} />
-            <span style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a' }}>PadelMatch</span>
+          <Link href="/dashboard" style={{ textDecoration: 'none' }}>
+            <Logo />
           </Link>
 
           {/* Nav Desktop */}
-          <nav style={{ display: 'flex', gap: 4 }} className="desktop-nav">
+          <nav style={{ display: 'flex', gap: 8 }} className="desktop-nav">
             {navItems.map(item => {
               const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
               return (
@@ -379,29 +233,24 @@ export default function DashboardLayout({ children }) {
                   key={item.href}
                   href={item.href}
                   style={{
-                    padding: '10px 16px',
-                    borderRadius: 10,
+                    padding: '8px 16px',
+                    borderRadius: 8,
                     textDecoration: 'none',
                     fontSize: 14,
-                    fontWeight: '600',
-                    color: isActive ? '#2e7d32' : '#666',
-                    background: isActive ? '#e8f5e9' : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    transition: 'all 0.2s'
+                    fontWeight: '500',
+                    color: isActive ? '#1a1a1a' : '#666',
+                    background: isActive ? '#f5f5f5' : 'transparent'
                   }}
                 >
-                  {getIcon(item.icon, isActive)}
                   {item.label}
                 </Link>
               )
             })}
           </nav>
 
-          {/* Profil */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Cloche de notifications */}
+          {/* Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Notifications */}
             <button
               onClick={() => setShowNotifications(true)}
               style={{
@@ -410,41 +259,40 @@ export default function DashboardLayout({ children }) {
                 border: 'none',
                 padding: 8,
                 cursor: 'pointer',
-                borderRadius: 10
+                borderRadius: 8
               }}
             >
-              <Icons.bell size={22} color="#666" />
+              <span style={{ fontSize: 20 }}>🔔</span>
               {unreadCount > 0 && (
                 <span style={{
                   position: 'absolute',
-                  top: 2,
-                  right: 2,
-                  minWidth: 18,
-                  height: 18,
-                  borderRadius: 9,
+                  top: 4,
+                  right: 4,
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 8,
                   background: '#e53935',
                   color: '#fff',
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: '700',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 4px'
+                  justifyContent: 'center'
                 }}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
+                  {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </button>
 
-            {/* Bouton Ma carte */}
+            {/* Ma carte - desktop */}
             <button
               onClick={() => setShowPlayerCard(true)}
               style={{
-                background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+                padding: '8px 14px',
+                background: '#1a1a1a',
                 color: '#fff',
                 border: 'none',
-                padding: '8px 14px',
-                borderRadius: 10,
+                borderRadius: 8,
                 fontSize: 13,
                 fontWeight: '600',
                 cursor: 'pointer',
@@ -457,57 +305,39 @@ export default function DashboardLayout({ children }) {
               🎴 Ma carte
             </button>
 
-            <div style={{ textAlign: 'right' }} className="desktop-profile">
-              <div style={{ fontSize: 14, fontWeight: '600', color: '#1a1a1a' }}>
-                {profile?.name}
+            {/* Avatar */}
+            <Link href="/dashboard/profile" className="desktop-profile">
+              <div style={{
+                width: 36,
+                height: 36,
+                background: profile?.avatar_url ? `url(${profile.avatar_url})` : 'linear-gradient(135deg, #4ade80, #22c55e)',
+                backgroundSize: 'cover',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: '600',
+                fontSize: 14
+              }}>
+                {!profile?.avatar_url && (profile?.name?.[0] || 'U')}
               </div>
-              <div style={{ fontSize: 12, color: '#666' }}>
-                ⭐ {profile?.level}/10 · {profile?.matches_played || 0} parties
-              </div>
-            </div>
-            <Link href="/dashboard/profile">
-              {profile?.avatar_url ? (
-                <img 
-                  src={profile.avatar_url} 
-                  alt="Avatar" 
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    cursor: 'pointer',
-                    border: '2px solid #e8f5e9'
-                  }} 
-                />
-              ) : (
-                <div style={{
-                  width: 40,
-                  height: 40,
-                  background: '#e8f5e9',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}>
-                  <Icons.user size={20} color="#2e7d32" />
-                </div>
-              )}
             </Link>
 
-            {/* Menu Mobile Button */}
+            {/* Menu Mobile */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               style={{
                 display: 'none',
                 background: 'none',
                 border: 'none',
+                padding: 8,
                 cursor: 'pointer',
-                padding: 8
+                fontSize: 20
               }}
               className="mobile-menu-btn"
             >
-              {mobileMenuOpen ? <Icons.x size={24} color="#1a1a1a" /> : <Icons.menu size={24} color="#1a1a1a" />}
+              {mobileMenuOpen ? '✕' : '☰'}
             </button>
           </div>
         </div>
@@ -521,9 +351,7 @@ export default function DashboardLayout({ children }) {
             right: 0,
             background: '#fff',
             borderBottom: '1px solid #eee',
-            padding: 16,
-            display: 'none',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            padding: 16
           }} className="mobile-menu">
             {navItems.map(item => {
               const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -533,44 +361,49 @@ export default function DashboardLayout({ children }) {
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '14px 16px',
-                    borderRadius: 10,
+                    display: 'block',
+                    padding: '12px 16px',
+                    borderRadius: 8,
                     textDecoration: 'none',
-                    fontSize: 16,
-                    fontWeight: '600',
-                    color: isActive ? '#2e7d32' : '#666',
-                    background: isActive ? '#e8f5e9' : 'transparent',
+                    fontSize: 15,
+                    fontWeight: '500',
+                    color: isActive ? '#1a1a1a' : '#666',
+                    background: isActive ? '#f5f5f5' : 'transparent',
                     marginBottom: 4
                   }}
                 >
-                  {getIcon(item.icon, isActive)}
                   {item.label}
                 </Link>
               )
             })}
-            {/* Bouton Ma carte dans le menu mobile */}
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false)
-                setShowPlayerCard(true)
-              }}
+            <Link
+              href="/dashboard/profile"
+              onClick={() => setMobileMenuOpen(false)}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '14px 16px',
-                borderRadius: 10,
-                fontSize: 16,
-                fontWeight: '600',
-                color: '#fff',
-                background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
-                border: 'none',
+                display: 'block',
+                padding: '12px 16px',
+                borderRadius: 8,
+                textDecoration: 'none',
+                fontSize: 15,
+                fontWeight: '500',
+                color: '#666',
+                marginBottom: 8
+              }}
+            >
+              Mon profil
+            </Link>
+            <button
+              onClick={() => { setMobileMenuOpen(false); setShowPlayerCard(true) }}
+              style={{
                 width: '100%',
-                cursor: 'pointer',
-                marginTop: 8
+                padding: '12px 16px',
+                background: '#1a1a1a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 15,
+                fontWeight: '600',
+                cursor: 'pointer'
               }}
             >
               🎴 Ma carte
@@ -580,54 +413,45 @@ export default function DashboardLayout({ children }) {
       </header>
 
       {/* Main Content */}
-      <main style={{
-        maxWidth: 1200,
-        margin: '0 auto',
-        padding: '24px'
-      }}>
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
         {children}
       </main>
 
-      {/* Panneau de notifications */}
+      {/* Panneau notifications */}
       {showNotifications && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: '100%',
-          maxWidth: 400,
-          background: '#fff',
-          boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideIn 0.3s ease'
-        }}>
-          <NotificationPanel 
-            userId={user?.id}
-            onClose={() => {
-              setShowNotifications(false)
-              if (user) loadNotifications(user.id)
+        <>
+          <div 
+            onClick={() => setShowNotifications(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.3)',
+              zIndex: 999
             }}
           />
-        </div>
-      )}
-
-      {/* Overlay pour fermer les notifications */}
-      {showNotifications && (
-        <div 
-          onClick={() => setShowNotifications(false)}
-          style={{
+          <div style={{
             position: 'fixed',
             top: 0,
-            left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.3)',
-            zIndex: 999
-          }}
-        />
+            width: '100%',
+            maxWidth: 380,
+            background: '#fff',
+            boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+            zIndex: 1000
+          }}>
+            <NotificationPanel 
+              userId={user?.id}
+              onClose={() => {
+                setShowNotifications(false)
+                if (user) loadNotifications(user.id)
+              }}
+            />
+          </div>
+        </>
       )}
 
       {/* Modal Ma carte */}
@@ -665,75 +489,45 @@ export default function DashboardLayout({ children }) {
                 textDecoration: 'none',
                 fontSize: 10,
                 fontWeight: '600',
-                color: isActive ? '#2e7d32' : '#666',
-                padding: '4px 8px',
-                minWidth: 60
+                color: isActive ? '#1a1a1a' : '#999',
+                padding: '4px 12px'
               }}
             >
-              {getIcon(item.icon, isActive)}
+              <span style={{ fontSize: 20 }}>
+                {item.href === '/dashboard' ? '🏠' : item.href.includes('matches') ? '🎾' : '📊'}
+              </span>
               <span>{item.label}</span>
             </Link>
           )
         })}
-        {/* Bouton Ma carte dans la bottom nav */}
-        <button
-          onClick={() => setShowPlayerCard(true)}
+        <Link
+          href="/dashboard/profile"
           style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: 2,
+            textDecoration: 'none',
             fontSize: 10,
             fontWeight: '600',
-            color: '#1a1a1a',
-            padding: '4px 8px',
-            minWidth: 60,
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer'
+            color: pathname.includes('profile') ? '#1a1a1a' : '#999',
+            padding: '4px 12px'
           }}
         >
-          <span style={{ fontSize: 20 }}>🎴</span>
-          <span>Carte</span>
-        </button>
+          <span style={{ fontSize: 20 }}>👤</span>
+          <span>Profil</span>
+        </Link>
       </nav>
 
       {/* Styles responsives */}
       <style jsx global>{`
-        @keyframes slideIn {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
         @media (max-width: 768px) {
-          .desktop-nav {
-            display: none !important;
-          }
-          .desktop-profile {
-            display: none !important;
-          }
-          .desktop-card-btn {
-            display: none !important;
-          }
-          .mobile-menu-btn {
-            display: block !important;
-          }
-          .mobile-menu {
-            display: block !important;
-          }
-          .mobile-bottom-nav {
-            display: flex !important;
-          }
-          main {
-            padding-bottom: 80px !important;
-          }
-        }
-        @media (min-width: 769px) {
-          .desktop-profile {
-            display: block !important;
-          }
-          .desktop-card-btn {
-            display: flex !important;
-          }
+          .desktop-nav { display: none !important; }
+          .desktop-profile { display: none !important; }
+          .desktop-card-btn { display: none !important; }
+          .mobile-menu-btn { display: block !important; }
+          .mobile-bottom-nav { display: flex !important; }
+          main { padding-bottom: 80px !important; }
         }
       `}</style>
     </div>
