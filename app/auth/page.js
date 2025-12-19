@@ -9,6 +9,7 @@ export default function AuthPage() {
   const router = useRouter()
   const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -77,6 +78,7 @@ export default function AuthPage() {
           options: {
             data: { 
               name,
+              last_name: lastName,
               phone: formattedPhone
             }
           }
@@ -84,11 +86,14 @@ export default function AuthPage() {
         
         if (error) throw error
 
-        // Mettre à jour le profil avec le téléphone
-        if (data.user && formattedPhone) {
+        // Mettre à jour le profil avec le nom et téléphone
+        if (data.user) {
           await supabase
             .from('profiles')
-            .update({ phone: formattedPhone })
+            .update({ 
+              last_name: lastName,
+              phone: formattedPhone 
+            })
             .eq('id', data.user.id)
         }
 
@@ -317,6 +322,35 @@ export default function AuthPage() {
                   placeholder="Ton prénom"
                   required
                   autoComplete="given-name"
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '2px solid #e5e5e5',
+                    borderRadius: 12,
+                    fontSize: 16,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Nom de famille */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ 
+                  fontSize: 14, 
+                  fontWeight: '600', 
+                  display: 'block', 
+                  marginBottom: 8,
+                  color: '#1a1a1a'
+                }}>
+                  Nom *
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Ton nom de famille"
+                  required
+                  autoComplete="family-name"
                   style={{
                     width: '100%',
                     padding: '16px',

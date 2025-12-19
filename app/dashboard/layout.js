@@ -72,6 +72,12 @@ const Icons = {
       <line x1="6" y1="6" x2="18" y2="18"/>
     </svg>
   ),
+  bell: ({ color = 'currentColor', size = 24 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+  ),
 }
 
 // Logo PadelMatch
@@ -93,6 +99,159 @@ const Logo = ({ size = 32 }) => (
   </svg>
 )
 
+// Panneau de notifications
+function NotificationPanel({ userId, onClose }) {
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (userId) loadNotifications()
+  }, [userId])
+
+  async function loadNotifications() {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(30)
+    
+    setNotifications(data || [])
+    setLoading(false)
+  }
+
+  async function markAsRead(id) {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id)
+    
+    setNotifications(prev => 
+      prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+    )
+  }
+
+  async function markAllRead() {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false)
+    
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+  }
+
+  function getIcon(type) {
+    switch(type) {
+      case 'player_joined': return '🎾'
+      case 'player_left': return '⚠️'
+      case 'match_reminder': return '🔔'
+      case 'match_full': return '✅'
+      case 'match_cancelled': return '❌'
+      default: return '📢'
+    }
+  }
+
+  function formatTime(date) {
+    const d = new Date(date)
+    const now = new Date()
+    const diff = now - d
+    
+    if (diff < 60000) return "À l'instant"
+    if (diff < 3600000) return `Il y a ${Math.floor(diff/60000)} min`
+    if (diff < 86400000) return `Il y a ${Math.floor(diff/3600000)}h`
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  }
+
+  const unread = notifications.filter(n => !n.is_read).length
+
+  return (
+    <>
+      {/* Header */}
+      <div style={{
+        padding: '16px 20px',
+        borderBottom: '1px solid #eee',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div>
+          <h3 style={{ fontSize: 18, fontWeight: '700', margin: 0 }}>Notifications</h3>
+          {unread > 0 && <span style={{ fontSize: 12, color: '#666' }}>{unread} non lue{unread > 1 ? 's' : ''}</span>}
+        </div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer' }}>×</button>
+      </div>
+
+      {/* Actions */}
+      {unread > 0 && (
+        <div style={{ padding: '8px 20px', borderBottom: '1px solid #f0f0f0' }}>
+          <button
+            onClick={markAllRead}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#2e7d32',
+              fontSize: 13,
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Tout marquer comme lu
+          </button>
+        </div>
+      )}
+
+      {/* Liste */}
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>Chargement...</div>
+        ) : notifications.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🔔</div>
+            <p style={{ color: '#666', margin: 0 }}>Aucune notification</p>
+          </div>
+        ) : (
+          notifications.map(notif => (
+            <div
+              key={notif.id}
+              onClick={() => !notif.is_read && markAsRead(notif.id)}
+              style={{
+                padding: 16,
+                borderBottom: '1px solid #f0f0f0',
+                background: notif.is_read ? '#fff' : '#f8fafc',
+                cursor: 'pointer',
+                display: 'flex',
+                gap: 12
+              }}
+            >
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: notif.is_read ? '#f5f5f5' : '#e8f5e9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18
+              }}>
+                {getIcon(notif.type)}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: notif.is_read ? '500' : '600', fontSize: 14 }}>{notif.title}</div>
+                <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{notif.message}</div>
+                <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>{formatTime(notif.created_at)}</div>
+              </div>
+              {!notif.is_read && (
+                <div style={{ width: 8, height: 8, borderRadius: 4, background: '#2e7d32', alignSelf: 'center' }} />
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  )
+}
+
 export default function DashboardLayout({ children }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -100,6 +259,8 @@ export default function DashboardLayout({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     checkAuth()
@@ -128,13 +289,24 @@ export default function DashboardLayout({ children }) {
 
     setProfile(profileData)
     setLoading(false)
+
+    // Charger les notifications non lues
+    loadNotifications(session.user.id)
+  }
+
+  async function loadNotifications(userId) {
+    const { count } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false)
+    
+    setUnreadCount(count || 0)
   }
 
   const navItems = [
     { href: '/dashboard', label: 'Accueil', icon: 'home' },
-    { href: '/dashboard/clubs', label: 'Parties', icon: 'tennis' },
-    { href: '/dashboard/stats', label: 'Mes stats', icon: 'stats' },
-    { href: '/dashboard/groups', label: 'Groupes', icon: 'users' },
+    { href: '/dashboard/matches', label: 'Mes parties', icon: 'tennis' },
     { href: '/dashboard/profile', label: 'Profil', icon: 'user' },
   ]
 
@@ -218,7 +390,42 @@ export default function DashboardLayout({ children }) {
           </nav>
 
           {/* Profil */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Cloche de notifications */}
+            <button
+              onClick={() => setShowNotifications(true)}
+              style={{
+                position: 'relative',
+                background: 'none',
+                border: 'none',
+                padding: 8,
+                cursor: 'pointer',
+                borderRadius: 10
+              }}
+            >
+              <Icons.bell size={22} color="#666" />
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 2,
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  background: '#e53935',
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 4px'
+                }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+
             <div style={{ textAlign: 'right' }} className="desktop-profile">
               <div style={{ fontSize: 14, fontWeight: '600', color: '#1a1a1a' }}>
                 {profile?.name}
@@ -326,6 +533,48 @@ export default function DashboardLayout({ children }) {
         {children}
       </main>
 
+      {/* Panneau de notifications */}
+      {showNotifications && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          maxWidth: 400,
+          background: '#fff',
+          boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'slideIn 0.3s ease'
+        }}>
+          <NotificationPanel 
+            userId={user?.id}
+            onClose={() => {
+              setShowNotifications(false)
+              if (user) loadNotifications(user.id)
+            }}
+          />
+        </div>
+      )}
+
+      {/* Overlay pour fermer les notifications */}
+      {showNotifications && (
+        <div 
+          onClick={() => setShowNotifications(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.3)',
+            zIndex: 999
+          }}
+        />
+      )}
+
       {/* Bottom Nav Mobile */}
       <nav style={{
         position: 'fixed',
@@ -367,6 +616,10 @@ export default function DashboardLayout({ children }) {
 
       {/* Styles responsives */}
       <style jsx global>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
         @media (max-width: 768px) {
           .desktop-nav {
             display: none !important;
