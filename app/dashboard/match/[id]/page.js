@@ -15,6 +15,7 @@ export default function MatchPage() {
   const [match, setMatch] = useState(null)
   const [participants, setParticipants] = useState([])
   const [pendingRequests, setPendingRequests] = useState([])
+  const [pendingInvites, setPendingInvites] = useState([]) // Invitations par email/tel
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -132,6 +133,15 @@ export default function MatchPage() {
           .eq('status', 'pending')
 
         setPendingRequests(pendingData || [])
+
+        // Charger les invitations par email/tel en attente
+        const { data: invitesData } = await supabase
+          .from('pending_invites')
+          .select('*')
+          .eq('match_id', matchId)
+          .eq('status', 'pending')
+        
+        setPendingInvites(invitesData || [])
       }
 
       // Charger mes favoris
@@ -903,6 +913,89 @@ END:VCALENDAR`
                     ✕
                   </button>
                 </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* === INVITATIONS EN ATTENTE (Orga only) === */}
+      {isOrganizer() && pendingInvites.length > 0 && (
+        <div style={{
+          background: '#eff6ff',
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
+          border: '1px solid #93c5fd'
+        }}>
+          <h3 style={{ fontSize: 14, fontWeight: '600', margin: '0 0 12px', color: '#1e40af' }}>
+            📧 Invitations envoyées ({pendingInvites.length})
+          </h3>
+          
+          {pendingInvites.map(invite => (
+            <div key={invite.id} style={{
+              background: '#fff',
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 8,
+              border: '1px solid #eee',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
+                  {invite.invitee_name || 'Invité'}
+                </div>
+                <div style={{ fontSize: 12, color: '#666' }}>
+                  {invite.invitee_contact}
+                </div>
+                <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                  Équipe {invite.team} • En attente de réponse
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  onClick={async () => {
+                    const link = `${window.location.origin}/join-invite/${invite.invite_token}`
+                    await navigator.clipboard.writeText(link)
+                    alert('Lien d\'invitation copié !')
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    background: '#dbeafe',
+                    color: '#1e40af',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  📋 Copier lien
+                </button>
+                <button
+                  onClick={async () => {
+                    if (confirm('Annuler cette invitation ?')) {
+                      await supabase
+                        .from('pending_invites')
+                        .delete()
+                        .eq('id', invite.id)
+                      setPendingInvites(prev => prev.filter(i => i.id !== invite.id))
+                    }
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#fee2e2',
+                    color: '#dc2626',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✕
+                </button>
               </div>
             </div>
           ))}

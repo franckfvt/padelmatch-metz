@@ -309,24 +309,34 @@ export default function DashboardPage() {
 
       if (error) throw error
 
-      // Si duo avec joueur existant, l'ajouter comme participant
+      // Si duo avec joueur existant, l'ajouter comme participant CONFIRMÉ
       if (newMatch.is_duo && newMatch.duo_type === 'existing' && newMatch.duo_player_id) {
         await supabase
           .from('match_participants')
           .insert({
             match_id: data.id,
             user_id: newMatch.duo_player_id,
-            status: 'pending', // En attente de confirmation
+            status: 'confirmed', // ✅ Confirmé directement (invité par l'orga)
             team: 'A', // Même équipe que l'orga
             duo_with: user.id // Lié à l'orga
           })
         
-        // Envoyer une notification (TODO: implémenter les notifications)
+        // Créer une notification pour le partenaire
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: newMatch.duo_player_id,
+            type: 'duo_request',
+            title: '🎾 Tu as été ajouté à une partie !',
+            message: `${profile?.name || 'Un joueur'} t'a ajouté comme partenaire pour une partie le ${new Date(newMatch.date).toLocaleDateString('fr-FR')}`,
+            match_id: data.id,
+            related_user_id: user.id
+          })
       }
 
       // Si duo avec invitation par contact
       if (newMatch.is_duo && newMatch.duo_type === 'invite' && newMatch.duo_invite_contact) {
-        await supabase
+        const { data: inviteData } = await supabase
           .from('pending_invites')
           .insert({
             match_id: data.id,
@@ -336,8 +346,31 @@ export default function DashboardPage() {
             team: 'A',
             status: 'pending'
           })
+          .select()
+          .single()
         
-        // TODO: Envoyer SMS ou email d'invitation
+        // Envoyer l'email/SMS d'invitation
+        if (inviteData) {
+          try {
+            await fetch('/api/send-invite', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                inviteId: inviteData.id,
+                inviteToken: inviteData.invite_token,
+                inviteeName: newMatch.duo_invite_name || 'Partenaire',
+                inviteeContact: newMatch.duo_invite_contact,
+                inviterName: profile?.name || 'Un joueur',
+                matchDate: newMatch.date,
+                matchTime: newMatch.time,
+                clubName: clubs.find(c => c.id === parseInt(newMatch.club_id))?.name || 'À définir'
+              })
+            })
+          } catch (e) {
+            console.error('Erreur envoi invitation:', e)
+            // On continue même si l'email échoue
+          }
+        }
       }
 
       // Fermer modal création, ouvrir modal succès
