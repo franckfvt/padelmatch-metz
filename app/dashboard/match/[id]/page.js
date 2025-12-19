@@ -26,6 +26,8 @@ export default function MatchPage() {
   const [showResultModal, setShowResultModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showCalendarModal, setShowCalendarModal] = useState(false)
+  const [showPlayerModal, setShowPlayerModal] = useState(false)
+  const [selectedPlayer, setSelectedPlayer] = useState(null)
   
   // États
   const [copied, setCopied] = useState(false)
@@ -89,7 +91,7 @@ export default function MatchPage() {
           *,
           clubs (id, name, address),
           profiles!matches_organizer_id_fkey (
-            id, name, level, position, lydia_username, paypal_email
+            id, name, level, position, ambiance, bio, avatar_url, reliability_score, matches_played, matches_won, lydia_username, paypal_email
           )
         `)
         .eq('id', matchId)
@@ -108,7 +110,7 @@ export default function MatchPage() {
         .from('match_participants')
         .select(`
           *,
-          profiles (id, name, level, position, reliability_score),
+          profiles (id, name, level, position, ambiance, bio, avatar_url, reliability_score, matches_played, matches_won),
           duo_profile:profiles!match_participants_duo_with_fkey (id, name, level, position)
         `)
         .eq('match_id', matchId)
@@ -122,7 +124,7 @@ export default function MatchPage() {
           .from('match_participants')
           .select(`
             *,
-            profiles (id, name, level, position, reliability_score),
+            profiles (id, name, level, position, ambiance, bio, avatar_url, reliability_score, matches_played, matches_won),
             duo_profile:profiles!match_participants_duo_with_fkey (id, name, level, position)
           `)
           .eq('match_id', matchId)
@@ -851,6 +853,7 @@ END:VCALENDAR`
       }}>
         {[
           { id: 'equipes', label: '👥 Équipes' },
+          { id: 'infos', label: '📋 Infos' },
           { id: 'chat', label: '💬 Chat', count: messages.length },
           { id: 'paiement', label: '💰 Paiement' }
         ].map(tab => (
@@ -909,16 +912,38 @@ END:VCALENDAR`
                     return (
                       <div
                         key={slot}
+                        onClick={() => {
+                          if (player) {
+                            setSelectedPlayer(player)
+                            setShowPlayerModal(true)
+                          }
+                        }}
                         style={{
                           background: player ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.2)',
                           borderRadius: 12,
                           padding: player ? 12 : 16,
                           textAlign: 'center',
-                          border: player ? 'none' : '2px dashed rgba(255,255,255,0.4)'
+                          border: player ? 'none' : '2px dashed rgba(255,255,255,0.4)',
+                          cursor: player ? 'pointer' : 'default',
+                          transition: 'transform 0.1s',
                         }}
                       >
                         {player ? (
                           <>
+                            {/* Photo mini */}
+                            {player.profiles?.avatar_url ? (
+                              <img 
+                                src={player.profiles.avatar_url} 
+                                alt="" 
+                                style={{ 
+                                  width: 32, 
+                                  height: 32, 
+                                  borderRadius: '50%', 
+                                  objectFit: 'cover',
+                                  marginBottom: 4
+                                }} 
+                              />
+                            ) : null}
                             <div style={{ fontWeight: '600', color: '#1a1a1a', fontSize: 14 }}>
                               {player.isOrganizer && '👑 '}{player.profiles?.name}
                             </div>
@@ -940,9 +965,22 @@ END:VCALENDAR`
                             <div style={{ fontSize: 11, color: '#666' }}>
                               {player.profiles?.level}/10 • {player.profiles?.position === 'left' ? 'G' : player.profiles?.position === 'right' ? 'D' : '↔'}
                             </div>
+                            {/* Indicateur paiement */}
+                            {pricePerPerson > 0 && (
+                              <div style={{
+                                fontSize: 10,
+                                color: player.has_paid ? '#22c55e' : '#f59e0b',
+                                marginTop: 4
+                              }}>
+                                {player.has_paid ? '✓ Payé' : '💰 À payer'}
+                              </div>
+                            )}
                             {isOrganizer() && !player.isOrganizer && (
                               <button
-                                onClick={() => swapPlayer(player.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  swapPlayer(player.id)
+                                }}
                                 style={{
                                   marginTop: 6,
                                   padding: '4px 8px',
@@ -995,16 +1033,38 @@ END:VCALENDAR`
                     return (
                       <div
                         key={slot}
+                        onClick={() => {
+                          if (player) {
+                            setSelectedPlayer(player)
+                            setShowPlayerModal(true)
+                          }
+                        }}
                         style={{
                           background: player ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.2)',
                           borderRadius: 12,
                           padding: player ? 12 : 16,
                           textAlign: 'center',
-                          border: player ? 'none' : '2px dashed rgba(255,255,255,0.4)'
+                          border: player ? 'none' : '2px dashed rgba(255,255,255,0.4)',
+                          cursor: player ? 'pointer' : 'default',
+                          transition: 'transform 0.1s',
                         }}
                       >
                         {player ? (
                           <>
+                            {/* Photo mini */}
+                            {player.profiles?.avatar_url ? (
+                              <img 
+                                src={player.profiles.avatar_url} 
+                                alt="" 
+                                style={{ 
+                                  width: 32, 
+                                  height: 32, 
+                                  borderRadius: '50%', 
+                                  objectFit: 'cover',
+                                  marginBottom: 4
+                                }} 
+                              />
+                            ) : null}
                             <div style={{ fontWeight: '600', color: '#1a1a1a', fontSize: 14 }}>
                               {player.isOrganizer && '👑 '}{player.profiles?.name}
                             </div>
@@ -1026,9 +1086,22 @@ END:VCALENDAR`
                             <div style={{ fontSize: 11, color: '#666' }}>
                               {player.profiles?.level}/10 • {player.profiles?.position === 'left' ? 'G' : player.profiles?.position === 'right' ? 'D' : '↔'}
                             </div>
+                            {/* Indicateur paiement */}
+                            {pricePerPerson > 0 && (
+                              <div style={{
+                                fontSize: 10,
+                                color: player.has_paid ? '#22c55e' : '#f59e0b',
+                                marginTop: 4
+                              }}>
+                                {player.has_paid ? '✓ Payé' : '💰 À payer'}
+                              </div>
+                            )}
                             {isOrganizer() && !player.isOrganizer && (
                               <button
-                                onClick={() => swapPlayer(player.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  swapPlayer(player.id)
+                                }}
                                 style={{
                                   marginTop: 6,
                                   padding: '4px 8px',
@@ -1287,6 +1360,192 @@ END:VCALENDAR`
               Quitter la partie
             </button>
           )}
+        </div>
+      )}
+
+      {/* === TAB: INFOS === */}
+      {activeTab === 'infos' && (
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          border: '1px solid #eee',
+          overflow: 'hidden'
+        }}>
+          {/* Prix */}
+          {pricePerPerson > 0 && (
+            <div style={{
+              padding: 20,
+              borderBottom: '1px solid #eee',
+              background: '#fef3c7'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: '600', color: '#92400e', marginBottom: 4 }}>
+                    💰 Prix du terrain
+                  </div>
+                  <div style={{ fontSize: 24, fontWeight: '700', color: '#1a1a1a' }}>
+                    {match?.price_total / 100}€ total
+                  </div>
+                  <div style={{ fontSize: 14, color: '#666' }}>
+                    → {pricePerPerson}€ par personne
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  {match?.profiles?.lydia_username && (
+                    <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
+                      📱 Lydia: <strong>{match.profiles.lydia_username}</strong>
+                    </div>
+                  )}
+                  {match?.profiles?.paypal_email && (
+                    <div style={{ fontSize: 13, color: '#666' }}>
+                      💳 PayPal: <strong>{match.profiles.paypal_email}</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Infos de la partie */}
+          <div style={{ padding: 20 }}>
+            <h3 style={{ fontSize: 16, fontWeight: '600', margin: '0 0 16px', color: '#1a1a1a' }}>
+              📅 Détails de la partie
+            </h3>
+            
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <span style={{ fontSize: 20 }}>📍</span>
+                <div>
+                  <div style={{ fontWeight: '600', color: '#1a1a1a' }}>{match?.clubs?.name}</div>
+                  <div style={{ fontSize: 13, color: '#666' }}>{match?.clubs?.address}</div>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <span style={{ fontSize: 20 }}>🗓️</span>
+                <div>
+                  <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
+                    {new Date(match?.match_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#666' }}>à {match?.match_time?.slice(0, 5)}</div>
+                </div>
+              </div>
+
+              {match?.level_min && match?.level_max && (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <span style={{ fontSize: 20 }}>⭐</span>
+                  <div>
+                    <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
+                      Niveau {match.level_min === match.level_max ? `${match.level_min}/10` : `${match.level_min} à ${match.level_max}/10`}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {match?.ambiance && (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <span style={{ fontSize: 20 }}>
+                    {match.ambiance === 'loisir' ? '😎' : match.ambiance === 'compet' ? '🏆' : '⚡'}
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
+                      {match.ambiance === 'loisir' ? 'Détente' : match.ambiance === 'compet' ? 'Compétitif' : 'Équilibré'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Description */}
+          {match?.description && (
+            <div style={{ 
+              padding: 20, 
+              borderTop: '1px solid #eee',
+              background: '#fafafa'
+            }}>
+              <h3 style={{ fontSize: 14, fontWeight: '600', margin: '0 0 8px', color: '#666' }}>
+                ✏️ Description
+              </h3>
+              <p style={{ margin: 0, color: '#1a1a1a', lineHeight: 1.5 }}>
+                {match.description}
+              </p>
+            </div>
+          )}
+
+          {/* Notes privées (visible uniquement si inscrit) */}
+          {match?.private_notes && (isOrganizer() || participants.some(p => p.user_id === user?.id)) && (
+            <div style={{ 
+              padding: 20, 
+              borderTop: '1px solid #eee',
+              background: '#eff6ff'
+            }}>
+              <h3 style={{ fontSize: 14, fontWeight: '600', margin: '0 0 8px', color: '#1e40af' }}>
+                🔒 Infos pratiques (réservé aux inscrits)
+              </h3>
+              <p style={{ margin: 0, color: '#1e40af', lineHeight: 1.5 }}>
+                {match.private_notes}
+              </p>
+            </div>
+          )}
+
+          {/* Organisateur */}
+          <div style={{ 
+            padding: 20, 
+            borderTop: '1px solid #eee'
+          }}>
+            <h3 style={{ fontSize: 14, fontWeight: '600', margin: '0 0 12px', color: '#666' }}>
+              👑 Organisateur
+            </h3>
+            <div 
+              onClick={() => {
+                if (match?.profiles) {
+                  setSelectedPlayer({ profiles: match.profiles, isOrganizer: true })
+                  setShowPlayerModal(true)
+                }
+              }}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 12,
+                cursor: 'pointer',
+                padding: 12,
+                background: '#fef3c7',
+                borderRadius: 12,
+                border: '2px solid #fbbf24'
+              }}
+            >
+              {match?.profiles?.avatar_url ? (
+                <img 
+                  src={match.profiles.avatar_url} 
+                  alt="" 
+                  style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} 
+                />
+              ) : (
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: '#fbbf24',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20
+                }}>
+                  👑
+                </div>
+              )}
+              <div>
+                <div style={{ fontWeight: '600', color: '#1a1a1a' }}>
+                  {match?.profiles?.name}
+                </div>
+                <div style={{ fontSize: 13, color: '#666' }}>
+                  ⭐ {match?.profiles?.level}/10 • ✓ {match?.profiles?.reliability_score || 100}%
+                </div>
+              </div>
+              <div style={{ marginLeft: 'auto', color: '#666' }}>→</div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2044,6 +2303,243 @@ END:VCALENDAR`
             >
               Fermer
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* === MODAL DÉTAIL JOUEUR === */}
+      {showPlayerModal && selectedPlayer && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 24,
+            width: '100%',
+            maxWidth: 360,
+            overflow: 'hidden'
+          }}>
+            {/* Header carte */}
+            <div style={{
+              background: 'linear-gradient(145deg, #2d3748 0%, #1a202c 100%)',
+              padding: 24,
+              color: '#fff'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'flex-start',
+                marginBottom: 16
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>🎾</span>
+                  <span style={{ fontSize: 11, fontWeight: '600', opacity: 0.7 }}>PADELMATCH</span>
+                </div>
+                <div style={{
+                  background: selectedPlayer.profiles?.reliability_score >= 90 
+                    ? 'rgba(34, 197, 94, 0.2)' 
+                    : selectedPlayer.profiles?.reliability_score >= 70 
+                    ? 'rgba(251, 191, 36, 0.2)'
+                    : 'rgba(239, 68, 68, 0.2)',
+                  color: selectedPlayer.profiles?.reliability_score >= 90 
+                    ? '#4ade80' 
+                    : selectedPlayer.profiles?.reliability_score >= 70 
+                    ? '#fbbf24'
+                    : '#ef4444',
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: '600'
+                }}>
+                  {selectedPlayer.profiles?.reliability_score >= 90 ? '✓' : '⚠'} {selectedPlayer.profiles?.reliability_score || 100}%
+                </div>
+              </div>
+
+              {/* Photo + Nom */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                {selectedPlayer.profiles?.avatar_url ? (
+                  <img
+                    src={selectedPlayer.profiles.avatar_url}
+                    alt="Avatar"
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '3px solid rgba(255,255,255,0.2)'
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 28
+                  }}>
+                    👤
+                  </div>
+                )}
+                <div>
+                  <h3 style={{ 
+                    fontSize: 24, 
+                    fontWeight: '700', 
+                    margin: 0
+                  }}>
+                    {selectedPlayer.profiles?.name}
+                    {selectedPlayer.isOrganizer && ' 👑'}
+                  </h3>
+                  {selectedPlayer.profiles?.bio && (
+                    <div style={{ fontSize: 13, opacity: 0.7, marginTop: 2 }}>
+                      "{selectedPlayer.profiles.bio}"
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{
+                  background: '#fbbf24',
+                  color: '#1a1a1a',
+                  padding: '5px 12px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: '700'
+                }}>
+                  ⭐ {selectedPlayer.profiles?.level}/10
+                </span>
+                {selectedPlayer.profiles?.ambiance && (
+                  <span style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    padding: '5px 12px',
+                    borderRadius: 6,
+                    fontSize: 13
+                  }}>
+                    {selectedPlayer.profiles.ambiance === 'loisir' ? '😎 Détente' : 
+                     selectedPlayer.profiles.ambiance === 'compet' ? '🏆 Compétitif' : '⚡ Équilibré'}
+                  </span>
+                )}
+                {selectedPlayer.profiles?.position && (
+                  <span style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    padding: '5px 12px',
+                    borderRadius: 6,
+                    fontSize: 13
+                  }}>
+                    🎾 {selectedPlayer.profiles.position === 'left' ? 'Gauche' : 
+                        selectedPlayer.profiles.position === 'right' ? 'Droite' : 'Les deux'}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(3, 1fr)', 
+              gap: 1,
+              background: '#eee'
+            }}>
+              <div style={{ background: '#fff', padding: 16, textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: '700', color: '#1a1a1a' }}>
+                  {selectedPlayer.profiles?.matches_played || 0}
+                </div>
+                <div style={{ fontSize: 11, color: '#666' }}>parties</div>
+              </div>
+              <div style={{ background: '#fff', padding: 16, textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: '700', color: '#1a1a1a' }}>
+                  {selectedPlayer.profiles?.matches_played > 0 
+                    ? Math.round((selectedPlayer.profiles?.matches_won || 0) / selectedPlayer.profiles.matches_played * 100)
+                    : 0}%
+                </div>
+                <div style={{ fontSize: 11, color: '#666' }}>victoires</div>
+              </div>
+              <div style={{ background: '#fff', padding: 16, textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: '700', color: selectedPlayer.profiles?.reliability_score >= 90 ? '#22c55e' : '#f59e0b' }}>
+                  {selectedPlayer.profiles?.reliability_score || 100}%
+                </div>
+                <div style={{ fontSize: 11, color: '#666' }}>fiabilité</div>
+              </div>
+            </div>
+
+            {/* Paiement */}
+            {pricePerPerson > 0 && (
+              <div style={{
+                padding: 16,
+                borderTop: '1px solid #eee',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ fontSize: 14, color: '#666' }}>
+                  💰 Paiement ({pricePerPerson}€)
+                </div>
+                <div style={{
+                  background: selectedPlayer.has_paid ? '#dcfce7' : '#fef3c7',
+                  color: selectedPlayer.has_paid ? '#166534' : '#92400e',
+                  padding: '4px 12px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: '600'
+                }}>
+                  {selectedPlayer.has_paid ? '✓ Payé' : '⏳ En attente'}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ padding: 16, display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowPlayerModal(false)}
+                style={{
+                  flex: 1,
+                  padding: 14,
+                  background: '#f5f5f5',
+                  color: '#666',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Fermer
+              </button>
+              {selectedPlayer.profiles?.id && selectedPlayer.profiles.id !== user?.id && (
+                <a
+                  href={`/player/${selectedPlayer.profiles.id}`}
+                  style={{
+                    flex: 1,
+                    padding: 14,
+                    background: '#1a1a1a',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    textAlign: 'center'
+                  }}
+                >
+                  Voir profil →
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
