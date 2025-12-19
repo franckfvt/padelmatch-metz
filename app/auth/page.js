@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function AuthPage() {
+function AuthContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get('redirect')
+  
   const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -16,26 +19,46 @@ export default function AuthPage() {
   const [checkingSession, setCheckingSession] = useState(true)
 
   useEffect(() => {
-    async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('experience, ambiance')
-          .eq('id', session.user.id)
-          .single()
-        
-        if (profile?.experience && profile?.ambiance) {
-          router.push('/dashboard')
-        } else {
-          router.push('/onboarding')
-        }
-      } else {
-        setCheckingSession(false)
-      }
+    // Sauvegarder l'URL de redirection
+    if (redirectUrl) {
+      sessionStorage.setItem('redirectAfterLogin', redirectUrl)
     }
     checkSession()
-  }, [router])
+  }, [redirectUrl])
+
+  async function checkSession() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, level')
+        .eq('id', session.user.id)
+        .single()
+      
+      // Récupérer la redirection
+      const redirect = sessionStorage.getItem('redirectAfterLogin')
+      
+      if (profile?.name && profile?.level) {
+        // Profil complet
+        if (redirect) {
+          sessionStorage.removeItem('redirectAfterLogin')
+          router.push(redirect)
+        } else {
+          router.push('/dashboard')
+        }
+      } else {
+        // Profil incomplet → onboarding
+        // Transférer la redirection vers après l'onboarding
+        if (redirect) {
+          sessionStorage.removeItem('redirectAfterLogin')
+          sessionStorage.setItem('redirectAfterOnboarding', redirect)
+        }
+        router.push('/onboarding')
+      }
+    } else {
+      setCheckingSession(false)
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -53,6 +76,14 @@ export default function AuthPage() {
         })
         
         if (error) throw error
+        
+        // Transférer la redirection vers onboarding
+        const redirect = sessionStorage.getItem('redirectAfterLogin')
+        if (redirect) {
+          sessionStorage.removeItem('redirectAfterLogin')
+          sessionStorage.setItem('redirectAfterOnboarding', redirect)
+        }
+        
         router.push('/onboarding')
         
       } else {
@@ -65,13 +96,26 @@ export default function AuthPage() {
         
         const { data: profile } = await supabase
           .from('profiles')
-          .select('experience, ambiance')
+          .select('name, level')
           .eq('id', data.user.id)
           .single()
         
-        if (profile?.experience && profile?.ambiance) {
-          router.push('/dashboard')
+        // Récupérer la redirection
+        const redirect = sessionStorage.getItem('redirectAfterLogin')
+        
+        if (profile?.name && profile?.level) {
+          if (redirect) {
+            sessionStorage.removeItem('redirectAfterLogin')
+            router.push(redirect)
+          } else {
+            router.push('/dashboard')
+          }
         } else {
+          // Transférer vers onboarding
+          if (redirect) {
+            sessionStorage.removeItem('redirectAfterLogin')
+            sessionStorage.setItem('redirectAfterOnboarding', redirect)
+          }
           router.push('/onboarding')
         }
       }
@@ -145,6 +189,21 @@ export default function AuthPage() {
         maxWidth: 420,
         boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
       }}>
+        
+        {/* Message de redirection */}
+        {redirectUrl && (
+          <div style={{
+            background: '#eff6ff',
+            color: '#1e40af',
+            padding: '12px 16px',
+            borderRadius: 10,
+            fontSize: 14,
+            marginBottom: 20,
+            textAlign: 'center'
+          }}>
+            Connecte-toi pour rejoindre la partie
+          </div>
+        )}
         
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -374,12 +433,6 @@ export default function AuthPage() {
           </button>
         </form>
 
-        {mode === 'signup' && (
-          <p style={{ fontSize: 13, color: '#999', textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
-            En t'inscrivant, tu acceptes nos conditions d'utilisation et notre politique de confidentialité.
-          </p>
-        )}
-
         <div style={{ 
           textAlign: 'center', 
           marginTop: 28,
@@ -392,5 +445,17 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: 48 }}>🎾</div>
+      </div>
+    }>
+      <AuthContent />
+    </Suspense>
   )
 }

@@ -4,40 +4,64 @@ import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
-export default function AuthCallback() {
+export default function AuthCallbackPage() {
   const router = useRouter()
 
   useEffect(() => {
-    async function handleCallback() {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) throw error
-        
-        if (session) {
-          // Vérifier si profil complet
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('experience, ambiance')
-            .eq('id', session.user.id)
-            .single()
-          
-          if (profile?.experience && profile?.ambiance) {
-            router.push('/dashboard')
-          } else {
-            router.push('/onboarding')
-          }
-        } else {
-          router.push('/auth')
-        }
-      } catch (error) {
-        console.error('Callback error:', error)
-        router.push('/auth')
-      }
-    }
-
     handleCallback()
-  }, [router])
+  }, [])
+
+  async function handleCallback() {
+    try {
+      // Attendre que Supabase traite le token
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('Auth callback error:', error)
+        router.push('/auth')
+        return
+      }
+
+      if (!session) {
+        router.push('/auth')
+        return
+      }
+
+      // Vérifier si le profil est complet
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, level')
+        .eq('id', session.user.id)
+        .single()
+
+      // Récupérer la redirection stockée
+      const redirect = sessionStorage.getItem('redirectAfterLogin')
+
+      if (profile?.name && profile?.level) {
+        // Profil complet → redirection ou dashboard
+        if (redirect) {
+          sessionStorage.removeItem('redirectAfterLogin')
+          router.push(redirect)
+        } else {
+          router.push('/dashboard')
+        }
+      } else {
+        // Profil incomplet → onboarding
+        // Transférer la redirection pour après l'onboarding
+        if (redirect) {
+          sessionStorage.removeItem('redirectAfterLogin')
+          sessionStorage.setItem('redirectAfterOnboarding', redirect)
+        }
+        router.push('/onboarding')
+      }
+
+    } catch (error) {
+      console.error('Callback error:', error)
+      router.push('/auth')
+    }
+  }
 
   return (
     <div style={{

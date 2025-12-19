@@ -644,6 +644,24 @@ END:VCALENDAR`
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: '0 auto', paddingBottom: 100 }}>
       
+      {/* Badge organisateur */}
+      {isOrganizer() && (
+        <div style={{
+          background: '#fef3c7',
+          color: '#92400e',
+          padding: '12px 16px',
+          borderRadius: 12,
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontWeight: '600',
+          fontSize: 14
+        }}>
+          👑 Tu organises cette partie
+        </div>
+      )}
+
       {/* === HEADER === */}
       <div style={{
         background: '#fff',
@@ -904,6 +922,21 @@ END:VCALENDAR`
                             <div style={{ fontWeight: '600', color: '#1a1a1a', fontSize: 14 }}>
                               {player.isOrganizer && '👑 '}{player.profiles?.name}
                             </div>
+                            {player.isOrganizer && (
+                              <div style={{ 
+                                fontSize: 9, 
+                                background: '#92400e', 
+                                color: '#fff', 
+                                padding: '2px 6px', 
+                                borderRadius: 4, 
+                                display: 'inline-block',
+                                marginTop: 2,
+                                marginBottom: 2,
+                                fontWeight: '600'
+                              }}>
+                                ORGA
+                              </div>
+                            )}
                             <div style={{ fontSize: 11, color: '#666' }}>
                               {player.profiles?.level}/10 • {player.profiles?.position === 'left' ? 'G' : player.profiles?.position === 'right' ? 'D' : '↔'}
                             </div>
@@ -975,6 +1008,21 @@ END:VCALENDAR`
                             <div style={{ fontWeight: '600', color: '#1a1a1a', fontSize: 14 }}>
                               {player.isOrganizer && '👑 '}{player.profiles?.name}
                             </div>
+                            {player.isOrganizer && (
+                              <div style={{ 
+                                fontSize: 9, 
+                                background: '#92400e', 
+                                color: '#fff', 
+                                padding: '2px 6px', 
+                                borderRadius: 4, 
+                                display: 'inline-block',
+                                marginTop: 2,
+                                marginBottom: 2,
+                                fontWeight: '600'
+                              }}>
+                                ORGA
+                              </div>
+                            )}
                             <div style={{ fontSize: 11, color: '#666' }}>
                               {player.profiles?.level}/10 • {player.profiles?.position === 'left' ? 'G' : player.profiles?.position === 'right' ? 'D' : '↔'}
                             </div>
