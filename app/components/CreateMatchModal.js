@@ -405,17 +405,23 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
       const registeredPartners = formData.partners.filter(p => !p.isManual)
       const manualPartners = formData.partners.filter(p => p.isManual)
 
+      console.log('All partners to save:', formData.partners.map(p => ({
+        name: p.name,
+        team: p.team,
+        isManual: p.isManual
+      })))
+
       // Ajouter les partenaires INSCRITS dans match_participants
       if (registeredPartners.length > 0) {
         const participantsData = registeredPartners.map(p => ({
           match_id: match.id,
           user_id: p.id,
-          team: p.team || null,
+          team: p.team, // IMPORTANT: ne pas mettre || null ici
           status: 'confirmed',
           added_by_organizer: true
         }))
         
-        console.log('Adding registered partners:', participantsData)
+        console.log('Inserting registered partners:', participantsData)
         
         const { error: partError } = await supabase
           .from('match_participants')
@@ -423,7 +429,8 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
         
         if (partError) {
           console.error('Error adding participants:', partError)
-          // Ne pas faire échouer la création du match pour ça
+        } else {
+          console.log('Partners added successfully!')
         }
       }
 
@@ -431,7 +438,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
       if (manualPartners.length > 0) {
         const invitesData = manualPartners.map(p => ({
           match_id: match.id,
-          invited_by: userId,
+          inviter_id: userId,
           invitee_name: p.name,
           team: p.team || null,
           status: 'pending',

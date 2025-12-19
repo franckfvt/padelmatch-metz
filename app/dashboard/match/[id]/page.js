@@ -120,6 +120,15 @@ export default function MatchPage() {
         .select(`*, profiles (id, name, level, position, ambiance, avatar_url, reliability_score, phone), duo_profile:profiles!match_participants_duo_with_fkey (id, name, level)`)
         .eq('match_id', matchId)
         .in('status', ['confirmed', 'pending'])
+      
+      // Debug: voir les participants chargés
+      console.log('Participants loaded:', participantsData?.map(p => ({
+        id: p.id,
+        name: p.profiles?.name,
+        team: p.team,
+        status: p.status
+      })))
+      
       setParticipants(participantsData || [])
 
       // Pour @mentions
@@ -216,6 +225,14 @@ export default function MatchPage() {
   const teamA = allPlayers.filter(p => p.team === 'A')
   const teamB = allPlayers.filter(p => p.team === 'B')
   const unassigned = allPlayers.filter(p => !p.team && !p.isOrganizer)
+
+  // Debug: voir les équipes
+  console.log('All players:', allPlayers.map(p => ({ 
+    name: p.profiles?.name || p.invitee_name, 
+    team: p.team, 
+    isOrganizer: p.isOrganizer 
+  })))
+  console.log('Team A:', teamA.length, 'Team B:', teamB.length, 'Unassigned:', unassigned.length)
 
   // === ACTIONS ===
 
@@ -396,7 +413,7 @@ export default function MatchPage() {
     try {
       await supabase.from('pending_invites').insert({
         match_id: parseInt(matchId),
-        invited_by: user.id,
+        inviter_id: user.id,
         invitee_name: inviteForm.name,
         invitee_contact: inviteForm.contact,
         team: inviteForm.team,
