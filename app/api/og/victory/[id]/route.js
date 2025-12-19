@@ -5,185 +5,265 @@ export const runtime = 'edge'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
+/**
+ * Génère une image Open Graph pour une carte de victoire
+ * URL: /api/og/victory/[id]
+ * 
+ * Note: [id] peut être soit l'ID d'une partie (match_history) 
+ * soit passé avec des query params pour plus de flexibilité
+ */
 export async function GET(request, { params }) {
   const { id } = params
+  const { searchParams } = new URL(request.url)
 
-  // Récupérer le match avec les détails
-  const { data: match } = await supabase
-    .from('matches')
-    .select(`
-      *,
-      clubs (id, name),
-      profiles!matches_organizer_id_fkey (id, name, level),
-      match_participants (
-        user_id,
-        team,
-        profiles (id, name, level)
-      )
-    `)
-    .eq('id', id)
-    .single()
+  let player, partner, score, date, club, streak, totalWins
 
-  if (!match || match.status !== 'completed') {
-    return new Response('Match not found or not completed', { status: 404 })
+  // Si l'ID est "custom", utiliser les query params
+  if (id === 'custom') {
+    player = searchParams.get('player') || 'Joueur'
+    partner = searchParams.get('partner')
+    score = searchParams.get('score')
+    date = searchParams.get('date') || ''
+    club = searchParams.get('club') || ''
+    streak = parseInt(searchParams.get('streak') || '0')
+    totalWins = searchParams.get('totalWins')
+  } else {
+    // Sinon, récupérer depuis match_history
+    const { data: match, error } = await supabase
+      .from('match_history')
+      .select(`
+        *,
+        profiles (name)
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error || !match) {
+      return new Response('Victoire non trouvée', { status: 404 })
+    }
+
+    // Récupérer le nom du joueur
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', match.user_id)
+      .single()
+
+    player = profile?.name || 'Joueur'
+    partner = match.partner_name
+    score = match.score_us
+    date = match.played_date
+    club = match.location
+
+    // Calculer la série de victoires
+    const { data: recentMatches } = await supabase
+      .from('match_history')
+      .select('result')
+      .eq('user_id', match.user_id)
+      .order('played_date', { ascending: false })
+      .limit(10)
+
+    streak = 0
+    if (recentMatches) {
+      for (const m of recentMatches) {
+        if (m.result === 'win') streak++
+        else break
+      }
+    }
+
+    // Total des victoires
+    const { count } = await supabase
+      .from('match_history')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', match.user_id)
+      .eq('result', 'win')
+
+    totalWins = count
   }
 
-  const clubName = match.clubs?.name || 'Padel'
-  const matchDate = new Date(match.match_date).toLocaleDateString('fr-FR', { 
-    day: 'numeric', 
-    month: 'long' 
-  })
-  
-  // Construire les équipes
-  const teamA = match.match_participants?.filter(p => p.team === 'A').map(p => p.profiles?.name) || []
-  const teamB = match.match_participants?.filter(p => p.team === 'B').map(p => p.profiles?.name) || []
-  
-  // Ajouter l'orga dans son équipe
-  if (match.organizer_team === 'A') teamA.unshift(match.profiles?.name)
-  if (match.organizer_team === 'B') teamB.unshift(match.profiles?.name)
-  
-  const winner = match.winner
-  const winnerNames = winner === 'A' ? teamA : teamB
-  const loserNames = winner === 'A' ? teamB : teamA
-  
-  // Score
-  const scores = []
-  if (match.score_set1_a !== null) scores.push(`${match.score_set1_a}-${match.score_set1_b}`)
-  if (match.score_set2_a !== null) scores.push(`${match.score_set2_a}-${match.score_set2_b}`)
-  if (match.score_set3_a !== null) scores.push(`${match.score_set3_a}-${match.score_set3_b}`)
-  const scoreText = scores.length > 0 ? scores.join(' / ') : 'Victoire'
+  // Formater la date
+  let formattedDate = ''
+  if (date) {
+    const d = new Date(date)
+    formattedDate = d.toLocaleDateString('fr-FR', { 
+      day: 'numeric', 
+      month: 'long',
+      year: 'numeric'
+    })
+  }
 
   return new ImageResponse(
     (
       <div
         style={{
-          height: '100%',
-          width: '100%',
+          width: '1200px',
+          height: '630px',
           display: 'flex',
           flexDirection: 'column',
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-          padding: '60px',
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #14532d 50%, #1a1a1a 100%)',
+          padding: '50px',
+          fontFamily: 'system-ui, sans-serif',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        {/* Header */}
+        {/* Confettis / Particules */}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '40px',
+            position: 'absolute',
+            top: '50px',
+            left: '100px',
+            fontSize: '60px',
+            opacity: 0.3,
+            transform: 'rotate(-15deg)',
           }}
         >
+          🎉
+        </div>
+        <div
+          style={{
+            position: 'absolute',
+            top: '150px',
+            right: '150px',
+            fontSize: '50px',
+            opacity: 0.3,
+            transform: 'rotate(20deg)',
+          }}
+        >
+          ⭐
+        </div>
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '100px',
+            left: '200px',
+            fontSize: '40px',
+            opacity: 0.2,
+            transform: 'rotate(-10deg)',
+          }}
+        >
+          🏆
+        </div>
+
+        {/* Cercle lumineux */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '-200px',
+            right: '-200px',
+            width: '600px',
+            height: '600px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(251,191,36,0.3) 0%, transparent 60%)',
+          }}
+        />
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '48px' }}>🎾</span>
-            <span style={{ fontSize: '28px', fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>
+            <span style={{ fontSize: '36px' }}>🎾</span>
+            <span style={{ fontSize: '18px', color: 'rgba(255,255,255,0.6)', fontWeight: '600', letterSpacing: '2px' }}>
               PADELMATCH
             </span>
           </div>
-          <div style={{ fontSize: '24px', color: 'rgba(255,255,255,0.5)' }}>
-            {matchDate}
-          </div>
         </div>
 
-        {/* Trophée central */}
+        {/* Badge VICTOIRE */}
         <div
           style={{
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            flex: 1,
+            gap: '16px',
+            marginBottom: '30px',
           }}
         >
-          <div style={{ fontSize: '120px', marginBottom: '20px' }}>🏆</div>
           <div
             style={{
-              fontSize: '64px',
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+              color: '#1a1a1a',
+              padding: '16px 40px',
+              borderRadius: '50px',
+              fontSize: '32px',
               fontWeight: '800',
-              color: '#fbbf24',
-              marginBottom: '30px',
-              textAlign: 'center',
-            }}
-          >
-            VICTOIRE !
-          </div>
-
-          {/* Gagnants */}
-          <div
-            style={{
               display: 'flex',
-              gap: '20px',
-              marginBottom: '40px',
+              alignItems: 'center',
+              gap: '12px',
+              boxShadow: '0 10px 40px rgba(251,191,36,0.3)',
             }}
           >
-            {winnerNames.map((name, i) => (
-              <div
-                key={i}
-                style={{
-                  background: 'rgba(251,191,36,0.2)',
-                  border: '2px solid #fbbf24',
-                  borderRadius: '16px',
-                  padding: '16px 32px',
-                  fontSize: '32px',
-                  fontWeight: '700',
-                  color: '#fff',
-                }}
-              >
-                {name || 'Joueur'}
-              </div>
-            ))}
-          </div>
-
-          {/* Score */}
-          <div
-            style={{
-              fontSize: '48px',
-              fontWeight: '700',
-              color: '#22c55e',
-              marginBottom: '20px',
-            }}
-          >
-            {scoreText}
-          </div>
-
-          {/* VS */}
-          <div
-            style={{
-              fontSize: '24px',
-              color: 'rgba(255,255,255,0.5)',
-              marginBottom: '20px',
-            }}
-          >
-            contre
-          </div>
-
-          {/* Perdants */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '16px',
-            }}
-          >
-            {loserNames.map((name, i) => (
-              <div
-                key={i}
-                style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
-                  padding: '12px 24px',
-                  fontSize: '24px',
-                  color: 'rgba(255,255,255,0.6)',
-                }}
-              >
-                {name || 'Joueur'}
-              </div>
-            ))}
+            🏆 VICTOIRE
           </div>
         </div>
+
+        {/* Score si présent */}
+        {score && (
+          <div
+            style={{
+              fontSize: '80px',
+              fontWeight: '800',
+              color: '#fff',
+              marginBottom: '20px',
+              letterSpacing: '-2px',
+            }}
+          >
+            {score}
+          </div>
+        )}
+
+        {/* Joueurs */}
+        <div
+          style={{
+            fontSize: '48px',
+            fontWeight: '700',
+            color: '#fff',
+            marginBottom: '20px',
+          }}
+        >
+          {player}
+          {partner && (
+            <span style={{ color: 'rgba(255,255,255,0.7)' }}> & {partner}</span>
+          )}
+        </div>
+
+        {/* Infos */}
+        <div style={{ display: 'flex', gap: '30px', marginBottom: '30px' }}>
+          {club && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '24px' }}>📍</span>
+              <span style={{ fontSize: '24px', color: 'rgba(255,255,255,0.7)' }}>{club}</span>
+            </div>
+          )}
+          {formattedDate && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '24px' }}>📅</span>
+              <span style={{ fontSize: '24px', color: 'rgba(255,255,255,0.7)' }}>{formattedDate}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Série de victoires */}
+        {streak > 1 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              background: 'rgba(239,68,68,0.2)',
+              padding: '16px 24px',
+              borderRadius: '16px',
+              marginBottom: '20px',
+              alignSelf: 'flex-start',
+            }}
+          >
+            <span style={{ fontSize: '32px' }}>🔥</span>
+            <span style={{ fontSize: '24px', color: '#fca5a5', fontWeight: '700' }}>
+              Série de {streak} victoires !
+            </span>
+          </div>
+        )}
 
         {/* Footer */}
         <div
@@ -191,22 +271,25 @@ export async function GET(request, { params }) {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            paddingTop: '30px',
+            marginTop: 'auto',
+            paddingTop: '25px',
             borderTop: '1px solid rgba(255,255,255,0.1)',
           }}
         >
-          <div style={{ fontSize: '24px', color: 'rgba(255,255,255,0.5)' }}>
-            📍 {clubName}
-          </div>
-          <div style={{ fontSize: '24px', color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ fontSize: '22px', color: 'rgba(255,255,255,0.4)' }}>
             padelmatch.fr
-          </div>
+          </span>
+          {totalWins && (
+            <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.5)' }}>
+              🏆 {totalWins} victoires cette saison
+            </span>
+          )}
         </div>
       </div>
     ),
     {
-      width: 1080,
-      height: 1080,
+      width: 1200,
+      height: 630,
     }
   )
 }

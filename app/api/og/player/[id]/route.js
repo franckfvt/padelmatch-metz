@@ -3,191 +3,198 @@ import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'edge'
 
+// Créer un client Supabase pour l'edge
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
+/**
+ * Génère une image Open Graph pour un profil joueur
+ * URL: /api/og/player/[id]
+ */
 export async function GET(request, { params }) {
   const { id } = params
 
-  // Récupérer le profil
-  const { data: profile } = await supabase
+  // Récupérer le profil depuis Supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('name, level, ambiance, reliability_score, avatar_url, position')
     .eq('id', id)
     .single()
 
-  if (!profile) {
-    return new Response('Profile not found', { status: 404 })
+  if (error || !profile) {
+    return new Response('Profil non trouvé', { status: 404 })
   }
 
-  const name = profile.name || 'Joueur'
-  const level = profile.level || '?'
-  const position = profile.position === 'left' ? 'Gauche' : profile.position === 'right' ? 'Droite' : 'Les deux'
-  const matchesPlayed = profile.matches_played || 0
-  const winRate = profile.matches_played > 0 
-    ? Math.round((profile.matches_won / profile.matches_played) * 100) 
-    : 0
-  const streak = profile.current_streak || 0
-  const reliability = profile.reliability_score || 100
+  const { name, level, ambiance, reliability_score, avatar_url, position } = profile
+
+  const ambianceLabels = {
+    'loisir': { label: 'Détente', emoji: '😎' },
+    'mix': { label: 'Équilibré', emoji: '⚡' },
+    'compet': { label: 'Compétitif', emoji: '🏆' }
+  }
+
+  const positionLabels = {
+    'left': 'Gauche',
+    'right': 'Droite',
+    'both': 'Les deux'
+  }
+
+  const amb = ambianceLabels[ambiance] || ambianceLabels.mix
+  const reliability = reliability_score || 100
 
   return new ImageResponse(
     (
       <div
         style={{
-          height: '100%',
-          width: '100%',
+          width: '1200px',
+          height: '630px',
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%)',
+          padding: '60px',
+          fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {/* Container carte */}
+        {/* Cercle décoratif */}
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            padding: '50px',
-            width: '100%',
-            maxWidth: '1000px',
+            position: 'absolute',
+            top: '-100px',
+            right: '-100px',
+            width: '400px',
+            height: '400px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(46,125,50,0.3) 0%, transparent 70%)',
           }}
-        >
+        />
+
+        {/* Contenu principal */}
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+          
           {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '40px' }}>
+            <span style={{ fontSize: '48px', marginRight: '16px' }}>🎾</span>
+            <span style={{ fontSize: '24px', color: 'rgba(255,255,255,0.7)', fontWeight: '600', letterSpacing: '2px' }}>
+              PADELMATCH
+            </span>
+          </div>
+
+          {/* Carte joueur */}
           <div
             style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              flex: 1,
               alignItems: 'center',
-              marginBottom: '40px',
+              gap: '60px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '48px' }}>🎾</span>
-              <span style={{ fontSize: '28px', fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>
-                PADELMATCH
-              </span>
-            </div>
+            {/* Avatar */}
             <div
               style={{
-                background: 'rgba(255,255,255,0.15)',
-                padding: '10px 20px',
-                borderRadius: '12px',
-                fontSize: '20px',
+                width: '200px',
+                height: '200px',
+                borderRadius: '50%',
+                background: avatar_url 
+                  ? `url(${avatar_url})` 
+                  : 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '80px',
                 color: '#fff',
+                border: '4px solid rgba(255,255,255,0.2)',
               }}
             >
-              ✅ {reliability}% fiable
+              {!avatar_url && (name?.charAt(0)?.toUpperCase() || '?')}
             </div>
-          </div>
 
-          {/* Nom et badges */}
-          <div style={{ marginBottom: '40px' }}>
-            <h1
-              style={{
-                fontSize: '72px',
-                fontWeight: '800',
-                color: '#fff',
-                margin: '0 0 20px',
-                letterSpacing: '-2px',
-              }}
-            >
-              {name}
-            </h1>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <span
+            {/* Infos */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Nom */}
+              <h1
                 style={{
-                  background: '#fbbf24',
-                  color: '#1a1a1a',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  fontSize: '28px',
-                  fontWeight: '700',
-                }}
-              >
-                ⭐ {level}/10
-              </span>
-              <span
-                style={{
-                  background: 'rgba(255,255,255,0.15)',
+                  fontSize: '72px',
+                  fontWeight: '800',
                   color: '#fff',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  fontSize: '28px',
-                  fontWeight: '500',
+                  margin: 0,
+                  letterSpacing: '-2px',
                 }}
               >
-                🎾 {position}
-              </span>
-            </div>
-          </div>
+                {name || 'Joueur'}
+              </h1>
 
-          {/* Stats */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '30px',
-              paddingTop: '40px',
-              borderTop: '2px solid rgba(255,255,255,0.1)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flex: 1,
-                background: 'rgba(255,255,255,0.05)',
-                padding: '30px',
-                borderRadius: '16px',
-              }}
-            >
-              <span style={{ fontSize: '48px', fontWeight: '700', color: '#fff' }}>
-                {matchesPlayed}
-              </span>
-              <span style={{ fontSize: '18px', color: 'rgba(255,255,255,0.6)' }}>
-                parties jouées
-              </span>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flex: 1,
-                background: 'rgba(255,255,255,0.05)',
-                padding: '30px',
-                borderRadius: '16px',
-              }}
-            >
-              <span style={{ fontSize: '48px', fontWeight: '700', color: '#22c55e' }}>
-                {winRate}%
-              </span>
-              <span style={{ fontSize: '18px', color: 'rgba(255,255,255,0.6)' }}>
-                victoires
-              </span>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flex: 1,
-                background: streak > 0 ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.05)',
-                padding: '30px',
-                borderRadius: '16px',
-                border: streak > 0 ? '2px solid #fbbf24' : 'none',
-              }}
-            >
-              <span style={{ fontSize: '48px', fontWeight: '700', color: '#fbbf24' }}>
-                🔥 {streak}
-              </span>
-              <span style={{ fontSize: '18px', color: 'rgba(255,255,255,0.6)' }}>
-                série en cours
-              </span>
+              {/* Badges */}
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                {/* Niveau */}
+                <div
+                  style={{
+                    background: '#fbbf24',
+                    color: '#1a1a1a',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    fontSize: '28px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  ⭐ {level || 5}/10
+                </div>
+
+                {/* Ambiance */}
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    fontSize: '28px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  {amb.emoji} {amb.label}
+                </div>
+
+                {/* Fiabilité */}
+                <div
+                  style={{
+                    background: reliability >= 90 ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.2)',
+                    color: reliability >= 90 ? '#4ade80' : '#fbbf24',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    fontSize: '28px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  ✓ {reliability}% fiable
+                </div>
+
+                {/* Position */}
+                {position && positionLabels[position] && (
+                  <div
+                    style={{
+                      background: 'rgba(255,255,255,0.1)',
+                      color: 'rgba(255,255,255,0.8)',
+                      padding: '12px 24px',
+                      borderRadius: '12px',
+                      fontSize: '24px',
+                      fontWeight: '500',
+                    }}
+                  >
+                    📍 {positionLabels[position]}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -195,14 +202,18 @@ export async function GET(request, { params }) {
           <div
             style={{
               display: 'flex',
-              justifyContent: 'center',
+              justifyContent: 'space-between',
+              alignItems: 'center',
               marginTop: '40px',
               paddingTop: '30px',
-              borderTop: '2px solid rgba(255,255,255,0.1)',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
             }}
           >
             <span style={{ fontSize: '24px', color: 'rgba(255,255,255,0.5)' }}>
-              padelmatch.fr/player/{id.substring(0, 8)}...
+              padelmatch.fr
+            </span>
+            <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.4)' }}>
+              Trouve des joueurs de ton niveau
             </span>
           </div>
         </div>

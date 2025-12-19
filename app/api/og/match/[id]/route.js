@@ -8,214 +8,250 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
+/**
+ * Génère une image Open Graph pour une partie
+ * URL: /api/og/match/[id]
+ */
 export async function GET(request, { params }) {
-  const matchId = params.id
+  const { id } = params
 
-  // Récupérer la partie
-  const { data: match } = await supabase
+  // Récupérer la partie depuis Supabase
+  const { data: match, error } = await supabase
     .from('matches')
     .select(`
       *,
       clubs (name),
-      profiles!matches_organizer_id_fkey (name)
+      profiles (name)
     `)
-    .eq('id', matchId)
+    .eq('id', id)
     .single()
 
-  if (!match) {
-    return new Response('Match not found', { status: 404 })
+  if (error || !match) {
+    return new Response('Partie non trouvée', { status: 404 })
   }
 
-  // Compter les participants
-  const { count: participantsCount } = await supabase
-    .from('match_participants')
-    .select('id', { count: 'exact' })
-    .eq('match_id', matchId)
+  const {
+    match_date,
+    match_time,
+    spots_available,
+    level_min,
+    level_max,
+    ambiance,
+    price_per_person,
+    clubs,
+    profiles
+  } = match
 
-  const totalPlayers = 1 + (participantsCount || 0)
-  const spotsLeft = match.spots_total - totalPlayers
-
-  const levelLabels = {
-    'less6months': '1-2',
-    '6months2years': '3-4',
-    '2to5years': '5-6',
-    'more5years': '7+',
-    'all': 'Tous'
-  }
-
-  const ambianceEmojis = {
-    'loisir': '😎',
-    'mix': '⚡',
-    'compet': '🏆'
-  }
-
-  const level = match.level_required ? levelLabels[match.level_required] || match.level_required : 'Tous'
-  const pricePerPerson = match.price_total ? Math.round(match.price_total / 100 / match.spots_total) : 0
+  const club = clubs?.name || 'Club de Padel'
+  const organizer = profiles?.name || 'Organisateur'
 
   // Formater la date
-  const date = new Date(match.match_date)
-  const dateStr = date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-  const timeStr = match.match_time?.slice(0, 5) || ''
+  let formattedDate = 'Date à confirmer'
+  if (match_date) {
+    const d = new Date(match_date)
+    formattedDate = d.toLocaleDateString('fr-FR', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long' 
+    })
+    formattedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)
+  }
+
+  const ambianceStyles = {
+    'loisir': { label: 'Détente', emoji: '😎', color: '#22c55e' },
+    'mix': { label: 'Équilibré', emoji: '⚡', color: '#3b82f6' },
+    'compet': { label: 'Compétitif', emoji: '🏆', color: '#f59e0b' }
+  }
+
+  const amb = ambianceStyles[ambiance] || ambianceStyles.mix
 
   return new ImageResponse(
     (
       <div
         style={{
-          height: '100%',
-          width: '100%',
+          width: '1200px',
+          height: '630px',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#2e7d32',
-          fontFamily: 'sans-serif',
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+          padding: '50px',
+          fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {/* Card */}
+        {/* Cercle décoratif */}
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: '#ffffff',
-            borderRadius: 32,
-            padding: '40px 56px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-            minWidth: 600,
+            position: 'absolute',
+            bottom: '-150px',
+            right: '-150px',
+            width: '500px',
+            height: '500px',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${amb.color}30 0%, transparent 70%)`,
           }}
-        >
-          {/* Header */}
+        />
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '40px' }}>🎾</span>
+            <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)', fontWeight: '600', letterSpacing: '2px' }}>
+              PADELMATCH
+            </span>
+          </div>
           <div
             style={{
+              background: amb.color,
+              color: '#fff',
+              padding: '10px 20px',
+              borderRadius: '30px',
+              fontSize: '18px',
+              fontWeight: '600',
               display: 'flex',
-              justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 24,
+              gap: '8px',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                fontSize: 20,
-                color: '#2e7d32',
-                fontWeight: 700,
-              }}
-            >
-              🎾 PADELMATCH
-            </div>
-            <div
-              style={{
-                backgroundColor: spotsLeft > 0 ? '#e8f5e9' : '#fef3c7',
-                color: spotsLeft > 0 ? '#2e7d32' : '#92400e',
-                padding: '8px 16px',
-                borderRadius: 20,
-                fontSize: 16,
-                fontWeight: 700,
-              }}
-            >
-              {spotsLeft > 0 ? `${spotsLeft} place${spotsLeft > 1 ? 's' : ''}` : 'COMPLET'}
-            </div>
+            {amb.emoji} {amb.label}
           </div>
+        </div>
 
-          {/* Titre */}
-          <div
-            style={{
-              fontSize: 28,
-              fontWeight: 800,
-              color: '#1a1a1a',
-              marginBottom: 24,
-            }}
-          >
-            {match.spots_available > 0 
-              ? `Cherche ${match.spots_available} joueur${match.spots_available > 1 ? 's' : ''}`
-              : 'Partie de padel'
-            }
-          </div>
-
-          {/* Infos principales */}
+        {/* Contenu principal */}
+        <div style={{ display: 'flex', flex: 1, gap: '50px' }}>
+          {/* Colonne gauche - Date/Heure */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 16,
-              marginBottom: 24,
+              justifyContent: 'center',
+              alignItems: 'center',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '24px',
+              padding: '40px 50px',
+              minWidth: '280px',
             }}
           >
-            {/* Date */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 24 }}>
-              <span>📅</span>
-              <span style={{ fontWeight: 700, color: '#1a1a1a' }}>{dateStr}</span>
-              <span style={{ 
-                backgroundColor: '#2e7d32', 
-                color: '#fff', 
-                padding: '6px 16px', 
-                borderRadius: 12,
-                fontWeight: 700 
-              }}>
-                {timeStr}
-              </span>
+            <div style={{ fontSize: '80px', marginBottom: '10px' }}>📅</div>
+            <div style={{ fontSize: '28px', color: '#fff', fontWeight: '700', textAlign: 'center' }}>
+              {formattedDate}
             </div>
-
-            {/* Lieu */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 24 }}>
-              <span>📍</span>
-              <span style={{ color: '#666' }}>{match.clubs?.name}</span>
-            </div>
-
-            {/* Niveau */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 24 }}>
-              <span>⭐</span>
-              <span style={{ color: '#666' }}>Niveau {level}</span>
-              {match.ambiance && (
-                <span style={{ marginLeft: 16 }}>
-                  {ambianceEmojis[match.ambiance]}
-                </span>
-              )}
-            </div>
-
-            {/* Prix */}
-            {pricePerPerson > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 24 }}>
-                <span>💰</span>
-                <span style={{ color: '#666' }}>{pricePerPerson}€ / personne</span>
+            {match_time && (
+              <div style={{ fontSize: '48px', color: amb.color, fontWeight: '800', marginTop: '10px' }}>
+                {match_time.slice(0, 5)}
               </div>
             )}
           </div>
 
-          {/* Organisateur */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '16px 20px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: 16,
-              fontSize: 18,
-            }}
-          >
-            <span>👤</span>
-            <span style={{ color: '#666' }}>Organisé par</span>
-            <span style={{ fontWeight: 700, color: '#1a1a1a' }}>{match.profiles?.name}</span>
+          {/* Colonne droite - Détails */}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, gap: '25px' }}>
+            {/* Club */}
+            <div>
+              <div style={{ fontSize: '18px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
+                📍 Lieu
+              </div>
+              <div style={{ fontSize: '36px', color: '#fff', fontWeight: '700' }}>
+                {club}
+              </div>
+            </div>
+
+            {/* Places */}
+            <div>
+              <div style={{ fontSize: '18px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
+                👥 Places
+              </div>
+              <div style={{ fontSize: '32px', color: '#fff', fontWeight: '700' }}>
+                {spots_available} joueur{spots_available > 1 ? 's' : ''} recherché{spots_available > 1 ? 's' : ''}
+              </div>
+            </div>
+
+            {/* Niveau */}
+            <div>
+              <div style={{ fontSize: '18px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
+                ⭐ Niveau
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    background: '#fbbf24',
+                    color: '#1a1a1a',
+                    padding: '10px 24px',
+                    borderRadius: '12px',
+                    fontSize: '28px',
+                    fontWeight: '700',
+                  }}
+                >
+                  {level_min || 1} → {level_max || 10}
+                </div>
+                <span style={{ fontSize: '24px', color: 'rgba(255,255,255,0.6)' }}>
+                  /10
+                </span>
+              </div>
+            </div>
+
+            {/* Prix si présent */}
+            {price_per_person && (
+              <div>
+                <div style={{ fontSize: '18px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
+                  💰 Prix
+                </div>
+                <div style={{ fontSize: '28px', color: '#4ade80', fontWeight: '700' }}>
+                  {price_per_person}€ / personne
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* CTA */}
+        {/* Footer */}
         <div
           style={{
-            marginTop: 24,
-            fontSize: 18,
-            color: 'rgba(255,255,255,0.9)',
-            fontWeight: 600,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: '30px',
+            paddingTop: '25px',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
           }}
         >
-          👆 Clique pour t'inscrire
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px',
+                color: '#fff',
+                fontWeight: '700',
+              }}
+            >
+              {organizer.charAt(0).toUpperCase()}
+            </div>
+            <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.7)' }}>
+              Organisé par <span style={{ color: '#fff', fontWeight: '600' }}>{organizer}</span>
+            </span>
+          </div>
+          <div
+            style={{
+              background: amb.color,
+              color: '#fff',
+              padding: '15px 30px',
+              borderRadius: '12px',
+              fontSize: '20px',
+              fontWeight: '700',
+            }}
+          >
+            S'inscrire →
+          </div>
         </div>
       </div>
     ),
     {
-      width: 800,
-      height: 600,
+      width: 1200,
+      height: 630,
     }
   )
 }
