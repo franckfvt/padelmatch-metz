@@ -117,7 +117,7 @@ export default function MatchPage() {
 
       const { data: participantsData, error: partError } = await supabase
         .from('match_participants')
-        .select(`*, profiles (id, name, level, position, ambiance, avatar_url, reliability_score, phone)`)
+        .select(`*, profiles!match_participants_user_id_fkey (id, name, level, position, ambiance, avatar_url, reliability_score, phone)`)
         .eq('match_id', matchId)
         .in('status', ['confirmed', 'pending'])
       
@@ -144,7 +144,7 @@ export default function MatchPage() {
       if (matchData.organizer_id === session.user.id) {
         const { data: pendingData } = await supabase
           .from('match_participants')
-          .select(`*, profiles (id, name, level, position, avatar_url, reliability_score)`)
+          .select(`*, profiles!match_participants_user_id_fkey (id, name, level, position, avatar_url, reliability_score)`)
           .eq('match_id', matchId)
           .eq('status', 'pending')
         setPendingRequests(pendingData || [])
