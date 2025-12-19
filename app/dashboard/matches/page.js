@@ -271,7 +271,7 @@ export default function MesPartiesPage() {
               {upcomingMatches.map(match => (
                 <Link
                   key={match.id}
-                  href={`/match/${match.id}`}
+                  href={`/dashboard/match/${match.id}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -380,7 +380,7 @@ export default function MesPartiesPage() {
               {pastMatches.map(match => (
                 <Link
                   key={match.id}
-                  href={`/match/${match.id}`}
+                  href={`/dashboard/match/${match.id}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
