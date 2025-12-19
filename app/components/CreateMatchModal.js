@@ -37,6 +37,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
   const [showAddClub, setShowAddClub] = useState(false)
   const [showClubInfo, setShowClubInfo] = useState(null)
   const [newClub, setNewClub] = useState({ name: '', address: '', city: '', website: '' })
+  const [manualPartnerName, setManualPartnerName] = useState('')
 
   // Données du formulaire
   const [formData, setFormData] = useState({
@@ -50,9 +51,9 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
     dateType: 'precise',
     date: '',
     time: '',
-    flexibleDay: '',
+    flexibleDays: [], // CHANGÉ : tableau au lieu de string
     flexiblePeriod: '',
-    partners: [],
+    partners: [], // Structure: { id?, name, level?, team, isManual: boolean }
     level_min: Math.max(1, (profile?.level || 5) - 2),
     level_max: Math.min(10, (profile?.level || 5) + 2),
     ambiance: profile?.ambiance || 'mix',
@@ -90,6 +91,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
     setShowClubInfo(null)
     setNewClub({ name: '', address: '', city: '', website: '' })
     setSearchQuery('')
+    setManualPartnerName('')
     setFormData({
       hasBooked: null,
       locationType: 'club',
@@ -101,7 +103,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
       dateType: 'precise',
       date: '',
       time: '',
-      flexibleDay: '',
+      flexibleDays: [], // CHANGÉ
       flexiblePeriod: '',
       partners: [],
       level_min: Math.max(1, (profile?.level || 5) - 2),
@@ -274,24 +276,44 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
     if (formData.partners.length >= 3) return
     setFormData({
       ...formData,
-      partners: [...formData.partners, { ...player, team: null }]
+      partners: [...formData.partners, { ...player, team: null, isManual: false }]
     })
     setPlayerSearch('')
     setPlayerResults([])
   }
 
-  function removePartner(playerId) {
+  // Nouvelle fonction pour ajouter un partenaire manuellement
+  function addManualPartner() {
+    if (!manualPartnerName.trim()) return
+    if (formData.partners.length >= 3) return
+    
+    const newPartner = {
+      id: `manual_${Date.now()}`, // ID temporaire unique
+      name: manualPartnerName.trim(),
+      level: null,
+      team: null,
+      isManual: true
+    }
+    
     setFormData({
       ...formData,
-      partners: formData.partners.filter(p => p.id !== playerId)
+      partners: [...formData.partners, newPartner]
+    })
+    setManualPartnerName('')
+  }
+
+  function removePartner(partnerId) {
+    setFormData({
+      ...formData,
+      partners: formData.partners.filter(p => p.id !== partnerId)
     })
   }
 
-  function setPartnerTeam(playerId, team) {
+  function setPartnerTeam(partnerId, team) {
     setFormData({
       ...formData,
       partners: formData.partners.map(p =>
-        p.id === playerId ? { ...p, team } : p
+        p.id === partnerId ? { ...p, team } : p
       )
     })
   }
@@ -308,7 +330,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
         return formData.city.trim() !== ''
       case 3:
         if (formData.dateType === 'precise') return formData.date && formData.time
-        return formData.flexibleDay !== ''
+        return formData.flexibleDays.length > 0 // CHANGÉ : vérifier le tableau
       case 4: return true
       case 5: return true
       default: return true
@@ -329,7 +351,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
         club_id: formData.club_id,
         match_date: formData.date || null,
         match_time: formData.time || null,
-        flexible_day: formData.dateType === 'flexible' ? formData.flexibleDay : null,
+        flexible_day: formData.dateType === 'flexible' ? formData.flexibleDays.join(',') : null, // CHANGÉ : join tableau
         flexible_period: formData.dateType === 'flexible' ? formData.flexiblePeriod : null,
         has_booked: formData.hasBooked,
         city: formData.locationType === 'city' ? formData.city : null,
@@ -352,9 +374,13 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
 
       if (error) throw error
 
-      // Ajouter les partenaires
-      if (formData.partners.length > 0) {
-        const participantsData = formData.partners.map(p => ({
+      // Séparer les partenaires inscrits des manuels
+      const registeredPartners = formData.partners.filter(p => !p.isManual)
+      const manualPartners = formData.partners.filter(p => p.isManual)
+
+      // Ajouter les partenaires INSCRITS dans match_participants
+      if (registeredPartners.length > 0) {
+        const participantsData = registeredPartners.map(p => ({
           match_id: match.id,
           user_id: p.id,
           team: p.team,
@@ -362,6 +388,19 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
           added_by_organizer: true
         }))
         await supabase.from('match_participants').insert(participantsData)
+      }
+
+      // Ajouter les partenaires MANUELS dans pending_invites
+      if (manualPartners.length > 0) {
+        const invitesData = manualPartners.map(p => ({
+          match_id: match.id,
+          invited_by: userId,
+          invitee_name: p.name,
+          team: p.team,
+          status: 'pending',
+          invite_token: crypto.randomUUID()
+        }))
+        await supabase.from('pending_invites').insert(invitesData)
       }
 
       setMatchCreated(match)
@@ -956,27 +995,41 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
               {!formData.hasBooked && formData.dateType === 'flexible' && (
                 <>
                   <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>Quel(s) jour(s) ?</label>
+                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>Quel(s) jour(s) ? <span style={{ color: '#888', fontWeight: '400' }}>(plusieurs possibles)</span></label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(day => (
-                        <button
-                          key={day}
-                          onClick={() => setFormData({ ...formData, flexibleDay: day })}
-                          style={{
-                            padding: '10px 14px',
-                            border: `2px solid ${formData.flexibleDay === day ? '#1a1a1a' : '#e5e5e5'}`,
-                            borderRadius: 8,
-                            background: formData.flexibleDay === day ? '#1a1a1a' : '#fff',
-                            color: formData.flexibleDay === day ? '#fff' : '#1a1a1a',
-                            fontSize: 13,
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {day}
-                        </button>
-                      ))}
+                      {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(day => {
+                        const isSelected = formData.flexibleDays.includes(day)
+                        return (
+                          <button
+                            key={day}
+                            onClick={() => {
+                              if (isSelected) {
+                                setFormData({ ...formData, flexibleDays: formData.flexibleDays.filter(d => d !== day) })
+                              } else {
+                                setFormData({ ...formData, flexibleDays: [...formData.flexibleDays, day] })
+                              }
+                            }}
+                            style={{
+                              padding: '10px 14px',
+                              border: `2px solid ${isSelected ? '#22c55e' : '#e5e5e5'}`,
+                              borderRadius: 8,
+                              background: isSelected ? '#22c55e' : '#fff',
+                              color: isSelected ? '#fff' : '#1a1a1a',
+                              fontSize: 13,
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {isSelected && '✓ '}{day}
+                          </button>
+                        )
+                      })}
                     </div>
+                    {formData.flexibleDays.length > 0 && (
+                      <div style={{ marginTop: 8, fontSize: 13, color: '#22c55e' }}>
+                        ✓ {formData.flexibleDays.length} jour{formData.flexibleDays.length > 1 ? 's' : ''} sélectionné{formData.flexibleDays.length > 1 ? 's' : ''}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>Quel moment ? (optionnel)</label>
@@ -1037,29 +1090,34 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                       alignItems: 'center',
                       gap: 12,
                       padding: 12,
-                      background: '#f9f9f9',
+                      background: partner.isManual ? '#fffbeb' : '#f9f9f9',
                       borderRadius: 10,
-                      marginBottom: 8
+                      marginBottom: 8,
+                      border: partner.isManual ? '1px solid #fcd34d' : 'none'
                     }}>
                       <div style={{
                         width: 40,
                         height: 40,
                         borderRadius: '50%',
-                        background: '#ddd',
+                        background: partner.isManual ? '#fef3c7' : '#ddd',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: 16,
                         overflow: 'hidden'
                       }}>
-                        {partner.avatar_url
-                          ? <img src={partner.avatar_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
-                          : partner.name?.[0] || '?'
+                        {partner.isManual 
+                          ? '✏️'
+                          : partner.avatar_url
+                            ? <img src={partner.avatar_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                            : partner.name?.[0] || '?'
                         }
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: '600', fontSize: 14 }}>{partner.name}</div>
-                        <div style={{ fontSize: 12, color: '#888' }}>Niveau {partner.level}/10</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>
+                          {partner.isManual ? '⏳ Pas encore sur l\'app' : `Niveau ${partner.level}/10`}
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button
@@ -1156,6 +1214,45 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                       ))}
                     </div>
                   )}
+
+                  {/* Séparateur */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
+                    <div style={{ flex: 1, height: 1, background: '#e5e5e5' }}></div>
+                    <span style={{ fontSize: 12, color: '#888' }}>ou</span>
+                    <div style={{ flex: 1, height: 1, background: '#e5e5e5' }}></div>
+                  </div>
+
+                  {/* Ajout manuel */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 13, fontWeight: '600', color: '#666', display: 'block', marginBottom: 8 }}>
+                      ✏️ Ajouter quelqu'un qui n'est pas sur l'app
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        value={manualPartnerName}
+                        onChange={e => setManualPartnerName(e.target.value)}
+                        placeholder="Nom ou pseudo..."
+                        style={{ ...inputStyle, flex: 1 }}
+                        onKeyPress={e => e.key === 'Enter' && addManualPartner()}
+                      />
+                      <button
+                        onClick={addManualPartner}
+                        disabled={!manualPartnerName.trim()}
+                        style={{
+                          padding: '12px 16px',
+                          background: manualPartnerName.trim() ? '#1a1a1a' : '#e5e5e5',
+                          color: manualPartnerName.trim() ? '#fff' : '#999',
+                          border: 'none',
+                          borderRadius: 10,
+                          fontWeight: '600',
+                          cursor: manualPartnerName.trim() ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
 
                   {/* Joueurs récents */}
                   {!playerSearch && recentPlayers.length > 0 && (
@@ -1421,7 +1518,9 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                     <div style={{ fontWeight: '600' }}>
                       {formData.date
                         ? new Date(formData.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-                        : formData.flexibleDay || '?'
+                        : formData.flexibleDays.length > 0 
+                          ? formData.flexibleDays.join(', ')
+                          : '?'
                       }
                     </div>
                   </div>
