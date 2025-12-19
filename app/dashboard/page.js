@@ -48,6 +48,7 @@ export default function DashboardPage() {
     // Commun
     spots: '3',
     ambiance: 'mix',
+    gender: 'any', // 'any', 'mixed', 'men', 'women'
     level_min: '1',
     level_max: '10',
     price_total: '',
@@ -80,6 +81,13 @@ export default function DashboardPage() {
     { id: 'loisir', label: 'Détente', emoji: '😎', desc: 'Fun et convivial' },
     { id: 'mix', label: 'Équilibré', emoji: '⚡', desc: 'Fun mais on joue bien' },
     { id: 'compet', label: 'Compétitif', emoji: '🏆', desc: 'On est là pour gagner' }
+  ]
+
+  const genderOptions = [
+    { id: 'any', label: 'Peu importe', emoji: '👥' },
+    { id: 'mixed', label: 'Mixte', emoji: '👫' },
+    { id: 'men', label: 'Hommes', emoji: '👨' },
+    { id: 'women', label: 'Femmes', emoji: '👩' }
   ]
 
   useEffect(() => {
@@ -265,6 +273,7 @@ export default function DashboardPage() {
         spots_total: 4,
         spots_available: spotsAvailable,
         ambiance: newMatch.ambiance,
+        gender: newMatch.gender,
         level_min: parseInt(newMatch.level_min),
         level_max: parseInt(newMatch.level_max),
         price_total: newMatch.price_total ? parseInt(newMatch.price_total) * 100 : 0,
@@ -363,6 +372,7 @@ export default function DashboardPage() {
       time_end: '22:00',
       spots: '3',
       ambiance: 'mix',
+      gender: 'any',
       level_min: '1',
       level_max: '10',
       price_total: '',
@@ -1440,6 +1450,32 @@ export default function DashboardPage() {
                     >
                       <div style={{ fontSize: 18, marginBottom: 2 }}>{opt.emoji}</div>
                       <div style={{ fontSize: 12, fontWeight: '600' }}>{opt.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Genre / Mixte */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 6 }}>
+                  Type de partie
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                  {genderOptions.map(opt => (
+                    <div
+                      key={opt.id}
+                      onClick={() => setNewMatch({ ...newMatch, gender: opt.id })}
+                      style={{
+                        padding: '10px 4px',
+                        border: newMatch.gender === opt.id ? '2px solid #1e40af' : '2px solid #e5e5e5',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        background: newMatch.gender === opt.id ? '#dbeafe' : '#fff'
+                      }}
+                    >
+                      <div style={{ fontSize: 16, marginBottom: 2 }}>{opt.emoji}</div>
+                      <div style={{ fontSize: 11, fontWeight: '600' }}>{opt.label}</div>
                     </div>
                   ))}
                 </div>

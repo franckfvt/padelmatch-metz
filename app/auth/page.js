@@ -1,63 +1,56 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
-function AuthContent() {
+export default function AuthPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const redirectUrl = searchParams.get('redirect')
-  
   const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
+  const [showPhoneInfo, setShowPhoneInfo] = useState(false)
 
   useEffect(() => {
-    // Sauvegarder l'URL de redirection
-    if (redirectUrl) {
-      sessionStorage.setItem('redirectAfterLogin', redirectUrl)
-    }
-    checkSession()
-  }, [redirectUrl])
-
-  async function checkSession() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name, level')
-        .eq('id', session.user.id)
-        .single()
-      
-      // Récupérer la redirection
-      const redirect = sessionStorage.getItem('redirectAfterLogin')
-      
-      if (profile?.name && profile?.level) {
-        // Profil complet
-        if (redirect) {
-          sessionStorage.removeItem('redirectAfterLogin')
-          router.push(redirect)
-        } else {
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('experience, ambiance')
+          .eq('id', session.user.id)
+          .single()
+        
+        if (profile?.experience && profile?.ambiance) {
           router.push('/dashboard')
+        } else {
+          router.push('/onboarding')
         }
       } else {
-        // Profil incomplet → onboarding
-        // Transférer la redirection vers après l'onboarding
-        if (redirect) {
-          sessionStorage.removeItem('redirectAfterLogin')
-          sessionStorage.setItem('redirectAfterOnboarding', redirect)
-        }
-        router.push('/onboarding')
+        setCheckingSession(false)
       }
-    } else {
-      setCheckingSession(false)
     }
+    checkSession()
+  }, [router])
+
+  // Formater le téléphone français
+  function formatPhone(value) {
+    // Retirer tout ce qui n'est pas un chiffre
+    const numbers = value.replace(/\D/g, '')
+    
+    // Formater en XX XX XX XX XX
+    let formatted = ''
+    for (let i = 0; i < numbers.length && i < 10; i++) {
+      if (i > 0 && i % 2 === 0) formatted += ' '
+      formatted += numbers[i]
+    }
+    return formatted
   }
 
   async function handleSubmit(e) {
@@ -67,23 +60,38 @@ function AuthContent() {
 
     try {
       if (mode === 'signup') {
+        // Formater le téléphone pour le stockage (sans espaces, avec +33)
+        let formattedPhone = null
+        if (phone) {
+          const cleanPhone = phone.replace(/\D/g, '')
+          if (cleanPhone.length === 10 && cleanPhone.startsWith('0')) {
+            formattedPhone = '+33' + cleanPhone.substring(1)
+          } else if (cleanPhone.length === 9) {
+            formattedPhone = '+33' + cleanPhone
+          }
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { name }
+            data: { 
+              name,
+              phone: formattedPhone
+            }
           }
         })
         
         if (error) throw error
-        
-        // Transférer la redirection vers onboarding
-        const redirect = sessionStorage.getItem('redirectAfterLogin')
-        if (redirect) {
-          sessionStorage.removeItem('redirectAfterLogin')
-          sessionStorage.setItem('redirectAfterOnboarding', redirect)
+
+        // Mettre à jour le profil avec le téléphone
+        if (data.user && formattedPhone) {
+          await supabase
+            .from('profiles')
+            .update({ phone: formattedPhone })
+            .eq('id', data.user.id)
         }
-        
+
         router.push('/onboarding')
         
       } else {
@@ -96,26 +104,13 @@ function AuthContent() {
         
         const { data: profile } = await supabase
           .from('profiles')
-          .select('name, level')
+          .select('experience, ambiance')
           .eq('id', data.user.id)
           .single()
         
-        // Récupérer la redirection
-        const redirect = sessionStorage.getItem('redirectAfterLogin')
-        
-        if (profile?.name && profile?.level) {
-          if (redirect) {
-            sessionStorage.removeItem('redirectAfterLogin')
-            router.push(redirect)
-          } else {
-            router.push('/dashboard')
-          }
+        if (profile?.experience && profile?.ambiance) {
+          router.push('/dashboard')
         } else {
-          // Transférer vers onboarding
-          if (redirect) {
-            sessionStorage.removeItem('redirectAfterLogin')
-            sessionStorage.setItem('redirectAfterOnboarding', redirect)
-          }
           router.push('/onboarding')
         }
       }
@@ -189,21 +184,6 @@ function AuthContent() {
         maxWidth: 420,
         boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
       }}>
-        
-        {/* Message de redirection */}
-        {redirectUrl && (
-          <div style={{
-            background: '#eff6ff',
-            color: '#1e40af',
-            padding: '12px 16px',
-            borderRadius: 10,
-            fontSize: 14,
-            marginBottom: 20,
-            textAlign: 'center'
-          }}>
-            Connecte-toi pour rejoindre la partie
-          </div>
-        )}
         
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -318,33 +298,125 @@ function AuthContent() {
         <form onSubmit={handleSubmit}>
           
           {mode === 'signup' && (
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ 
-                fontSize: 14, 
-                fontWeight: '600', 
-                display: 'block', 
-                marginBottom: 8,
-                color: '#1a1a1a'
-              }}>
-                Prénom
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ton prénom"
-                required
-                autoComplete="given-name"
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  border: '2px solid #e5e5e5',
-                  borderRadius: 12,
-                  fontSize: 16,
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
+            <>
+              {/* Prénom */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ 
+                  fontSize: 14, 
+                  fontWeight: '600', 
+                  display: 'block', 
+                  marginBottom: 8,
+                  color: '#1a1a1a'
+                }}>
+                  Prénom *
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ton prénom"
+                  required
+                  autoComplete="given-name"
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '2px solid #e5e5e5',
+                    borderRadius: 12,
+                    fontSize: 16,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Téléphone (optionnel) */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <label style={{ 
+                    fontSize: 14, 
+                    fontWeight: '600',
+                    color: '#1a1a1a'
+                  }}>
+                    Téléphone
+                  </label>
+                  <span style={{ 
+                    fontSize: 11, 
+                    color: '#999',
+                    background: '#f5f5f5',
+                    padding: '2px 8px',
+                    borderRadius: 4
+                  }}>
+                    optionnel
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPhoneInfo(!showPhoneInfo)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2e7d32',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      marginLeft: 'auto',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Pourquoi ?
+                  </button>
+                </div>
+                
+                {showPhoneInfo && (
+                  <div style={{
+                    background: '#e8f5e9',
+                    borderRadius: 10,
+                    padding: 12,
+                    marginBottom: 10,
+                    fontSize: 13,
+                    color: '#2e7d32',
+                    lineHeight: 1.5
+                  }}>
+                    <strong>📱 À quoi ça sert ?</strong>
+                    <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
+                      <li>Recevoir un rappel avant tes parties</li>
+                      <li>Être notifié si un joueur se désiste</li>
+                      <li>Permettre aux organisateurs de te contacter en cas d'urgence</li>
+                    </ul>
+                    <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+                      Ton numéro reste privé et n'est jamais affiché publiquement.
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ position: 'relative' }}>
+                  <span style={{
+                    position: 'absolute',
+                    left: 16,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#666',
+                    fontSize: 16
+                  }}>
+                    🇫🇷
+                  </span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhone(e.target.value))}
+                    placeholder="06 12 34 56 78"
+                    autoComplete="tel"
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      paddingLeft: 48,
+                      border: '2px solid #e5e5e5',
+                      borderRadius: 12,
+                      fontSize: 16,
+                      boxSizing: 'border-box',
+                      letterSpacing: 1
+                    }}
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           <div style={{ marginBottom: 20 }}>
@@ -355,7 +427,7 @@ function AuthContent() {
               marginBottom: 8,
               color: '#1a1a1a'
             }}>
-              Email
+              Email {mode === 'signup' && '*'}
             </label>
             <input
               type="email"
@@ -383,7 +455,7 @@ function AuthContent() {
               marginBottom: 8,
               color: '#1a1a1a'
             }}>
-              Mot de passe
+              Mot de passe {mode === 'signup' && '*'}
             </label>
             <input
               type="password"
@@ -433,6 +505,12 @@ function AuthContent() {
           </button>
         </form>
 
+        {mode === 'signup' && (
+          <p style={{ fontSize: 13, color: '#999', textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
+            En t'inscrivant, tu acceptes nos conditions d'utilisation et notre politique de confidentialité.
+          </p>
+        )}
+
         <div style={{ 
           textAlign: 'center', 
           marginTop: 28,
@@ -445,17 +523,5 @@ function AuthContent() {
         </div>
       </div>
     </div>
-  )
-}
-
-export default function AuthPage() {
-  return (
-    <Suspense fallback={
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 48 }}>🎾</div>
-      </div>
-    }>
-      <AuthContent />
-    </Suspense>
   )
 }

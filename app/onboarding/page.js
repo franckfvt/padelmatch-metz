@@ -10,7 +10,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [step, setStep] = useState(1)
-  // Étapes: 1-Nom, 2-Expérience, 3-Niveau, 4-Fréquence, 5-Ambiance, 6-Position, 7-Photo/Bio, 8-Preview
+  // Étapes: 1-Nom, 2-Expérience, 3-Niveau, 4-Fréquence, 5-Ambiance, 6-Position, 7-Photo/Bio, 8-Preview, 9-Inviter
 
   const [formData, setFormData] = useState({
     name: '',
@@ -28,7 +28,15 @@ export default function OnboardingPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const fileInputRef = useRef(null)
 
-  const TOTAL_STEPS = 7 // Sans compter la preview
+  // Invitation coéquipier (étape 9)
+  const [invitePartner, setInvitePartner] = useState({
+    name: '',
+    contact: '' // email ou téléphone
+  })
+  const [inviteSent, setInviteSent] = useState(false)
+  const [sendingInvite, setSendingInvite] = useState(false)
+
+  const TOTAL_STEPS = 8 // 7 étapes profil + 1 invitation (preview ne compte pas)
 
   // Labels
   const experienceOptions = [
@@ -1031,7 +1039,7 @@ export default function OnboardingPage() {
 
             {/* Actions finales */}
             <button
-              onClick={goToDestination}
+              onClick={() => setStep(9)}
               style={{
                 width: '100%',
                 padding: 18,
@@ -1044,8 +1052,190 @@ export default function OnboardingPage() {
                 cursor: 'pointer'
               }}
             >
-              🎾 Trouver des joueurs
+              Continuer →
             </button>
+          </div>
+        )}
+
+        {/* ========== ÉTAPE 9 : INVITER COÉQUIPIER ========== */}
+        {step === 9 && !inviteSent && (
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: 56, marginBottom: 12 }}>👥</div>
+              <h2 style={{ 
+                fontSize: 24, 
+                fontWeight: '700', 
+                marginBottom: 8,
+                color: '#1a1a1a'
+              }}>
+                Tu as un coéquipier préféré ?
+              </h2>
+              <p style={{ 
+                color: '#666', 
+                fontSize: 15,
+                lineHeight: 1.5
+              }}>
+                Invite ton partenaire de jeu habituel pour jouer ensemble sur PadelMatch !
+              </p>
+            </div>
+
+            {/* Explication */}
+            <div style={{
+              background: '#e8f5e9',
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 24,
+              border: '1px solid #a5d6a7'
+            }}>
+              <div style={{ fontSize: 14, color: '#2e7d32', lineHeight: 1.5 }}>
+                <strong>🎾 Pourquoi inviter quelqu'un ?</strong>
+                <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
+                  <li>Créez des parties en duo facilement</li>
+                  <li>Il/elle rejoint automatiquement ton équipe</li>
+                  <li>Vous serez notifiés ensemble des nouvelles parties</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Formulaire invitation */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ 
+                fontSize: 14, 
+                fontWeight: '600', 
+                display: 'block', 
+                marginBottom: 8,
+                color: '#1a1a1a'
+              }}>
+                Prénom de ton partenaire
+              </label>
+              <input
+                type="text"
+                value={invitePartner.name}
+                onChange={(e) => setInvitePartner({ ...invitePartner, name: e.target.value })}
+                placeholder="Ex: Marie"
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '2px solid #e5e5e5',
+                  borderRadius: 12,
+                  fontSize: 16,
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ 
+                fontSize: 14, 
+                fontWeight: '600', 
+                display: 'block', 
+                marginBottom: 8,
+                color: '#1a1a1a'
+              }}>
+                Son téléphone ou email
+              </label>
+              <input
+                type="text"
+                value={invitePartner.contact}
+                onChange={(e) => setInvitePartner({ ...invitePartner, contact: e.target.value })}
+                placeholder="Ex: 06 12 34 56 78 ou marie@email.com"
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '2px solid #e5e5e5',
+                  borderRadius: 12,
+                  fontSize: 16,
+                  boxSizing: 'border-box'
+                }}
+              />
+              <p style={{ fontSize: 12, color: '#999', marginTop: 8 }}>
+                📱 On lui enverra un lien pour rejoindre PadelMatch et te retrouver
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={goToDestination}
+                style={{
+                  padding: '18px 24px',
+                  background: '#fff',
+                  color: '#666',
+                  border: '2px solid #e5e5e5',
+                  borderRadius: 14,
+                  fontSize: 16,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Passer
+              </button>
+              <button
+                onClick={async () => {
+                  if (invitePartner.name && invitePartner.contact) {
+                    setSendingInvite(true)
+                    try {
+                      await supabase
+                        .from('partner_invites')
+                        .insert({
+                          inviter_id: user.id,
+                          invitee_name: invitePartner.name,
+                          invitee_contact: invitePartner.contact,
+                          status: 'pending'
+                        })
+                      setInviteSent(true)
+                      setTimeout(goToDestination, 2000)
+                    } catch (error) {
+                      console.error('Error:', error)
+                      goToDestination()
+                    }
+                    setSendingInvite(false)
+                  } else {
+                    goToDestination()
+                  }
+                }}
+                disabled={sendingInvite}
+                style={{
+                  flex: 1,
+                  padding: '18px',
+                  background: (invitePartner.name && invitePartner.contact) ? '#2e7d32' : '#1a1a1a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 14,
+                  fontSize: 16,
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                {sendingInvite ? 'Envoi...' : (invitePartner.name && invitePartner.contact) ? '📨 Envoyer l\'invitation' : 'C\'est parti ! 🎾'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation invitation envoyée */}
+        {step === 9 && inviteSent && (
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
+            <h2 style={{ 
+              fontSize: 24, 
+              fontWeight: '700', 
+              marginBottom: 8,
+              color: '#1a1a1a'
+            }}>
+              Invitation envoyée !
+            </h2>
+            <p style={{ color: '#666', marginBottom: 24 }}>
+              {invitePartner.name} recevra un lien pour rejoindre PadelMatch.
+            </p>
+            <div style={{
+              background: '#e8f5e9',
+              borderRadius: 12,
+              padding: 16,
+              color: '#2e7d32',
+              fontSize: 14
+            }}>
+              🎾 Redirection vers le tableau de bord...
+            </div>
           </div>
         )}
 
