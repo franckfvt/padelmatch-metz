@@ -506,7 +506,6 @@ export default function MesPartiesPage() {
       {/* ============================================ */}
       <div className="stats-mini-grid" style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
         gap: 12,
         marginBottom: 24
       }}>
@@ -579,7 +578,7 @@ export default function MesPartiesPage() {
       {/* TAB: À VENIR                                */}
       {/* ============================================ */}
       {activeTab === 'upcoming' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="matches-grid">
           {upcomingMatches.length === 0 ? (
             <div style={{
               background: '#fff',
@@ -1385,23 +1384,46 @@ export default function MesPartiesPage() {
         </div>
       )}
 
-      {/* Styles responsive */}
+      {/* ============================================ */}
+      {/* STYLES RESPONSIVE                           */}
+      {/* ============================================ */}
       <style jsx global>{`
-        /* Stats grid responsive */
         .stats-mini-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .matches-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: 1fr;
           gap: 12px;
         }
-        @media (max-width: 640px) {
+        
+        .partners-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        
+        /* Tablet - 768px */
+        @media (min-width: 768px) {
           .stats-mini-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
+            grid-template-columns: repeat(4, 1fr);
+          }
+          .matches-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .partners-grid {
+            grid-template-columns: repeat(2, 1fr);
           }
         }
-        @media (max-width: 400px) {
-          .stats-mini-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 8px !important;
+        
+        /* Desktop - 1024px */
+        @media (min-width: 1024px) {
+          .matches-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+          .partners-grid {
+            grid-template-columns: repeat(3, 1fr);
           }
         }
       `}</style>

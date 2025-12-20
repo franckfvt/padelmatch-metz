@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   
-  // Stats et favoris pour la sidebar desktop
+  // Données pour sidebar desktop
   const [stats, setStats] = useState(null)
   const [favorites, setFavorites] = useState([])
   const [favClubs, setFavClubs] = useState([])
@@ -154,7 +154,7 @@ export default function DashboardPage() {
 
       setMatches(matchesData || [])
 
-      // === STATS ET FAVORIS POUR SIDEBAR ===
+      // === STATS & FAVORIS POUR SIDEBAR ===
       const { data: statsData } = await supabase
         .from('player_stats')
         .select('*')
@@ -378,86 +378,72 @@ export default function DashboardPage() {
   const filteredMatches = getFilteredMatches()
   const userCity = profile?.city || profile?.region || 'ta ville'
 
-  // Couleur avatar basée sur la première lettre du nom
-  const LETTER_COLORS = {
-    A: '#3b82f6', B: '#22c55e', C: '#f59e0b', D: '#a855f7',
-    E: '#ef4444', F: '#06b6d4', G: '#ec4899', H: '#14b8a6',
-    I: '#3b82f6', J: '#22c55e', K: '#f59e0b', L: '#a855f7',
-    M: '#ef4444', N: '#06b6d4', O: '#ec4899', P: '#14b8a6',
-    Q: '#3b82f6', R: '#22c55e', S: '#f59e0b', T: '#a855f7',
-    U: '#ef4444', V: '#06b6d4', W: '#ec4899', X: '#14b8a6',
-    Y: '#3b82f6', Z: '#22c55e'
-  }
+  // Couleurs pour avatars
+  const AVATAR_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6']
   function getColorForName(name) {
-    const letter = (name || 'A')[0].toUpperCase()
-    return LETTER_COLORS[letter] || '#3b82f6'
+    if (!name) return AVATAR_COLORS[0]
+    const index = name.charCodeAt(0) % AVATAR_COLORS.length
+    return AVATAR_COLORS[index]
   }
 
   return (
     <>
-      <div className="dashboard-layout">
+      <div className="dashboard-desktop-layout">
         {/* ============================================ */}
         {/* COLONNE PRINCIPALE                          */}
         {/* ============================================ */}
         <div className="main-column">
-      
+
       {/* ============================================ */}
-      {/* HEADER DE BIENVENUE                         */}
+      {/* CARD BIENVENUE + CTA                        */}
       {/* ============================================ */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-          Bonjour {profile?.name?.split(' ')[0] || 'Joueur'} 👋
-        </h1>
-        <p style={{ color: '#64748b', margin: '4px 0 0', fontSize: 15 }}>
-          Prêt pour ta prochaine partie ?
-        </p>
+      <div className="welcome-card" style={{
+        background: '#fff',
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 24,
+        border: '1px solid #f1f5f9'
+      }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 16px', color: '#1a1a2e' }}>
+          👋 Salut {profile?.name?.split(' ')[0] || 'Joueur'} !
+        </h2>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            width: '100%',
+            padding: 16,
+            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            fontSize: 16,
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8
+          }}
+        >
+          + Créer une partie
+        </button>
       </div>
 
       {/* ============================================ */}
-      {/* BOUTON CRÉER UNE PARTIE                     */}
-      {/* ============================================ */}
-      <button
-        onClick={() => setShowCreateModal(true)}
-        style={{
-          width: '100%',
-          padding: 16,
-          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 14,
-          fontSize: 16,
-          fontWeight: 700,
-          cursor: 'pointer',
-          marginBottom: 28,
-          boxShadow: '0 4px 20px rgba(34, 197, 94, 0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          transition: 'transform 0.2s, box-shadow 0.2s'
-        }}
-        onMouseOver={e => {
-          e.currentTarget.style.transform = 'translateY(-2px)'
-          e.currentTarget.style.boxShadow = '0 6px 24px rgba(34, 197, 94, 0.4)'
-        }}
-        onMouseOut={e => {
-          e.currentTarget.style.transform = 'translateY(0)'
-          e.currentTarget.style.boxShadow = '0 4px 20px rgba(34, 197, 94, 0.3)'
-        }}
-      >
-        <span style={{ fontSize: 20 }}>+</span>
-        Créer une partie
-      </button>
-
-      {/* ============================================ */}
-      {/* MES PARTIES                                 */}
+      {/* MES PROCHAINES PARTIES                       */}
       {/* ============================================ */}
       {myMatches.length > 0 && (
-        <section style={{ marginBottom: 32 }}>
+        <div className="my-matches-card" style={{
+          background: '#fff',
+          borderRadius: 16,
+          padding: 24,
+          marginBottom: 24,
+          border: '1px solid #f1f5f9'
+        }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-              🎾 Mes parties
-            </h2>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+              🗓️ Prochaines parties
+            </h3>
             <Link 
               href="/dashboard/matches" 
               style={{ fontSize: 13, color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}
@@ -466,18 +452,9 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* Cards horizontales scrollables */}
-          <div style={{ 
-            display: 'flex', 
-            gap: 12, 
-            overflowX: 'auto', 
-            paddingBottom: 8,
-            margin: '0 -16px',
-            padding: '0 16px 8px',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
-          }}>
-            {myMatches.slice(0, 5).map(match => {
+          {/* Grille 2 colonnes sur desktop */}
+          <div className="my-matches-grid">
+            {myMatches.slice(0, 4).map(match => {
               const isOrganizer = match.organizer_id === user?.id
               const players = getMatchPlayers(match)
               const spots = getSpotsInfo(players)
@@ -487,109 +464,84 @@ export default function DashboardPage() {
                 <Link 
                   href={`/dashboard/match/${match.id}`}
                   key={match.id}
-                  style={{ textDecoration: 'none', flexShrink: 0 }}
+                  style={{ textDecoration: 'none' }}
                 >
-                  <div style={{
-                    width: 280,
-                    background: '#fff',
-                    borderRadius: 16,
-                    overflow: 'hidden',
-                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                  <div className="match-card-item" style={{
+                    background: '#f8fafc',
+                    borderRadius: 12,
+                    padding: 16,
+                    border: '1px solid #f1f5f9',
                     cursor: 'pointer',
-                    transition: 'transform 0.2s, box-shadow 0.2s'
+                    transition: 'border-color 0.2s'
                   }}
-                  onMouseOver={e => {
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)'
-                  }}
+                  onMouseOver={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                  onMouseOut={e => e.currentTarget.style.borderColor = '#f1f5f9'}
                   >
-                    {/* Header coloré */}
-                    <div style={{
-                      background: isOrganizer 
-                        ? 'linear-gradient(135deg, #f59e0b, #d97706)'
-                        : 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                      padding: '12px 16px',
-                      color: '#fff',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                       <div>
-                        <div style={{ fontSize: 13, opacity: 0.9 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e' }}>
                           {formatDate(match.match_date, match.flexible_day)}
                         </div>
-                        <div style={{ fontSize: 22, fontWeight: 700 }}>
-                          {formatTime(match.match_time, match.flexible_period) || 'Horaire flexible'}
+                        <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>
+                          {formatTime(match.match_time, match.flexible_period) || 'Flexible'}
                         </div>
                       </div>
                       {isOrganizer && (
-                        <span style={{ 
-                          background: 'rgba(255,255,255,0.2)', 
-                          padding: '4px 10px', 
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 600
-                        }}>
+                        <span style={{ background: '#fef3c7', color: '#92400e', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
                           👑 Orga
                         </span>
                       )}
                     </div>
-
-                    {/* Contenu */}
-                    <div style={{ padding: 16 }}>
-                      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4, color: '#1a1a2e' }}>
-                        {match.clubs?.name || match.city || 'Lieu à définir'}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
-                        {ambiance.emoji} {ambiance.label} · ⭐ Niv. {match.level_min}-{match.level_max}
-                      </div>
-
-                      {/* Joueurs - Avatars */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ display: 'flex' }}>
-                          {players.map((player, i) => (
-                            <PlayerAvatar key={i} player={player} index={i} size={32} />
-                          ))}
+                    <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
+                      📍 {match.clubs?.name || match.city || 'Lieu à définir'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {players.map((player, idx) => (
+                        <div key={idx} style={{
+                          width: 32, height: 32, borderRadius: '50%',
+                          background: player ? `linear-gradient(135deg, ${getColorForName(player.name)}, ${getColorForName(player.name)}cc)` : 'transparent',
+                          border: player ? '2px solid #fff' : '2px dashed #cbd5e1',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: player ? '#fff' : '#94a3b8',
+                          fontWeight: 600, fontSize: 12
+                        }}>
+                          {player ? player.name?.[0]?.toUpperCase() : '+'}
                         </div>
-                        <span style={{ fontSize: 12, color: spots.color, fontWeight: 500 }}>
-                          {spots.text}
-                        </span>
-                      </div>
+                      ))}
                     </div>
                   </div>
                 </Link>
               )
             })}
           </div>
-        </section>
+        </div>
       )}
 
       {/* ============================================ */}
       {/* PARTIES DISPONIBLES                         */}
       {/* ============================================ */}
-      <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-            📍 Près de {userCity}
-          </h2>
+      <div className="nearby-matches-card" style={{
+        background: '#fff',
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 24,
+        border: '1px solid #f1f5f9'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+            🔥 Parties près de {userCity}
+          </h3>
           <button 
             onClick={() => setShowFilters(!showFilters)}
             style={{ 
-              background: showFilters ? '#1a1a2e' : '#fff', 
+              background: showFilters ? '#1a1a2e' : '#f8fafc', 
               color: showFilters ? '#fff' : '#475569',
               border: '1px solid #e2e8f0',
-              padding: '8px 14px',
+              padding: '6px 12px',
               borderRadius: 8,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
+              cursor: 'pointer'
             }}
           >
             ⚙️ Filtres
@@ -898,48 +850,46 @@ export default function DashboardPage() {
             </button>
           </Link>
         )}
-      </section>
+      </div>
 
       {/* ============================================ */}
       {/* BOÎTE À IDÉES                               */}
       {/* ============================================ */}
-      <section>
-        <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
+      <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
+          borderRadius: 16,
+          padding: 20,
+          border: '1px solid #bae6fd',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          cursor: 'pointer'
+        }}>
           <div style={{
-            background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
-            borderRadius: 16,
-            padding: 20,
-            border: '1px solid #bae6fd',
+            width: 56,
+            height: 56,
+            borderRadius: 14,
+            background: '#fff',
             display: 'flex',
             alignItems: 'center',
-            gap: 16,
-            cursor: 'pointer'
+            justifyContent: 'center',
+            fontSize: 28,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
           }}>
-            <div style={{
-              width: 56,
-              height: 56,
-              borderRadius: 14,
-              background: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 28,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-            }}>
-              💡
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: '#0369a1', marginBottom: 4 }}>
-                Boîte à idées
-              </div>
-              <div style={{ fontSize: 13, color: '#0c4a6e' }}>
-                Propose des idées et vote pour les meilleures
-              </div>
-            </div>
-            <span style={{ color: '#0ea5e9', fontSize: 20 }}>→</span>
+            💡
           </div>
-        </Link>
-      </section>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#0369a1', marginBottom: 4 }}>
+              Boîte à idées
+            </div>
+            <div style={{ fontSize: 13, color: '#0c4a6e' }}>
+              Propose des idées et vote pour les meilleures
+            </div>
+          </div>
+          <span style={{ color: '#0ea5e9', fontSize: 20 }}>→</span>
+        </div>
+      </Link>
 
         </div>
         {/* Fin de main-column */}
@@ -949,52 +899,70 @@ export default function DashboardPage() {
         {/* ============================================ */}
         <aside className="sidebar-column">
           {/* Stats */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>📊 Mes stats</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>{stats?.total_matches || 0}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Parties</div>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 24,
+            marginBottom: 24,
+            border: '1px solid #f1f5f9'
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: '#1a1a2e' }}>
+              📊 Mes stats
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontSize: 14 }}>Parties jouées</span>
+                <span style={{ fontWeight: 700, color: '#1a1a2e' }}>{stats?.total_matches || 0}</span>
               </div>
-              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>{stats?.wins || 0}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Victoires</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontSize: 14 }}>Niveau</span>
+                <span style={{ fontWeight: 700, color: '#1a1a2e' }}>⭐ {profile?.level || '?'}</span>
               </div>
-              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>⭐ {profile?.level || '?'}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Niveau</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontSize: 14 }}>Victoires</span>
+                <span style={{ fontWeight: 700, color: '#1a1a2e' }}>{stats?.wins || 0}</span>
               </div>
-              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#22c55e' }}>{profile?.reliability_score || 100}%</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Fiabilité</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontSize: 14 }}>Fiabilité</span>
+                <span style={{ fontWeight: 700, color: '#22c55e' }}>{profile?.reliability_score || 100}%</span>
               </div>
             </div>
-            <Link href="/dashboard/stats" style={{ display: 'block', textAlign: 'center', marginTop: 12, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>Voir détails →</Link>
           </div>
 
           {/* Joueurs favoris */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>👥 Joueurs favoris</h3>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 24,
+            marginBottom: 24,
+            border: '1px solid #f1f5f9'
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: '#1a1a2e' }}>
+              👥 Joueurs favoris
+            </h3>
             {favorites.length === 0 ? (
-              <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', margin: 0 }}>Aucun favori</p>
+              <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Aucun favori</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {favorites.slice(0, 5).map((fav, i) => {
                   const p = fav.profiles
                   if (!p) return null
-                  const color = getColorForName(p.name)
                   return (
                     <Link href={`/player/${p.id}`} key={i} style={{ textDecoration: 'none' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{
                           width: 40, height: 40, borderRadius: '50%',
-                          background: p.avatar_url ? '#000' : `linear-gradient(135deg, ${color}, ${color}cc)`,
+                          background: p.avatar_url ? 'transparent' : `linear-gradient(135deg, ${getColorForName(p.name)}, ${getColorForName(p.name)}cc)`,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           color: '#fff', fontWeight: 700, fontSize: 16, overflow: 'hidden'
                         }}>
-                          {p.avatar_url ? <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.name?.[0]?.toUpperCase() || '?'}
+                          {p.avatar_url ? (
+                            <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            p.name?.[0]?.toUpperCase() || '?'
+                          )}
                         </div>
-                        <div style={{ flex: 1 }}>
+                        <div>
                           <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>{p.name}</div>
                           <div style={{ fontSize: 12, color: '#64748b' }}>⭐ {p.level} • {p.city || 'France'}</div>
                         </div>
@@ -1004,14 +972,20 @@ export default function DashboardPage() {
                 })}
               </div>
             )}
-            <Link href="/dashboard/community" style={{ display: 'block', textAlign: 'center', marginTop: 16, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>Voir tous →</Link>
           </div>
 
           {/* Clubs favoris */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>🏟️ Clubs favoris</h3>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 24,
+            border: '1px solid #f1f5f9'
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: '#1a1a2e' }}>
+              🏟️ Clubs favoris
+            </h3>
             {favClubs.length === 0 ? (
-              <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', margin: 0 }}>Aucun club favori</p>
+              <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Aucun club favori</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {favClubs.slice(0, 3).map((fav, i) => {
@@ -1019,20 +993,23 @@ export default function DashboardPage() {
                   if (!club) return null
                   return (
                     <Link href="/dashboard/clubs" key={i} style={{ textDecoration: 'none' }}>
-                      <div style={{ padding: '10px 0', borderBottom: i < favClubs.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>📍 {club.name}</div>
-                        <div style={{ fontSize: 12, color: '#64748b' }}>{club.city}</div>
+                      <div style={{ 
+                        padding: '12px 0', 
+                        borderBottom: i < favClubs.length - 1 ? '1px solid #f8fafc' : 'none',
+                        color: '#475569',
+                        fontSize: 14
+                      }}>
+                        📍 {club.name}
                       </div>
                     </Link>
                   )
                 })}
               </div>
             )}
-            <Link href="/dashboard/clubs" style={{ display: 'block', textAlign: 'center', marginTop: 16, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>Voir tous →</Link>
           </div>
         </aside>
       </div>
-      {/* Fin de dashboard-layout */}
+      {/* Fin de dashboard-desktop-layout */}
 
       {/* ============================================ */}
       {/* MODAL CRÉATION                              */}
@@ -1048,39 +1025,66 @@ export default function DashboardPage() {
         userId={user?.id}
       />
 
-      {/* Styles responsive */}
+      {/* ============================================ */}
+      {/* STYLES RESPONSIVE                           */}
+      {/* ============================================ */}
       <style jsx global>{`
         div::-webkit-scrollbar {
           display: none;
         }
-        .dashboard-layout {
+        
+        .dashboard-desktop-layout {
           display: flex;
-          gap: 32px;
+          gap: 24px;
         }
+        
         .main-column {
           flex: 1;
           min-width: 0;
         }
+        
         .sidebar-column {
           width: 320px;
           flex-shrink: 0;
           display: none;
         }
         
-        /* Desktop - afficher sidebar */
+        .my-matches-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        
+        .nearby-matches-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        
+        /* Tablet - 768px */
+        @media (min-width: 768px) {
+          .my-matches-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .nearby-matches-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        
+        /* Desktop - 1024px */
         @media (min-width: 1024px) {
           .sidebar-column {
             display: block;
           }
+          .dashboard-desktop-layout {
+            gap: 32px;
+          }
         }
         
-        /* Large desktop */
+        /* Large desktop - 1280px */
         @media (min-width: 1280px) {
           .sidebar-column {
-            width: 360px;
-          }
-          .dashboard-layout {
-            gap: 40px;
+            width: 340px;
           }
         }
       `}</style>

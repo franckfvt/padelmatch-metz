@@ -172,7 +172,8 @@ export default function MePage() {
   const reliabilityColor = reliabilityScore >= 90 ? '#22c55e' : reliabilityScore >= 70 ? '#f59e0b' : '#ef4444'
 
   return (
-    <div className="me-page-layout">
+    <>
+    <div className="profile-layout">
       {/* ============================================ */}
       {/* HERO HEADER                                 */}
       {/* ============================================ */}
@@ -646,31 +647,40 @@ export default function MePage() {
           onClose={() => setShowCardModal(false)}
         />
       )}
-
-      {/* Styles responsive */}
-      <style jsx global>{`
-        .me-page-layout {
-          display: block;
-        }
-        .me-stats-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-        }
-        @media (min-width: 640px) {
-          .me-stats-grid {
-            grid-template-columns: repeat(4, 1fr);
-          }
-        }
-        @media (min-width: 1024px) {
-          .me-page-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-          }
-        }
-      `}</style>
     </div>
+
+    {/* ============================================ */}
+    {/* STYLES RESPONSIVE                           */}
+    {/* ============================================ */}
+    <style jsx global>{`
+      .profile-layout {
+        display: block;
+      }
+      
+      .profile-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+      
+      /* Tablet - 768px */
+      @media (min-width: 768px) {
+        .profile-stats-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+      
+      /* Desktop - 1024px */
+      @media (min-width: 1024px) {
+        .profile-layout {
+          display: grid;
+          grid-template-columns: 320px 1fr;
+          gap: 24px;
+          align-items: start;
+        }
+      }
+    `}</style>
+    </>
   )
 }
 

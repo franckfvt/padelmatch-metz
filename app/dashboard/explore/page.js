@@ -708,8 +708,8 @@ export default function ExplorePage() {
             </p>
           </div>
         ) : showAllMatches ? (
-          // Mode liste verticale quand "Voir tout"
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          // Mode grille quand "Voir tout"
+          <div className="explore-matches-grid">
             {filteredMatches.map(match => (
               <MatchCardCompact key={match.id} match={match} />
             ))}
@@ -919,42 +919,27 @@ export default function ExplorePage() {
         </div>
       </section>
 
-      {/* Styles responsive */}
+      {/* ============================================ */}
+      {/* STYLES RESPONSIVE                           */}
+      {/* ============================================ */}
       <style jsx global>{`
-        .explore-filters {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .explore-matches-list {
-          display: flex;
-          flex-direction: column;
+        .explore-matches-grid {
+          display: grid;
+          grid-template-columns: 1fr;
           gap: 12px;
         }
+        
+        /* Tablet - 768px */
         @media (min-width: 768px) {
-          .explore-matches-list {
-            display: grid;
+          .explore-matches-grid {
             grid-template-columns: repeat(2, 1fr);
           }
         }
-        @media (min-width: 1280px) {
-          .explore-matches-list {
-            grid-template-columns: repeat(3, 1fr);
-          }
-        }
-        .explore-groups-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-        }
-        @media (min-width: 640px) {
-          .explore-groups-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
-        }
+        
+        /* Desktop - 1024px */
         @media (min-width: 1024px) {
-          .explore-groups-grid {
-            grid-template-columns: repeat(4, 1fr);
+          .explore-matches-grid {
+            grid-template-columns: repeat(3, 1fr);
           }
         }
       `}</style>
