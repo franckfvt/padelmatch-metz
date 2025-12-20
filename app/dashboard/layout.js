@@ -258,8 +258,8 @@ export default function DashboardLayout({ children }) {
       {/* ============================================ */}
       {/* CONTENU PRINCIPAL                           */}
       {/* ============================================ */}
-      <main style={{
-        maxWidth: 800,
+      <main className="main-content" style={{
+        maxWidth: 1400,
         margin: '0 auto',
         padding: '24px 16px',
         paddingBottom: 100 // Espace pour la navbar mobile
@@ -430,6 +430,22 @@ export default function DashboardLayout({ children }) {
           }
           main {
             padding-bottom: 24px !important;
+          }
+          .main-content {
+            padding: 32px 24px !important;
+          }
+        }
+        
+        /* Large Desktop */
+        @media (min-width: 1024px) {
+          .main-content {
+            padding: 32px 40px !important;
+          }
+        }
+        
+        @media (min-width: 1280px) {
+          .main-content {
+            padding: 32px 48px !important;
           }
         }
 
