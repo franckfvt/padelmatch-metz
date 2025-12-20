@@ -69,9 +69,11 @@ export default function ShareMatchModal({ match, players, onClose }) {
         
         const canvas = await html2canvas(cardRef.current, {
           backgroundColor: '#1a1a2e',
-          scale: 2,
+          scale: 2, // 2x pour haute résolution (1200x630 approx)
           useCORS: true,
-          allowTaint: true
+          allowTaint: true,
+          width: cardRef.current.offsetWidth,
+          height: cardRef.current.offsetHeight
         })
         
         const link = document.createElement('a')
