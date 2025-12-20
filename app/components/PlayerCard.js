@@ -2,9 +2,16 @@
 
 import { useRef, useState } from 'react'
 
-// ============================================
-// COMPOSANT PLAYER CARD - Style FIFA/Hexagone
-// ============================================
+/**
+ * ============================================
+ * COMPOSANT PLAYER CARD - Style Match Card
+ * ============================================
+ * 
+ * Même branding que la carte match
+ * Structure: niveau à gauche, infos à droite
+ * 
+ * ============================================
+ */
 
 export default function PlayerCard({ player, standalone = false, size = 'normal' }) {
   const cardRef = useRef(null)
@@ -36,21 +43,13 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
     })
   }
 
-  // Couleurs selon le niveau
-  const getLevelColor = (level) => {
+  // Couleur accent selon le niveau
+  const getAccentColor = (level) => {
     const lvl = parseInt(level) || 5
-    if (lvl >= 8) return '#f59e0b'
-    if (lvl >= 6) return '#a855f7'
-    if (lvl >= 4) return '#3b82f6'
-    return '#22c55e'
-  }
-
-  const getLevelGradient = (level) => {
-    const lvl = parseInt(level) || 5
-    if (lvl >= 8) return ['#f59e0b', '#dc2626']
-    if (lvl >= 6) return ['#a855f7', '#6366f1']
-    if (lvl >= 4) return ['#3b82f6', '#06b6d4']
-    return ['#22c55e', '#10b981']
+    if (lvl >= 8) return '#f59e0b' // Or
+    if (lvl >= 6) return '#a855f7' // Violet
+    if (lvl >= 4) return '#3b82f6' // Bleu
+    return '#22c55e' // Vert
   }
 
   // Config labels
@@ -62,12 +61,12 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
   }
 
   const positionConfig = {
-    right: { text: 'Droite' },
-    left: { text: 'Gauche' },
-    both: { text: 'Polyvalent' },
-    droite: { text: 'Droite' },
-    gauche: { text: 'Gauche' },
-    les_deux: { text: 'Polyvalent' }
+    right: { text: 'Droite', short: 'D' },
+    left: { text: 'Gauche', short: 'G' },
+    both: { text: 'Polyvalent', short: '↔' },
+    droite: { text: 'Droite', short: 'D' },
+    gauche: { text: 'Gauche', short: 'G' },
+    les_deux: { text: 'Polyvalent', short: '↔' }
   }
 
   const frequencyConfig = {
@@ -93,16 +92,12 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
   }
 
   // Valeurs du joueur
-  const levelColor = getLevelColor(player.level)
-  const [color1, color2] = getLevelGradient(player.level)
+  const accentColor = getAccentColor(player.level)
   const style = styleConfig[player.ambiance || player.style] || styleConfig.mix
-  const position = positionConfig[player.position] || { text: 'Polyvalent' }
+  const position = positionConfig[player.position] || { text: 'Polyvalent', short: '↔' }
   const frequency = frequencyConfig[player.frequency] || '1x/sem'
   const experience = experienceConfig[player.experience] || '2 - 5 ans'
   const region = player.region || player.city || 'France'
-  const regionShort = region.length > 12 ? region.substring(0, 12) + '.' : region
-
-  const isNew = !player.matches_played || player.matches_played === 0
 
   // Tailles selon le prop size
   const sizeConfig = {
@@ -131,267 +126,289 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
         <div style={{
           position: 'absolute',
           inset: -8,
-          background: `linear-gradient(135deg, ${color1}, ${color2})`,
+          background: `linear-gradient(135deg, #334155, #1e293b)`,
           filter: 'blur(25px)',
-          opacity: hoverStyle.isHovered ? 0.6 : 0.4,
-          borderRadius: 16,
+          opacity: hoverStyle.isHovered ? 0.8 : 0.5,
+          borderRadius: 20,
           transition: 'opacity 0.3s'
         }} />
       )}
 
-      {/* Bordure gradient */}
+      {/* Carte principale */}
       <div style={{
         position: 'relative',
-        background: standalone 
-          ? `linear-gradient(135deg, ${color1}, ${color2})` 
-          : 'transparent',
-        borderRadius: standalone ? 12 : 0,
-        padding: standalone ? 2 : 0
+        width: '100%',
+        aspectRatio: '1.91 / 1',
+        background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
+        borderRadius: 16,
+        overflow: 'hidden',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        border: '1px solid rgba(255,255,255,0.15)',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         
-        {/* Carte principale */}
+        {/* Motifs décoratifs */}
         <div style={{
+          position: 'absolute',
+          top: -30,
+          right: -30,
+          width: 120,
+          height: 120,
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '50%'
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: -40,
+          left: -40,
+          width: 100,
+          height: 100,
+          background: 'rgba(255,255,255,0.02)',
+          borderRadius: '50%'
+        }} />
+
+        {/* === CONTENU PRINCIPAL === */}
+        <div style={{ 
+          flex: 1, 
+          display: 'flex',
           position: 'relative',
-          width: '100%',
-          aspectRatio: '1.91 / 1',
-          background: 'linear-gradient(135deg, #0c0c14 0%, #0a0a10 100%)',
-          overflow: 'hidden',
-          borderRadius: standalone ? 10 : 0
+          zIndex: 1
         }}>
           
-          {/* Pattern hexagonal */}
+          {/* ZONE GAUCHE : Niveau */}
           <div style={{
-            position: 'absolute',
-            inset: 0,
-            opacity: 0.06,
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l25.98 15v30L30 60 4.02 45V15z' fill='none' stroke='%23${levelColor.slice(1)}' stroke-width='1'/%3E%3C/svg%3E")`,
-            backgroundSize: '30px 26px'
-          }} />
-
-          {/* Gradient overlay du haut */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '40%',
-            background: `linear-gradient(180deg, ${color1}15 0%, transparent 100%)`,
-            pointerEvents: 'none'
-          }} />
-
-          {/* Ligne brillante en haut */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: '25%',
-            right: 0,
-            height: 1,
-            background: `linear-gradient(90deg, ${levelColor}80, ${levelColor}20, transparent)`,
-            opacity: 0.6
-          }} />
-
-          {/* Contenu */}
-          <div style={{ 
-            position: 'relative', 
-            width: '100%', 
-            height: '100%', 
+            width: '28%',
+            background: `linear-gradient(180deg, ${accentColor}25 0%, ${accentColor}08 100%)`,
+            borderRight: '1px solid rgba(255,255,255,0.1)',
             display: 'flex',
-            zIndex: 1
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            padding: '16px 0'
           }}>
-            
-            {/* ZONE GAUCHE : Niveau + Branding */}
+            {/* Glow du niveau */}
             <div style={{
-              width: '25%',
-              background: `linear-gradient(180deg, ${levelColor}20 0%, ${levelColor}05 100%)`,
-              borderRight: `3px solid ${levelColor}`,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              padding: 'clamp(16px, 4vw, 24px) 0'
-            }}>
-              {/* Glow interne */}
+              position: 'absolute',
+              top: '40%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 80,
+              height: 80,
+              background: `radial-gradient(circle, ${accentColor}50 0%, transparent 70%)`,
+              borderRadius: '50%'
+            }} />
+            
+            {/* Niveau */}
+            <div style={{ position: 'relative', textAlign: 'center' }}>
               <div style={{
-                position: 'absolute',
-                top: '35%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 80,
-                height: 80,
-                background: `radial-gradient(circle, ${levelColor} 0%, transparent 70%)`,
-                opacity: 0.4,
-                borderRadius: '50%'
-              }} />
-              
-              {/* Niveau */}
-              <div style={{ position: 'relative', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{
-                  fontSize: 'clamp(44px, 11vw, 72px)',
-                  fontWeight: 900,
-                  background: `linear-gradient(180deg, #fff 0%, ${levelColor} 100%)`,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  lineHeight: 1,
-                  filter: `drop-shadow(0 0 20px ${levelColor}60)`
-                }}>
-                  {player.level || '5'}
-                </div>
-                <div style={{
-                  fontSize: 'clamp(8px, 1.6vw, 10px)',
-                  color: 'rgba(255,255,255,0.5)',
-                  fontWeight: 700,
-                  letterSpacing: 3,
-                  marginTop: 6
-                }}>
-                  NIVEAU
-                </div>
-              </div>
-
-              {/* Branding en bas */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 'clamp(4px, 1vw, 6px)',
-                marginTop: 'auto',
-                background: 'rgba(255,255,255,0.08)',
-                padding: 'clamp(4px, 1vw, 6px) clamp(8px, 2vw, 12px)',
-                borderRadius: 20
+                fontSize: 'clamp(48px, 12vw, 64px)',
+                fontWeight: 900,
+                color: '#fff',
+                lineHeight: 1,
+                textShadow: `0 0 40px ${accentColor}80`
               }}>
-                <span style={{ fontSize: 'clamp(10px, 2vw, 14px)' }}>🎾</span>
-                <span style={{ 
-                  color: 'rgba(255,255,255,0.85)', 
-                  fontSize: 'clamp(7px, 1.4vw, 9px)', 
-                  fontWeight: 700,
-                  letterSpacing: 1
-                }}>
-                  PADELMATCH
-                </span>
+                {player.level || '5'}
+              </div>
+              <div style={{
+                fontSize: 10,
+                color: 'rgba(255,255,255,0.5)',
+                fontWeight: 700,
+                letterSpacing: 2,
+                marginTop: 4
+              }}>
+                NIVEAU
               </div>
             </div>
 
-            {/* ZONE DROITE */}
+            {/* Badge position */}
             <div style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              padding: 'clamp(14px, 3.5vw, 20px)',
-              position: 'relative'
+              marginTop: 12,
+              background: 'rgba(255,255,255,0.1)',
+              padding: '6px 12px',
+              borderRadius: 20,
+              fontSize: 11,
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.8)'
             }}>
-              
-              {/* TOP : Photo + Nom + Style */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'clamp(10px, 2.5vw, 14px)'
-              }}>
-                {/* Photo */}
-                <div style={{
-                  width: 'clamp(40px, 8vw, 52px)',
-                  height: 'clamp(40px, 8vw, 52px)',
-                  borderRadius: 12,
-                  background: player.avatar_url 
-                    ? `url(${player.avatar_url}) center/cover`
-                    : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 'clamp(20px, 4vw, 26px)',
-                  border: `2px solid ${levelColor}40`,
-                  boxShadow: `0 4px 20px ${levelColor}30`,
-                  flexShrink: 0,
-                  overflow: 'hidden'
-                }}>
-                  {!player.avatar_url && '👤'}
-                </div>
-
-                {/* Nom + Style */}
-                <div style={{ minWidth: 0 }}>
-                  <h2 style={{
-                    fontSize: 'clamp(16px, 4vw, 22px)',
-                    fontWeight: 800,
-                    color: '#fff',
-                    margin: 0,
-                    lineHeight: 1.1
-                  }}>
-                    {player.name || 'Joueur'}
-                  </h2>
-                  
-                  {/* Style badge */}
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    marginTop: 4,
-                    background: `${style.color}20`,
-                    border: `1px solid ${style.color}50`,
-                    padding: 'clamp(3px, 0.7vw, 4px) clamp(6px, 1.5vw, 10px)',
-                    borderRadius: 12,
-                    fontSize: 'clamp(8px, 1.8vw, 10px)',
-                    color: style.color,
-                    fontWeight: 600
-                  }}>
-                    <span>{style.icon}</span>
-                    <span>{style.text}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* BOTTOM : Grille 2x2 */}
-              <div style={{
-                flex: 1,
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gridTemplateRows: 'repeat(2, 1fr)',
-                gap: 'clamp(6px, 1.5vw, 10px)',
-                marginTop: 'clamp(10px, 2.5vw, 14px)'
-              }}>
-                {[
-                  { value: position.text, label: 'POSTE' },
-                  { value: frequency, label: 'FRÉQUENCE' },
-                  { value: experience, label: 'EXPÉRIENCE' },
-                  { value: regionShort, label: 'RÉGION' }
-                ].map((item, i) => (
-                  <div 
-                    key={i}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      borderRadius: 'clamp(8px, 2vw, 12px)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid rgba(255,255,255,0.05)'
-                    }}
-                  >
-                    <span style={{ 
-                      color: '#fff', 
-                      fontSize: item.label === 'RÉGION' 
-                        ? 'clamp(10px, 2.4vw, 14px)' 
-                        : 'clamp(12px, 2.8vw, 16px)', 
-                      fontWeight: 800,
-                      textAlign: 'center'
-                    }}>
-                      {item.value}
-                    </span>
-                    <span style={{ 
-                      color: 'rgba(255,255,255,0.35)', 
-                      fontSize: 'clamp(7px, 1.5vw, 9px)',
-                      fontWeight: 600,
-                      letterSpacing: 0.5,
-                      marginTop: 2
-                    }}>
-                      {item.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
+              📍 {position.text}
             </div>
           </div>
 
+          {/* ZONE DROITE */}
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: 'clamp(12px, 3vw, 18px)'
+          }}>
+            
+            {/* Header : Photo + Nom + Style */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 12
+            }}>
+              {/* Photo */}
+              <div style={{
+                width: 52,
+                height: 52,
+                borderRadius: 12,
+                background: player.avatar_url 
+                  ? `url(${player.avatar_url}) center/cover`
+                  : `linear-gradient(135deg, ${accentColor}, ${accentColor}99)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 24,
+                border: '2px solid rgba(255,255,255,0.2)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                flexShrink: 0,
+                overflow: 'hidden',
+                color: '#fff',
+                fontWeight: 700
+              }}>
+                {!player.avatar_url && (player.name?.[0]?.toUpperCase() || '?')}
+              </div>
+
+              {/* Nom + Style */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{
+                  fontSize: 'clamp(18px, 4.5vw, 24px)',
+                  fontWeight: 800,
+                  color: '#fff',
+                  margin: 0,
+                  lineHeight: 1.1,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {player.name || 'Joueur'}
+                </h2>
+                
+                {/* Badges */}
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                  <span style={{
+                    background: `${style.color}25`,
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: style.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}>
+                    {style.icon} {style.text}
+                  </span>
+                  {region && (
+                    <span style={{
+                      background: 'rgba(255,255,255,0.1)',
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: 'rgba(255,255,255,0.7)'
+                    }}>
+                      📍 {region.length > 10 ? region.substring(0, 10) + '.' : region}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Grille stats */}
+            <div style={{
+              flex: 1,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 8
+            }}>
+              {[
+                { value: frequency, label: 'Fréquence', icon: '📅' },
+                { value: experience, label: 'Expérience', icon: '⏱️' },
+                { value: player.matches_played || '0', label: 'Parties', icon: '🎾' },
+                { value: player.reliability_score ? `${player.reliability_score}%` : '100%', label: 'Fiabilité', icon: '✓' }
+              ].map((item, i) => (
+                <div 
+                  key={i}
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: 10,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10
+                  }}
+                >
+                  <span style={{ fontSize: 16, opacity: 0.8 }}>{item.icon}</span>
+                  <div>
+                    <div style={{ 
+                      color: '#fff', 
+                      fontSize: 13, 
+                      fontWeight: 700
+                    }}>
+                      {item.value}
+                    </div>
+                    <div style={{ 
+                      color: 'rgba(255,255,255,0.5)', 
+                      fontSize: 10,
+                      fontWeight: 500
+                    }}>
+                      {item.label}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
+
+        {/* === FOOTER === */}
+        <div style={{
+          background: 'rgba(0,0,0,0.3)',
+          padding: '10px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderTop: '1px solid rgba(255,255,255,0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 26,
+              height: 26,
+              borderRadius: 6,
+              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="2"/>
+                <path d="M12 2C12 2 12 8 12 12C12 16 12 22 12 22" stroke="#fff" strokeWidth="1.5"/>
+                <path d="M2 12C2 12 8 12 12 12C16 12 22 12 22 12" stroke="#fff" strokeWidth="1.5"/>
+                <ellipse cx="12" cy="12" rx="4" ry="10" stroke="#fff" strokeWidth="1.5"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>PadelMatch</span>
+          </div>
+          
+          {standalone && (
+            <div style={{
+              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+              padding: '8px 14px',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              color: '#fff'
+            }}>
+              Voir profil →
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )
