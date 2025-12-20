@@ -26,7 +26,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import MatchShareCard from '@/app/components/MatchShareCard'
+import ShareMatchModal from '@/app/components/ShareMatchModal'
 
 export default function MatchPage() {
   const router = useRouter()
@@ -1047,7 +1047,13 @@ export default function MatchPage() {
       {/* === MODALS === */}
 
       {/* Modal Partager */}
-      {modal === 'share' && <MatchShareCard match={match} onClose={() => setModal(null)} />}
+      {modal === 'share' && (
+        <ShareMatchModal 
+          match={match} 
+          players={participants.filter(p => p.status === 'confirmed')} 
+          onClose={() => setModal(null)} 
+        />
+      )}
 
       {/* Modal QR Code */}
       {modal === 'qrcode' && (

@@ -2,13 +2,14 @@
 
 /**
  * ============================================
- * CARTE MATCH - 4 RONDS AVATARS + ÉQUIPES
+ * CARTE MATCH - VERSION FINALE
  * ============================================
  * 
- * Format apprécié avec :
- * - 4 ronds pour les joueurs
- * - Équipes visibles (2 vs 2)
- * - Niveau + Poste sous chaque avatar
+ * - Lieu en titre (pas "Partie de Padel")
+ * - Date + heure mis en avant
+ * - 4 ronds avatars avec niveau + poste
+ * - Équipes A/B (pas 1/2)
+ * - Bouton rejoindre en vert
  * - Design sobre dark
  * 
  * ============================================
@@ -31,16 +32,20 @@ function getColorForName(name) {
 }
 
 export default function MatchShareCard({ match, players = [] }) {
-  // Séparer les équipes
-  const team1 = players.filter(p => p.team === 1)
-  const team2 = players.filter(p => p.team === 2)
-  const spotsRemaining = 4 - players.length
+  // Séparer les équipes - ATTENTION: team est 'A' ou 'B', pas 1 ou 2
+  const teamA = players.filter(p => p.team === 'A')
+  const teamB = players.filter(p => p.team === 'B')
+  const confirmedPlayers = players.filter(p => p.status === 'confirmed')
+  const spotsRemaining = 4 - confirmedPlayers.length
 
   // Formater date
   const formatDate = (dateStr) => {
     if (!dateStr) return 'Date à définir'
     const date = new Date(dateStr)
-    return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+    const options = { weekday: 'long', day: 'numeric', month: 'long' }
+    const formatted = date.toLocaleDateString('fr-FR', options)
+    // Première lettre en majuscule
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1)
   }
 
   // Formater heure
@@ -52,15 +57,17 @@ export default function MatchShareCard({ match, players = [] }) {
   // Label poste court
   const getPositionShort = (position) => {
     const map = { right: 'Droite', left: 'Gauche', both: 'Poly.' }
-    return map[position] || '—'
+    return map[position] || ''
   }
 
   // Composant Avatar Rond avec infos
   const PlayerAvatar = ({ player, size = 64 }) => {
-    const name = player?.profiles?.name || player?.name || 'Joueur'
-    const avatarUrl = player?.profiles?.avatar_url
-    const level = player?.profiles?.level
-    const position = player?.profiles?.position
+    // Gérer les différentes structures de données possibles
+    const playerProfile = player?.profiles || player
+    const name = playerProfile?.name || 'Joueur'
+    const avatarUrl = playerProfile?.avatar_url
+    const level = playerProfile?.level
+    const position = playerProfile?.position
     const color = getColorForName(name)
 
     return (
@@ -69,7 +76,7 @@ export default function MatchShareCard({ match, players = [] }) {
         flexDirection: 'column',
         alignItems: 'center',
         gap: 6,
-        width: 80
+        width: 85
       }}>
         {/* Avatar rond */}
         <div style={{
@@ -104,7 +111,7 @@ export default function MatchShareCard({ match, players = [] }) {
           fontWeight: 600, 
           color: '#fff',
           textAlign: 'center',
-          maxWidth: 80,
+          maxWidth: 85,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap'
@@ -115,8 +122,9 @@ export default function MatchShareCard({ match, players = [] }) {
         {/* Niveau + Poste */}
         <div style={{
           display: 'flex',
-          gap: 6,
-          justifyContent: 'center'
+          gap: 4,
+          justifyContent: 'center',
+          flexWrap: 'wrap'
         }}>
           {level && (
             <span style={{
@@ -124,13 +132,13 @@ export default function MatchShareCard({ match, players = [] }) {
               padding: '2px 6px',
               borderRadius: 4,
               fontSize: 10,
-              color: 'rgba(255,255,255,0.8)',
+              color: 'rgba(255,255,255,0.9)',
               fontWeight: 600
             }}>
-              ⭐ {level}
+              ⭐{level}
             </span>
           )}
-          {position && (
+          {position && getPositionShort(position) && (
             <span style={{
               background: 'rgba(255,255,255,0.1)',
               padding: '2px 6px',
@@ -153,7 +161,7 @@ export default function MatchShareCard({ match, players = [] }) {
       flexDirection: 'column',
       alignItems: 'center',
       gap: 6,
-      width: 80
+      width: 85
     }}>
       <div style={{
         width: size,
@@ -176,7 +184,7 @@ export default function MatchShareCard({ match, players = [] }) {
       }}>
         Disponible
       </div>
-      <div style={{ height: 18 }} /> {/* Spacer pour aligner */}
+      <div style={{ height: 18 }} />
     </div>
   )
 
@@ -188,17 +196,20 @@ export default function MatchShareCard({ match, players = [] }) {
   }
   const ambiance = ambianceConfig[match?.ambiance] || ambianceConfig.mix
 
-  // Remplir les équipes avec des slots vides si nécessaire
-  const team1Display = [...team1]
-  while (team1Display.length < 2) team1Display.push(null)
+  // Lieu
+  const locationName = match?.clubs?.name || match?.city || 'Lieu à définir'
+
+  // Remplir les équipes avec des slots vides
+  const teamADisplay = [...teamA]
+  while (teamADisplay.length < 2) teamADisplay.push(null)
   
-  const team2Display = [...team2]
-  while (team2Display.length < 2) team2Display.push(null)
+  const teamBDisplay = [...teamB]
+  while (teamBDisplay.length < 2) teamBDisplay.push(null)
 
   return (
     <div style={{
       width: '100%',
-      maxWidth: 440,
+      maxWidth: 460,
       background: 'linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)',
       borderRadius: 20,
       overflow: 'hidden',
@@ -206,71 +217,84 @@ export default function MatchShareCard({ match, players = [] }) {
       border: '1px solid rgba(255,255,255,0.1)'
     }}>
       
-      {/* Header avec infos principales */}
+      {/* Header - Lieu + Date/Heure en grand */}
       <div style={{
-        padding: '20px 24px',
+        padding: '24px 24px 20px',
         borderBottom: '1px solid rgba(255,255,255,0.1)'
       }}>
-        {/* Titre + Date */}
+        {/* Lieu en titre */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
-          justifyContent: 'space-between',
+          gap: 10,
           marginBottom: 16
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 28 }}>🎾</span>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
-                Partie de Padel
+          <span style={{ fontSize: 28 }}>🎾</span>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>
+              {locationName}
+            </div>
+            {match?.clubs?.address && (
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                {match.clubs.address}
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+            )}
+          </div>
+        </div>
+
+        {/* Date + Heure en grand */}
+        <div style={{
+          display: 'flex',
+          gap: 12,
+          alignItems: 'stretch'
+        }}>
+          {/* Date */}
+          <div style={{
+            flex: 1,
+            background: 'rgba(255,255,255,0.08)',
+            padding: '14px 16px',
+            borderRadius: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10
+          }}>
+            <span style={{ fontSize: 22 }}>📅</span>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>
                 {formatDate(match?.match_date)}
               </div>
             </div>
           </div>
-          
+
           {/* Heure */}
           <div style={{
-            background: 'rgba(255,255,255,0.1)',
-            padding: '10px 16px',
+            background: 'rgba(255,255,255,0.08)',
+            padding: '14px 20px',
             borderRadius: 12,
-            textAlign: 'center'
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
           }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>
+            <span style={{ fontSize: 20 }}>🕐</span>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>
               {formatTime(match?.match_time)}
             </div>
           </div>
         </div>
 
-        {/* Infos en pills */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {/* Lieu */}
-          <div style={{
-            background: 'rgba(255,255,255,0.1)',
-            padding: '6px 12px',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6
-          }}>
-            <span style={{ fontSize: 12 }}>📍</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>
-              {match?.clubs?.name || match?.city || 'Lieu à définir'}
-            </span>
-          </div>
-
+        {/* Badges infos */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           {/* Ambiance */}
           <div style={{
             background: 'rgba(255,255,255,0.1)',
-            padding: '6px 12px',
-            borderRadius: 8,
+            padding: '5px 10px',
+            borderRadius: 6,
             display: 'flex',
             alignItems: 'center',
-            gap: 6
+            gap: 5
           }}>
             <span style={{ fontSize: 12 }}>{ambiance.emoji}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
               {ambiance.label}
             </span>
           </div>
@@ -279,15 +303,31 @@ export default function MatchShareCard({ match, players = [] }) {
           {(match?.level_min || match?.level_max) && (
             <div style={{
               background: 'rgba(255,255,255,0.1)',
-              padding: '6px 12px',
-              borderRadius: 8,
+              padding: '5px 10px',
+              borderRadius: 6,
               display: 'flex',
               alignItems: 'center',
-              gap: 6
+              gap: 5
             }}>
               <span style={{ fontSize: 12 }}>⭐</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>
-                Niv. {match.level_min || '?'}-{match.level_max || '?'}
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+                Niveau {match.level_min || '?'}-{match.level_max || '?'}
+              </span>
+            </div>
+          )}
+
+          {/* Prix */}
+          {match?.price_total > 0 && (
+            <div style={{
+              background: 'rgba(34, 197, 94, 0.15)',
+              padding: '5px 10px',
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#4ade80' }}>
+                {Math.round(match.price_total / 100 / 4)}€/pers
               </span>
             </div>
           )}
@@ -302,25 +342,27 @@ export default function MatchShareCard({ match, players = [] }) {
           justifyContent: 'center',
           gap: 12
         }}>
-          {/* Équipe 1 */}
+          {/* Équipe A */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 8
+            gap: 12
           }}>
             <div style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 700,
               color: '#60a5fa',
               textTransform: 'uppercase',
               letterSpacing: 1,
-              marginBottom: 4
+              background: 'rgba(96, 165, 250, 0.1)',
+              padding: '4px 12px',
+              borderRadius: 6
             }}>
               Équipe A
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              {team1Display.map((player, i) => 
+              {teamADisplay.map((player, i) => 
                 player ? (
                   <PlayerAvatar key={i} player={player} size={60} />
                 ) : (
@@ -336,17 +378,17 @@ export default function MatchShareCard({ match, players = [] }) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingTop: 40
+            paddingTop: 36
           }}>
             <div style={{
-              width: 40,
-              height: 40,
+              width: 42,
+              height: 42,
               borderRadius: '50%',
               background: 'rgba(255,255,255,0.1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 800,
               color: 'rgba(255,255,255,0.6)',
               border: '2px solid rgba(255,255,255,0.2)'
@@ -355,25 +397,27 @@ export default function MatchShareCard({ match, players = [] }) {
             </div>
           </div>
 
-          {/* Équipe 2 */}
+          {/* Équipe B */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 8
+            gap: 12
           }}>
             <div style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 700,
               color: '#fb923c',
               textTransform: 'uppercase',
               letterSpacing: 1,
-              marginBottom: 4
+              background: 'rgba(251, 146, 60, 0.1)',
+              padding: '4px 12px',
+              borderRadius: 6
             }}>
               Équipe B
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              {team2Display.map((player, i) => 
+              {teamBDisplay.map((player, i) => 
                 player ? (
                   <PlayerAvatar key={i} player={player} size={60} />
                 ) : (
@@ -401,7 +445,7 @@ export default function MatchShareCard({ match, players = [] }) {
         )}
       </div>
 
-      {/* Footer branding */}
+      {/* Footer branding + CTA vert */}
       <div style={{
         background: 'rgba(0,0,0,0.3)',
         padding: '14px 24px',
@@ -422,12 +466,13 @@ export default function MatchShareCard({ match, players = [] }) {
           </span>
         </div>
         <div style={{
-          background: 'rgba(255,255,255,0.15)',
-          padding: '8px 14px',
-          borderRadius: 8,
-          fontSize: 12,
-          fontWeight: 600,
-          color: '#fff'
+          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+          padding: '10px 18px',
+          borderRadius: 10,
+          fontSize: 13,
+          fontWeight: 700,
+          color: '#fff',
+          boxShadow: '0 2px 8px rgba(34, 197, 94, 0.3)'
         }}>
           Rejoindre →
         </div>
