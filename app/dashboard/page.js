@@ -853,6 +853,47 @@ export default function DashboardPage() {
       </section>
 
       {/* ============================================ */}
+      {/* BOÎTE À IDÉES                               */}
+      {/* ============================================ */}
+      <section>
+        <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
+            borderRadius: 16,
+            padding: 20,
+            border: '1px solid #bae6fd',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            cursor: 'pointer'
+          }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: 14,
+              background: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 28,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}>
+              💡
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: '#0369a1', marginBottom: 4 }}>
+                Boîte à idées
+              </div>
+              <div style={{ fontSize: 13, color: '#0c4a6e' }}>
+                Propose des idées et vote pour les meilleures
+              </div>
+            </div>
+            <span style={{ color: '#0ea5e9', fontSize: 20 }}>→</span>
+          </div>
+        </Link>
+      </section>
+
+      {/* ============================================ */}
       {/* MODAL CRÉATION                              */}
       {/* ============================================ */}
       <CreateMatchModal 

@@ -2,20 +2,13 @@
 
 /**
  * ============================================
- * PAGE COMMUNAUTÉ
+ * PAGE COMMUNAUTÉ - VERSION 3
  * ============================================
  * 
- * Mission: "Trouver des gens avec qui jouer"
- * 
- * Contenu:
- * - Recherche de joueurs
- * - Filtre par ville
- * - Tab Près de moi
- * - Tab Favoris (avec gestion)
- * - Tab Récents (avec qui j'ai joué)
- * - Inviter des amis
- * 
- * Branding: Sobre + Joueurs colorés
+ * Améliorations:
+ * - Input de recherche ville (autocomplete)
+ * - Meilleur UX favoris
+ * - Boutons action plus visibles
  * 
  * ============================================
  */
@@ -36,8 +29,12 @@ export default function CommunityPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
+  
+  // Filtre ville
+  const [citySearch, setCitySearch] = useState('')
   const [filterCity, setFilterCity] = useState('all')
   const [cities, setCities] = useState([])
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false)
   
   // Données
   const [nearbyPlayers, setNearbyPlayers] = useState([])
@@ -50,7 +47,6 @@ export default function CommunityPage() {
   const [inviteLink, setInviteLink] = useState('')
   const [copied, setCopied] = useState(false)
 
-  // Couleurs avatars joueurs
   const playerColors = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6']
 
   useEffect(() => {
@@ -74,12 +70,12 @@ export default function CommunityPage() {
 
     setProfile(profileData)
 
-    // Charger les joueurs "près de moi" (même ville/région)
+    // Charger les joueurs
     const { data: nearby } = await supabase
       .from('profiles')
       .select('id, name, avatar_url, level, city, region')
       .neq('id', session.user.id)
-      .limit(50)
+      .limit(100)
 
     // Extraire les villes uniques
     const citiesSet = new Set()
@@ -88,19 +84,20 @@ export default function CommunityPage() {
     })
     setCities(Array.from(citiesSet).sort())
 
-    // Filtrer par ville si disponible
-    let filteredNearby = nearby || []
+    // Trier par ville de l'utilisateur d'abord
+    let sortedNearby = nearby || []
     if (profileData?.city) {
-      const sameCity = filteredNearby.filter(p => 
+      const sameCity = sortedNearby.filter(p => 
         p.city?.toLowerCase() === profileData.city?.toLowerCase()
       )
-      const otherPlayers = filteredNearby.filter(p => 
+      const otherPlayers = sortedNearby.filter(p => 
         p.city?.toLowerCase() !== profileData.city?.toLowerCase()
       )
-      filteredNearby = [...sameCity, ...otherPlayers]
+      sortedNearby = [...sameCity, ...otherPlayers]
       setFilterCity(profileData.city)
+      setCitySearch(profileData.city)
     }
-    setNearbyPlayers(filteredNearby)
+    setNearbyPlayers(sortedNearby)
 
     // Charger les favoris
     const { data: favorites } = await supabase
@@ -115,13 +112,13 @@ export default function CommunityPage() {
     setFavoriteIds(favIds)
     setFavoritePlayers((favorites || []).map(f => f.profiles).filter(Boolean))
 
-    // Charger les joueurs avec qui j'ai joué récemment
+    // Charger les joueurs récents
     const { data: recentMatches } = await supabase
       .from('match_participants')
       .select(`
         match_id,
         matches!inner (
-          id, match_date, organizer_id,
+          id, match_date,
           match_participants (
             user_id,
             profiles!match_participants_user_id_fkey (id, name, avatar_url, level, city)
@@ -133,7 +130,6 @@ export default function CommunityPage() {
       .order('matches(match_date)', { ascending: false })
       .limit(20)
 
-    // Extraire les joueurs uniques des parties récentes
     const recentPlayersMap = new Map()
     ;(recentMatches || []).forEach(mp => {
       const match = mp.matches
@@ -150,9 +146,8 @@ export default function CommunityPage() {
     })
     setRecentPlayers(Array.from(recentPlayersMap.values()))
 
-    // Générer le lien d'invitation
     if (typeof window !== 'undefined') {
-      setInviteLink(`${window.location.origin}/invite/${session.user.id}`)
+      setInviteLink(`${window.location.origin}/join?ref=${profileData?.referral_code || session.user.id}`)
     }
 
     setLoading(false)
@@ -181,10 +176,30 @@ export default function CommunityPage() {
     setIsSearching(false)
   }
 
+  // Sélectionner une ville
+  function selectCity(city) {
+    setFilterCity(city)
+    setCitySearch(city)
+    setShowCitySuggestions(false)
+  }
+
+  // Réinitialiser le filtre ville
+  function clearCityFilter() {
+    setFilterCity('all')
+    setCitySearch('')
+  }
+
+  // Filtrer les suggestions de ville
+  function getCitySuggestions() {
+    if (!citySearch.trim()) return cities.slice(0, 8)
+    return cities.filter(c => 
+      c.toLowerCase().includes(citySearch.toLowerCase())
+    ).slice(0, 8)
+  }
+
   // Ajouter/Retirer des favoris
   async function toggleFavorite(playerId) {
     if (favoriteIds.has(playerId)) {
-      // Retirer des favoris
       await supabase
         .from('player_favorites')
         .delete()
@@ -198,7 +213,6 @@ export default function CommunityPage() {
       })
       setFavoritePlayers(prev => prev.filter(p => p.id !== playerId))
     } else {
-      // Ajouter aux favoris
       await supabase
         .from('player_favorites')
         .insert({
@@ -208,7 +222,6 @@ export default function CommunityPage() {
 
       setFavoriteIds(prev => new Set([...prev, playerId]))
       
-      // Trouver le joueur dans les listes existantes
       const player = nearbyPlayers.find(p => p.id === playerId) || 
                      recentPlayers.find(p => p.id === playerId) ||
                      searchResults.find(p => p.id === playerId)
@@ -225,13 +238,11 @@ export default function CommunityPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Partager via WhatsApp
   function shareWhatsApp() {
     const text = `🎾 Rejoins-moi sur PadelMatch pour organiser des parties de padel !\n\n${inviteLink}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
-  // Partager via SMS
   function shareSMS() {
     const text = `Rejoins-moi sur PadelMatch ! ${inviteLink}`
     window.open(`sms:?body=${encodeURIComponent(text)}`, '_blank')
@@ -289,43 +300,42 @@ export default function CommunityPage() {
       <div style={{
         background: '#fff',
         borderRadius: 12,
-        padding: '16px 20px',
+        padding: '14px 16px',
         border: '1px solid #e2e8f0',
         display: 'flex',
         alignItems: 'center',
-        gap: 14
+        gap: 12
       }}>
-        <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
-          <PlayerAvatar player={player} index={index} size={48} />
+        <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+          <PlayerAvatar player={player} index={index} size={44} />
           
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 15, color: '#1a1a2e', marginBottom: 2 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e', marginBottom: 2 }}>
               {player.name}
             </div>
             <div style={{ fontSize: 12, color: '#64748b' }}>
               {player.city && <span>📍 {player.city}</span>}
               {player.city && player.level && <span> · </span>}
-              {player.level && <span>⭐ Niveau {player.level}</span>}
+              {player.level && <span>⭐ {player.level}</span>}
             </div>
             {showLastPlayed && player.lastPlayedDate && (
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
                 Dernière partie : {new Date(player.lastPlayedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
               </div>
             )}
           </div>
         </Link>
 
-        {/* Bouton favori */}
         <button
           onClick={() => toggleFavorite(player.id)}
           style={{
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             borderRadius: '50%',
             border: 'none',
             background: isFavorite ? '#fef3c7' : '#f1f5f9',
             cursor: 'pointer',
-            fontSize: 18,
+            fontSize: 16,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -356,7 +366,7 @@ export default function CommunityPage() {
   switch (activeTab) {
     case 'nearby':
       currentPlayers = getFilteredPlayers(nearbyPlayers)
-      emptyMessage = filterCity !== 'all' ? `Aucun joueur trouvé à ${filterCity}` : 'Aucun joueur trouvé dans ta région'
+      emptyMessage = filterCity !== 'all' ? `Aucun joueur trouvé à ${filterCity}` : 'Aucun joueur trouvé'
       emptyIcon = '📍'
       break
     case 'favorites':
@@ -386,9 +396,9 @@ export default function CommunityPage() {
       </div>
 
       {/* ============================================ */}
-      {/* BARRE DE RECHERCHE                          */}
+      {/* BARRE DE RECHERCHE JOUEURS                  */}
       {/* ============================================ */}
-      <div style={{ marginBottom: 20, position: 'relative' }}>
+      <div style={{ marginBottom: 16, position: 'relative' }}>
         <div style={{ position: 'relative' }}>
           <span style={{
             position: 'absolute',
@@ -442,19 +452,17 @@ export default function CommunityPage() {
               </div>
             ) : (
               searchResults.map((player, i) => (
-                <Link
-                  href={`/player/${player.id}`}
+                <div
                   key={player.id}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <div style={{
+                  style={{
                     padding: '12px 16px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
-                    borderBottom: i < searchResults.length - 1 ? '1px solid #f1f5f9' : 'none',
-                    cursor: 'pointer'
-                  }}>
+                    borderBottom: i < searchResults.length - 1 ? '1px solid #f1f5f9' : 'none'
+                  }}
+                >
+                  <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
                     <PlayerAvatar player={player} index={i} size={36} />
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>
@@ -464,8 +472,19 @@ export default function CommunityPage() {
                         {player.city && `📍 ${player.city} · `}Niveau {player.level}
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                  <button
+                    onClick={() => toggleFavorite(player.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: 18,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {favoriteIds.has(player.id) ? '⭐' : '☆'}
+                  </button>
+                </div>
               ))
             )}
           </div>
@@ -479,15 +498,15 @@ export default function CommunityPage() {
         onClick={() => setShowInviteModal(true)}
         style={{
           width: '100%',
-          padding: 16,
+          padding: 14,
           background: 'linear-gradient(135deg, #22c55e, #16a34a)',
           color: '#fff',
           border: 'none',
-          borderRadius: 14,
-          fontSize: 16,
+          borderRadius: 12,
+          fontSize: 15,
           fontWeight: 700,
           cursor: 'pointer',
-          marginBottom: 20,
+          marginBottom: 16,
           boxShadow: '0 4px 20px rgba(34, 197, 94, 0.3)',
           display: 'flex',
           alignItems: 'center',
@@ -499,51 +518,118 @@ export default function CommunityPage() {
       </button>
 
       {/* ============================================ */}
-      {/* FILTRE VILLE (pills)                        */}
+      {/* FILTRE VILLE (INPUT + SUGGESTIONS)          */}
       {/* ============================================ */}
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        marginBottom: 16,
-        overflowX: 'auto',
-        paddingBottom: 4
-      }}>
-        <button
-          onClick={() => setFilterCity('all')}
-          style={{
-            padding: '8px 16px',
-            background: filterCity === 'all' ? '#1a1a2e' : '#fff',
-            color: filterCity === 'all' ? '#fff' : '#64748b',
-            border: '1px solid #e2e8f0',
-            borderRadius: 20,
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          📍 Toutes les villes
-        </button>
-        {cities.slice(0, 5).map(city => (
-          <button
-            key={city}
-            onClick={() => setFilterCity(city)}
-            style={{
-              padding: '8px 16px',
-              background: filterCity === city ? '#1a1a2e' : '#fff',
-              color: filterCity === city ? '#fff' : '#64748b',
-              border: '1px solid #e2e8f0',
+      <div style={{ marginBottom: 16, position: 'relative' }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>
+          📍 Filtrer par ville
+        </label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Tape une ville..."
+              value={citySearch}
+              onChange={(e) => {
+                setCitySearch(e.target.value)
+                setShowCitySuggestions(true)
+                if (!e.target.value.trim()) {
+                  setFilterCity('all')
+                }
+              }}
+              onFocus={() => setShowCitySuggestions(true)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #e2e8f0',
+                borderRadius: 10,
+                fontSize: 14,
+                outline: 'none',
+                background: '#fff'
+              }}
+            />
+
+            {/* Suggestions */}
+            {showCitySuggestions && getCitySuggestions().length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: '#fff',
+                borderRadius: 10,
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                zIndex: 40,
+                marginTop: 4,
+                maxHeight: 200,
+                overflow: 'auto'
+              }}>
+                {getCitySuggestions().map((city, i) => (
+                  <button
+                    key={city}
+                    onClick={() => selectCity(city)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      border: 'none',
+                      background: filterCity === city ? '#f1f5f9' : 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      color: '#1a1a2e',
+                      borderBottom: i < getCitySuggestions().length - 1 ? '1px solid #f1f5f9' : 'none'
+                    }}
+                  >
+                    📍 {city}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {filterCity !== 'all' && (
+            <button
+              onClick={clearCityFilter}
+              style={{
+                padding: '12px 16px',
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 14,
+                cursor: 'pointer',
+                color: '#64748b'
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {filterCity !== 'all' && (
+          <div style={{ marginTop: 8 }}>
+            <span style={{
+              display: 'inline-block',
+              background: '#1a1a2e',
+              color: '#fff',
+              padding: '6px 12px',
               borderRadius: 20,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {city}
-          </button>
-        ))}
+              fontSize: 12,
+              fontWeight: 600
+            }}>
+              📍 {filterCity}
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Overlay pour fermer les suggestions */}
+      {showCitySuggestions && (
+        <div 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 }}
+          onClick={() => setShowCitySuggestions(false)}
+        />
+      )}
 
       {/* ============================================ */}
       {/* TABS                                        */}
@@ -551,19 +637,19 @@ export default function CommunityPage() {
       <div style={{
         display: 'flex',
         gap: 4,
-        marginBottom: 20,
+        marginBottom: 16,
         borderBottom: '1px solid #e2e8f0'
       }}>
         {[
-          { id: 'nearby', label: 'Près de moi', count: nearbyPlayers.length },
-          { id: 'favorites', label: 'Favoris', count: favoritePlayers.length },
-          { id: 'recent', label: 'Récents', count: recentPlayers.length }
+          { id: 'nearby', label: 'Joueurs', count: getFilteredPlayers(nearbyPlayers).length },
+          { id: 'favorites', label: 'Favoris', count: getFilteredPlayers(favoritePlayers).length },
+          { id: 'recent', label: 'Récents', count: getFilteredPlayers(recentPlayers).length }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '12px 16px',
+              padding: '12px 14px',
               border: 'none',
               background: 'transparent',
               color: activeTab === tab.id ? '#1a1a2e' : '#94a3b8',
@@ -574,7 +660,7 @@ export default function CommunityPage() {
               marginBottom: -1,
               display: 'flex',
               alignItems: 'center',
-              gap: 8
+              gap: 6
             }}
           >
             {tab.label}
@@ -594,12 +680,6 @@ export default function CommunityPage() {
       {/* ============================================ */}
       {/* LISTE DES JOUEURS                           */}
       {/* ============================================ */}
-      {activeTab === 'nearby' && currentPlayers.length > 0 && (
-        <p style={{ color: '#64748b', fontSize: 14, marginBottom: 16 }}>
-          {filterCity !== 'all' ? `Joueurs à ${filterCity}` : 'Joueurs près de toi'}
-        </p>
-      )}
-
       {currentPlayers.length === 0 ? (
         <div style={{
           background: '#fff',
@@ -614,7 +694,7 @@ export default function CommunityPage() {
           </h3>
           {activeTab === 'favorites' && (
             <p style={{ color: '#64748b', fontSize: 14 }}>
-              Ajoute des joueurs en favoris pour les retrouver facilement
+              Ajoute des joueurs en favoris avec ⭐
             </p>
           )}
           {activeTab === 'recent' && (
@@ -625,7 +705,7 @@ export default function CommunityPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {currentPlayers.map((player, i) => (
+          {currentPlayers.slice(0, 20).map((player, i) => (
             <PlayerCard 
               key={player.id} 
               player={player} 
@@ -633,6 +713,11 @@ export default function CommunityPage() {
               showLastPlayed={activeTab === 'recent'}
             />
           ))}
+          {currentPlayers.length > 20 && (
+            <div style={{ textAlign: 'center', padding: 16, color: '#64748b', fontSize: 13 }}>
+              Et {currentPlayers.length - 20} autres joueurs...
+            </div>
+          )}
         </div>
       )}
 
@@ -665,7 +750,6 @@ export default function CommunityPage() {
             }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
             <div style={{
               padding: '20px 20px 0',
               display: 'flex',
@@ -691,15 +775,13 @@ export default function CommunityPage() {
               </button>
             </div>
 
-            {/* Contenu */}
             <div style={{ padding: 20 }}>
               <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
-                Partage ton lien d'invitation pour que tes amis rejoignent PadelMatch !
+                Partage ton lien pour que tes amis rejoignent PadelMatch !
               </p>
 
-              {/* Lien */}
               <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
                   Ton lien personnel
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -708,8 +790,8 @@ export default function CommunityPage() {
                     background: '#f8fafc',
                     border: '1px solid #e2e8f0',
                     borderRadius: 8,
-                    padding: '12px 16px',
-                    fontSize: 13,
+                    padding: '12px 14px',
+                    fontSize: 12,
                     color: '#64748b',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -731,13 +813,12 @@ export default function CommunityPage() {
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    {copied ? '✓ Copié' : 'Copier'}
+                    {copied ? '✓' : 'Copier'}
                   </button>
                 </div>
               </div>
 
-              {/* Boutons partage */}
-              <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 12 }}>
                 Partager via
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
@@ -745,8 +826,8 @@ export default function CommunityPage() {
                   onClick={shareWhatsApp}
                   style={{
                     padding: '16px 8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
+                    background: '#25D366',
+                    border: 'none',
                     borderRadius: 12,
                     cursor: 'pointer',
                     display: 'flex',
@@ -756,7 +837,7 @@ export default function CommunityPage() {
                   }}
                 >
                   <span style={{ fontSize: 24 }}>💬</span>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>WhatsApp</span>
+                  <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>WhatsApp</span>
                 </button>
                 <button
                   onClick={shareSMS}
@@ -778,7 +859,7 @@ export default function CommunityPage() {
                 <button
                   onClick={() => {
                     const subject = 'Rejoins-moi sur PadelMatch !'
-                    const body = `Salut !\n\nJe t'invite à rejoindre PadelMatch pour organiser des parties de padel ensemble.\n\n${inviteLink}\n\nÀ bientôt sur le terrain ! 🎾`
+                    const body = `Salut !\n\nRejoins-moi sur PadelMatch pour organiser des parties de padel.\n\n${inviteLink}`
                     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
                   }}
                   style={{
@@ -799,7 +880,6 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            {/* Bonus parrainage */}
             <div style={{
               padding: 20,
               background: '#f0fdf4',
@@ -809,10 +889,10 @@ export default function CommunityPage() {
                 <div style={{ fontSize: 32 }}>🎁</div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, color: '#166534' }}>
-                    Parrainage
+                    Gagne des badges !
                   </div>
                   <div style={{ fontSize: 13, color: '#15803d' }}>
-                    Invite 5 amis et gagne des récompenses !
+                    Tu as invité <strong>{profile?.referral_count || 0}</strong> personnes
                   </div>
                 </div>
               </div>

@@ -2,19 +2,13 @@
 
 /**
  * ============================================
- * PAGE EXPLORER
+ * PAGE EXPLORER - VERSION 3
  * ============================================
  * 
- * Mission: "Je cherche activement une partie ou un club"
- * 
- * Contenu:
- * - Barre de recherche
- * - Filtres (lieu, date, niveau, ambiance)
- * - Parties disponibles
- * - Clubs à proximité
- * - Groupes/Communautés (dynamiques depuis DB)
- * 
- * Branding: Sobre + Joueurs colorés
+ * Améliorations:
+ * - Parties en scroll horizontal (5-6 visibles)
+ * - Bouton "Voir toutes les parties"
+ * - Meilleure visibilité des clubs et groupes
  * 
  * ============================================
  */
@@ -37,6 +31,7 @@ export default function ExplorePage() {
   const [filterAmbiance, setFilterAmbiance] = useState('all')
   const [filterDate, setFilterDate] = useState('all')
   const [filterCity, setFilterCity] = useState('all')
+  const [showAllMatches, setShowAllMatches] = useState(false)
   
   // Données
   const [matches, setMatches] = useState([])
@@ -44,7 +39,6 @@ export default function ExplorePage() {
   const [groups, setGroups] = useState([])
   const [cities, setCities] = useState([])
 
-  // Couleurs avatars joueurs
   const playerColors = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6']
 
   const ambianceConfig = {
@@ -96,7 +90,7 @@ export default function ExplorePage() {
 
     setMatches(matchesData || [])
 
-    // Extraire les villes uniques des parties et clubs
+    // Extraire les villes uniques
     const citiesSet = new Set()
     ;(matchesData || []).forEach(m => {
       if (m.clubs?.city) citiesSet.add(m.clubs.city)
@@ -111,12 +105,11 @@ export default function ExplorePage() {
 
     setClubs(clubsData || [])
     
-    // Ajouter les villes des clubs
     ;(clubsData || []).forEach(c => {
       if (c.city) citiesSet.add(c.city)
     })
 
-    // Charger les groupes communautaires
+    // Charger les groupes
     const { data: groupsData } = await supabase
       .from('community_groups')
       .select('*')
@@ -126,15 +119,12 @@ export default function ExplorePage() {
 
     setGroups(groupsData || [])
 
-    // Ajouter les villes des groupes
     ;(groupsData || []).forEach(g => {
       if (g.city) citiesSet.add(g.city)
     })
 
-    // Trier les villes
     setCities(Array.from(citiesSet).sort())
 
-    // Si l'utilisateur a une ville, la sélectionner par défaut
     if (profileData?.city) {
       setFilterCity(profileData.city)
     }
@@ -151,10 +141,10 @@ export default function ExplorePage() {
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    if (date.toDateString() === today.toDateString()) return "Aujourd'hui"
-    if (date.toDateString() === tomorrow.toDateString()) return 'Demain'
+    if (date.toDateString() === today.toDateString()) return "Auj."
+    if (date.toDateString() === tomorrow.toDateString()) return 'Dem.'
     
-    return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+    return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
   }
 
   function formatTime(timeStr) {
@@ -193,7 +183,6 @@ export default function ExplorePage() {
   function getFilteredMatches() {
     let filtered = matches
 
-    // Recherche texte
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(m => 
@@ -203,7 +192,6 @@ export default function ExplorePage() {
       )
     }
 
-    // Filtre ville
     if (filterCity !== 'all') {
       filtered = filtered.filter(m => 
         m.clubs?.city?.toLowerCase() === filterCity.toLowerCase() ||
@@ -211,7 +199,6 @@ export default function ExplorePage() {
       )
     }
 
-    // Filtre niveau
     if (filterLevel !== 'all') {
       const [min, max] = filterLevel.split('-').map(Number)
       filtered = filtered.filter(m => {
@@ -221,12 +208,10 @@ export default function ExplorePage() {
       })
     }
 
-    // Filtre ambiance
     if (filterAmbiance !== 'all') {
       filtered = filtered.filter(m => m.ambiance === filterAmbiance)
     }
 
-    // Filtre date
     if (filterDate !== 'all') {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
@@ -241,17 +226,13 @@ export default function ExplorePage() {
         matchDate.setHours(0, 0, 0, 0)
 
         switch (filterDate) {
-          case 'today':
-            return matchDate.getTime() === today.getTime()
-          case 'tomorrow':
-            return matchDate.getTime() === tomorrow.getTime()
-          case 'week':
-            return matchDate <= weekEnd
+          case 'today': return matchDate.getTime() === today.getTime()
+          case 'tomorrow': return matchDate.getTime() === tomorrow.getTime()
+          case 'week': return matchDate <= weekEnd
           case 'weekend':
             const day = matchDate.getDay()
             return day === 0 || day === 6
-          default:
-            return true
+          default: return true
         }
       })
     }
@@ -334,6 +315,82 @@ export default function ExplorePage() {
     )
   }
 
+  // === MATCH CARD COMPACT (pour scroll horizontal) ===
+
+  function MatchCardCompact({ match }) {
+    const players = getMatchPlayers(match)
+    const emptySpots = players.filter(p => !p).length
+    const ambiance = ambianceConfig[match.ambiance] || ambianceConfig.mix
+
+    return (
+      <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <div style={{
+          width: 280,
+          background: '#fff',
+          borderRadius: 16,
+          padding: 16,
+          border: '1px solid #e2e8f0'
+        }}>
+          {/* Header: Date + Heure */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{
+              background: '#1a1a2e',
+              borderRadius: 8,
+              padding: '6px 12px',
+              color: '#fff'
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>
+                {formatDate(match.match_date)} · {formatTime(match.match_time) || '?'}
+              </span>
+            </div>
+            <span style={{
+              background: ambiance.color + '15',
+              color: ambiance.color,
+              padding: '4px 10px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 600
+            }}>
+              {ambiance.emoji}
+            </span>
+          </div>
+
+          {/* Club */}
+          <div style={{
+            fontWeight: 600,
+            fontSize: 15,
+            color: '#1a1a2e',
+            marginBottom: 4,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {match.clubs?.name || match.city || 'Lieu flexible'}
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+            Par {match.profiles?.name || 'Inconnu'} · ⭐ {match.level_min}-{match.level_max}
+          </div>
+
+          {/* Joueurs */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex' }}>
+              {players.map((player, i) => (
+                <PlayerAvatar key={i} player={player} index={i} size={32} />
+              ))}
+            </div>
+            <span style={{
+              fontSize: 12,
+              color: emptySpots === 0 ? '#22c55e' : '#64748b',
+              fontWeight: 600
+            }}>
+              {emptySpots === 0 ? '✓ Complet' : `${emptySpots} place${emptySpots > 1 ? 's' : ''}`}
+            </span>
+          </div>
+        </div>
+      </Link>
+    )
+  }
+
   // === LOADING ===
 
   if (loading) {
@@ -346,6 +403,7 @@ export default function ExplorePage() {
   }
 
   const filteredMatches = getFilteredMatches()
+  const displayedMatches = showAllMatches ? filteredMatches : filteredMatches.slice(0, 6)
 
   return (
     <div>
@@ -364,15 +422,9 @@ export default function ExplorePage() {
       {/* ============================================ */}
       {/* BARRE DE RECHERCHE                          */}
       {/* ============================================ */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{
-          display: 'flex',
-          gap: 8
-        }}>
-          <div style={{
-            flex: 1,
-            position: 'relative'
-          }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, position: 'relative' }}>
             <span style={{
               position: 'absolute',
               left: 14,
@@ -408,10 +460,7 @@ export default function ExplorePage() {
               borderRadius: 12,
               fontSize: 14,
               fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
+              cursor: 'pointer'
             }}
           >
             ⚙️
@@ -427,7 +476,7 @@ export default function ExplorePage() {
           background: '#fff',
           borderRadius: 12,
           padding: 16,
-          marginBottom: 20,
+          marginBottom: 16,
           border: '1px solid #e2e8f0'
         }}>
           {/* Ville */}
@@ -580,10 +629,10 @@ export default function ExplorePage() {
         paddingBottom: 4
       }}>
         {[
-          { id: 'all', label: 'Toutes les dates' },
-          { id: 'today', label: "Aujourd'hui" },
-          { id: 'tomorrow', label: 'Demain' },
-          { id: 'week', label: 'Cette semaine' },
+          { id: 'all', label: 'Toutes' },
+          { id: 'today', label: "Auj." },
+          { id: 'tomorrow', label: 'Dem.' },
+          { id: 'week', label: 'Semaine' },
           { id: 'weekend', label: 'Week-end' }
         ].map(f => (
           <button
@@ -607,12 +656,40 @@ export default function ExplorePage() {
       </div>
 
       {/* ============================================ */}
-      {/* PARTIES DISPONIBLES                         */}
+      {/* PARTIES DISPONIBLES (SCROLL HORIZONTAL)     */}
       {/* ============================================ */}
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 16px', color: '#1a1a2e' }}>
-          🎾 Parties disponibles
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+            🎾 Parties disponibles
+            <span style={{
+              marginLeft: 8,
+              background: '#f1f5f9',
+              padding: '2px 10px',
+              borderRadius: 10,
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#64748b'
+            }}>
+              {filteredMatches.length}
+            </span>
+          </h2>
+          {filteredMatches.length > 6 && (
+            <button
+              onClick={() => setShowAllMatches(!showAllMatches)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#3b82f6',
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              {showAllMatches ? 'Réduire' : 'Voir tout →'}
+            </button>
+          )}
+        </div>
 
         {filteredMatches.length === 0 ? (
           <div style={{
@@ -630,128 +707,26 @@ export default function ExplorePage() {
               Essaie d'élargir tes filtres ou crée ta propre partie
             </p>
           </div>
-        ) : (
+        ) : showAllMatches ? (
+          // Mode liste verticale quand "Voir tout"
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {filteredMatches.map(match => {
-              const players = getMatchPlayers(match)
-              const emptySpots = players.filter(p => !p).length
-              const ambiance = ambianceConfig[match.ambiance] || ambianceConfig.mix
-              const pricePerPerson = match.price_total ? Math.round(match.price_total / 100 / 4) : null
-
-              return (
-                <Link
-                  href={`/dashboard/match/${match.id}`}
-                  key={match.id}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <div style={{
-                    background: '#fff',
-                    borderRadius: 16,
-                    padding: 16,
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    gap: 14,
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    transition: 'border-color 0.2s'
-                  }}>
-                    {/* Badge date/heure */}
-                    <div style={{
-                      background: '#1a1a2e',
-                      borderRadius: 12,
-                      padding: '12px 14px',
-                      color: '#fff',
-                      textAlign: 'center',
-                      minWidth: 70,
-                      flexShrink: 0
-                    }}>
-                      <div style={{ fontSize: 11, opacity: 0.8 }}>
-                        {formatDate(match.match_date)}
-                      </div>
-                      <div style={{ fontSize: 18, fontWeight: 700 }}>
-                        {formatTime(match.match_time) || '?'}
-                      </div>
-                    </div>
-
-                    {/* Infos */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{
-                            fontWeight: 600,
-                            fontSize: 15,
-                            marginBottom: 2,
-                            color: '#1a1a2e',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}>
-                            {match.clubs?.name || match.city || 'Lieu flexible'}
-                          </div>
-                          <div style={{ fontSize: 12, color: '#64748b' }}>
-                            Par {match.profiles?.name || 'Inconnu'}
-                          </div>
-                        </div>
-                        {pricePerPerson > 0 && (
-                          <div style={{
-                            background: '#f0fdf4',
-                            color: '#16a34a',
-                            padding: '4px 10px',
-                            borderRadius: 8,
-                            fontSize: 14,
-                            fontWeight: 700,
-                            flexShrink: 0,
-                            marginLeft: 8
-                          }}>
-                            {pricePerPerson}€
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Tags + Avatars */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{
-                          background: '#f1f5f9',
-                          padding: '4px 10px',
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: '#475569'
-                        }}>
-                          ⭐ {match.level_min}-{match.level_max}
-                        </span>
-                        <span style={{
-                          background: ambiance.color + '15',
-                          color: ambiance.color,
-                          padding: '4px 10px',
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontWeight: 600
-                        }}>
-                          {ambiance.emoji}
-                        </span>
-
-                        {/* Avatars */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-                          <div style={{ display: 'flex' }}>
-                            {players.map((player, i) => (
-                              <PlayerAvatar key={i} player={player} index={i} size={26} />
-                            ))}
-                          </div>
-                          <span style={{
-                            fontSize: 11,
-                            color: emptySpots === 0 ? '#22c55e' : '#64748b',
-                            fontWeight: 600
-                          }}>
-                            {emptySpots === 0 ? 'Complet' : `${emptySpots} place${emptySpots > 1 ? 's' : ''}`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
+            {filteredMatches.map(match => (
+              <MatchCardCompact key={match.id} match={match} />
+            ))}
+          </div>
+        ) : (
+          // Mode scroll horizontal par défaut
+          <div style={{
+            display: 'flex',
+            gap: 12,
+            overflowX: 'auto',
+            paddingBottom: 8,
+            marginRight: -16,
+            paddingRight: 16
+          }}>
+            {displayedMatches.map(match => (
+              <MatchCardCompact key={match.id} match={match} />
+            ))}
           </div>
         )}
       </section>
@@ -829,7 +804,7 @@ export default function ExplorePage() {
       </section>
 
       {/* ============================================ */}
-      {/* GROUPES & COMMUNAUTÉS (dynamiques)          */}
+      {/* GROUPES & COMMUNAUTÉS                       */}
       {/* ============================================ */}
       <section>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -854,7 +829,7 @@ export default function ExplorePage() {
               </p>
             </div>
           ) : (
-            getFilteredGroups().slice(0, 5).map((group, i, arr) => {
+            getFilteredGroups().slice(0, 4).map((group, i, arr) => {
               const typeConfig = {
                 whatsapp: { icon: '💬', color: '#dcfce7' },
                 facebook: { icon: '👥', color: '#dbeafe' },
@@ -872,54 +847,49 @@ export default function ExplorePage() {
                   rel="noopener noreferrer"
                   style={{ textDecoration: 'none' }}
                 >
-                  <div
-                    style={{
-                      padding: '16px 20px',
-                      borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      cursor: 'pointer'
-                    }}
-                  >
+                  <div style={{
+                    padding: '14px 20px',
+                    borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    cursor: 'pointer'
+                  }}>
                     <div style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 12,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
                       background: config.color,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 20
+                      fontSize: 18
                     }}>
                       {config.icon}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontWeight: 600, fontSize: 15, color: '#1a1a2e' }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>
                           {group.name}
                         </span>
                         {group.is_verified && (
                           <span style={{ fontSize: 12, color: '#3b82f6' }}>✓</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>
-                        {group.type.charAt(0).toUpperCase() + group.type.slice(1)} 
-                        {group.city && ` · ${group.city}`}
-                        {group.member_count > 0 && ` · ${group.member_count} membres`}
+                      <div style={{ fontSize: 11, color: '#64748b' }}>
+                        {group.city && `${group.city} · `}{group.member_count} membres
                       </div>
                     </div>
-                    <span style={{ color: '#cbd5e1', fontSize: 18 }}>›</span>
+                    <span style={{ color: '#cbd5e1', fontSize: 16 }}>›</span>
                   </div>
                 </a>
               )
             })
           )}
 
-          {/* Ajouter un groupe */}
           <Link href="/dashboard/groups/add" style={{ textDecoration: 'none' }}>
             <div style={{
-              padding: '16px 20px',
+              padding: '14px 20px',
               borderTop: '1px solid #f1f5f9',
               display: 'flex',
               alignItems: 'center',
@@ -928,20 +898,20 @@ export default function ExplorePage() {
               background: '#f8fafc'
             }}>
               <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
+                width: 40,
+                height: 40,
+                borderRadius: 10,
                 background: '#fff',
                 border: '2px dashed #cbd5e1',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 20,
+                fontSize: 18,
                 color: '#94a3b8'
               }}>
                 +
               </div>
-              <div style={{ fontWeight: 600, fontSize: 14, color: '#64748b' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: '#64748b' }}>
                 Ajouter un groupe
               </div>
             </div>

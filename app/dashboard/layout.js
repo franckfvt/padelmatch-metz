@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import PlayerCardModal from '@/app/components/PlayerCardModal'
+import WelcomeModal from '@/app/components/WelcomeModal'
 
 export default function DashboardLayout({ children }) {
   const router = useRouter()
@@ -32,6 +33,7 @@ export default function DashboardLayout({ children }) {
   const [showCardModal, setShowCardModal] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
+  const [showWelcome, setShowWelcome] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -59,6 +61,11 @@ export default function DashboardLayout({ children }) {
     }
 
     setProfile(profileData)
+    
+    // Afficher le popup de bienvenue si première visite
+    if (profileData && !profileData.has_seen_welcome) {
+      setShowWelcome(true)
+    }
     
     // TODO: Charger les notifications
     // const { data: notifs } = await supabase.from('notifications')...
@@ -442,6 +449,14 @@ export default function DashboardLayout({ children }) {
           background: #94a3b8;
         }
       `}</style>
+
+      {/* Modal de bienvenue pour les nouveaux utilisateurs */}
+      {showWelcome && profile && (
+        <WelcomeModal 
+          profile={profile} 
+          onClose={() => setShowWelcome(false)} 
+        />
+      )}
     </div>
   )
 }

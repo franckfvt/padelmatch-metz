@@ -330,6 +330,93 @@ export default function MePage() {
       </div>
 
       {/* ============================================ */}
+      {/* BADGES & PARRAINAGE                         */}
+      {/* ============================================ */}
+      <div style={{
+        background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 16,
+        border: '1px solid #fcd34d'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#92400e' }}>
+            🏅 Badges & Parrainage
+          </h2>
+          <Link href="/dashboard/me/badges" style={{ fontSize: 13, color: '#92400e', textDecoration: 'none', fontWeight: 500 }}>
+            Voir tout →
+          </Link>
+        </div>
+
+        <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+          {/* Badges */}
+          <div style={{
+            flex: 1,
+            background: '#fff',
+            borderRadius: 12,
+            padding: 16,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 4 }}>🏆</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a2e' }}>
+              {profile?.badges_count || 0}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>badges</div>
+          </div>
+
+          {/* Filleuls */}
+          <div style={{
+            flex: 1,
+            background: '#fff',
+            borderRadius: 12,
+            padding: 16,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 4 }}>👥</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a2e' }}>
+              {profile?.referral_count || 0}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>filleuls</div>
+          </div>
+
+          {/* Numéro membre */}
+          <div style={{
+            flex: 1,
+            background: '#fff',
+            borderRadius: 12,
+            padding: 16,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 4 }}>🎫</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a2e' }}>
+              #{profile?.signup_number || '?'}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>membre</div>
+          </div>
+        </div>
+
+        <Link href="/dashboard/community" style={{ textDecoration: 'none' }}>
+          <button style={{
+            width: '100%',
+            padding: 14,
+            background: '#92400e',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 10,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8
+          }}>
+            📧 Inviter des amis
+          </button>
+        </Link>
+      </div>
+
+      {/* ============================================ */}
       {/* MON PROFIL                                  */}
       {/* ============================================ */}
       <div style={{
@@ -480,6 +567,11 @@ export default function MePage() {
             icon="🔒" 
             label="Confidentialité" 
             href="/dashboard/settings/privacy"
+          />
+          <SettingsRow 
+            icon="💡" 
+            label="Boîte à idées" 
+            href="/dashboard/ideas"
           />
           <SettingsRow 
             icon="❓" 
