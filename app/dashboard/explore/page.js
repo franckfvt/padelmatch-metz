@@ -918,6 +918,46 @@ export default function ExplorePage() {
           </Link>
         </div>
       </section>
+
+      {/* Styles responsive */}
+      <style jsx global>{`
+        .explore-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .explore-matches-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        @media (min-width: 768px) {
+          .explore-matches-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (min-width: 1280px) {
+          .explore-matches-list {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        .explore-groups-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        }
+        @media (min-width: 640px) {
+          .explore-groups-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        @media (min-width: 1024px) {
+          .explore-groups-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+      `}</style>
     </div>
   )
 }

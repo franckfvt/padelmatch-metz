@@ -704,8 +704,8 @@ export default function CommunityPage() {
           )}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {currentPlayers.slice(0, 20).map((player, i) => (
+        <div className="players-grid" style={{ display: 'grid', gap: 12 }}>
+          {currentPlayers.slice(0, 30).map((player, i) => (
             <PlayerCard 
               key={player.id} 
               player={player} 
@@ -713,9 +713,9 @@ export default function CommunityPage() {
               showLastPlayed={activeTab === 'recent'}
             />
           ))}
-          {currentPlayers.length > 20 && (
-            <div style={{ textAlign: 'center', padding: 16, color: '#64748b', fontSize: 13 }}>
-              Et {currentPlayers.length - 20} autres joueurs...
+          {currentPlayers.length > 30 && (
+            <div style={{ textAlign: 'center', padding: 16, color: '#64748b', fontSize: 13, gridColumn: '1 / -1' }}>
+              Et {currentPlayers.length - 30} autres joueurs...
             </div>
           )}
         </div>
@@ -900,6 +900,30 @@ export default function CommunityPage() {
           </div>
         </div>
       )}
+
+      {/* Styles responsive */}
+      <style jsx global>{`
+        .players-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        @media (min-width: 640px) {
+          .players-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (min-width: 1024px) {
+          .players-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        @media (min-width: 1280px) {
+          .players-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+      `}</style>
     </div>
   )
 }

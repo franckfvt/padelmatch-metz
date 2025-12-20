@@ -28,6 +28,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   
+  // Stats et favoris pour la sidebar desktop
+  const [stats, setStats] = useState(null)
+  const [favorites, setFavorites] = useState([])
+  const [favClubs, setFavClubs] = useState([])
+  
   // Filtres
   const [showFilters, setShowFilters] = useState(false)
   const [filterAmbiance, setFilterAmbiance] = useState('all')
@@ -148,6 +153,29 @@ export default function DashboardPage() {
         .limit(30)
 
       setMatches(matchesData || [])
+
+      // === STATS ET FAVORIS POUR SIDEBAR ===
+      const { data: statsData } = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .single()
+      setStats(statsData)
+
+      const { data: favsData } = await supabase
+        .from('player_favorites')
+        .select('*, profiles!player_favorites_favorite_id_fkey(id, name, avatar_url, level, city)')
+        .eq('user_id', session.user.id)
+        .limit(5)
+      setFavorites(favsData || [])
+
+      const { data: clubsData } = await supabase
+        .from('club_favorites')
+        .select('*, clubs(id, name, city)')
+        .eq('user_id', session.user.id)
+        .limit(3)
+      setFavClubs(clubsData || [])
+
       setLoading(false)
 
     } catch (error) {
@@ -350,8 +378,28 @@ export default function DashboardPage() {
   const filteredMatches = getFilteredMatches()
   const userCity = profile?.city || profile?.region || 'ta ville'
 
+  // Couleur avatar basée sur la première lettre du nom
+  const LETTER_COLORS = {
+    A: '#3b82f6', B: '#22c55e', C: '#f59e0b', D: '#a855f7',
+    E: '#ef4444', F: '#06b6d4', G: '#ec4899', H: '#14b8a6',
+    I: '#3b82f6', J: '#22c55e', K: '#f59e0b', L: '#a855f7',
+    M: '#ef4444', N: '#06b6d4', O: '#ec4899', P: '#14b8a6',
+    Q: '#3b82f6', R: '#22c55e', S: '#f59e0b', T: '#a855f7',
+    U: '#ef4444', V: '#06b6d4', W: '#ec4899', X: '#14b8a6',
+    Y: '#3b82f6', Z: '#22c55e'
+  }
+  function getColorForName(name) {
+    const letter = (name || 'A')[0].toUpperCase()
+    return LETTER_COLORS[letter] || '#3b82f6'
+  }
+
   return (
-    <div>
+    <>
+      <div className="dashboard-layout">
+        {/* ============================================ */}
+        {/* COLONNE PRINCIPALE                          */}
+        {/* ============================================ */}
+        <div className="main-column">
       
       {/* ============================================ */}
       {/* HEADER DE BIENVENUE                         */}
@@ -893,6 +941,99 @@ export default function DashboardPage() {
         </Link>
       </section>
 
+        </div>
+        {/* Fin de main-column */}
+
+        {/* ============================================ */}
+        {/* SIDEBAR (Desktop uniquement)                */}
+        {/* ============================================ */}
+        <aside className="sidebar-column">
+          {/* Stats */}
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>📊 Mes stats</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>{stats?.total_matches || 0}</div>
+                <div style={{ fontSize: 11, color: '#64748b' }}>Parties</div>
+              </div>
+              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>{stats?.wins || 0}</div>
+                <div style={{ fontSize: 11, color: '#64748b' }}>Victoires</div>
+              </div>
+              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>⭐ {profile?.level || '?'}</div>
+                <div style={{ fontSize: 11, color: '#64748b' }}>Niveau</div>
+              </div>
+              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#22c55e' }}>{profile?.reliability_score || 100}%</div>
+                <div style={{ fontSize: 11, color: '#64748b' }}>Fiabilité</div>
+              </div>
+            </div>
+            <Link href="/dashboard/stats" style={{ display: 'block', textAlign: 'center', marginTop: 12, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>Voir détails →</Link>
+          </div>
+
+          {/* Joueurs favoris */}
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>👥 Joueurs favoris</h3>
+            {favorites.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', margin: 0 }}>Aucun favori</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {favorites.slice(0, 5).map((fav, i) => {
+                  const p = fav.profiles
+                  if (!p) return null
+                  const color = getColorForName(p.name)
+                  return (
+                    <Link href={`/player/${p.id}`} key={i} style={{ textDecoration: 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                          width: 40, height: 40, borderRadius: '50%',
+                          background: p.avatar_url ? '#000' : `linear-gradient(135deg, ${color}, ${color}cc)`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#fff', fontWeight: 700, fontSize: 16, overflow: 'hidden'
+                        }}>
+                          {p.avatar_url ? <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>{p.name}</div>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>⭐ {p.level} • {p.city || 'France'}</div>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+            <Link href="/dashboard/community" style={{ display: 'block', textAlign: 'center', marginTop: 16, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>Voir tous →</Link>
+          </div>
+
+          {/* Clubs favoris */}
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>🏟️ Clubs favoris</h3>
+            {favClubs.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', margin: 0 }}>Aucun club favori</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {favClubs.slice(0, 3).map((fav, i) => {
+                  const club = fav.clubs
+                  if (!club) return null
+                  return (
+                    <Link href="/dashboard/clubs" key={i} style={{ textDecoration: 'none' }}>
+                      <div style={{ padding: '10px 0', borderBottom: i < favClubs.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>📍 {club.name}</div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>{club.city}</div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+            <Link href="/dashboard/clubs" style={{ display: 'block', textAlign: 'center', marginTop: 16, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>Voir tous →</Link>
+          </div>
+        </aside>
+      </div>
+      {/* Fin de dashboard-layout */}
+
       {/* ============================================ */}
       {/* MODAL CRÉATION                              */}
       {/* ============================================ */}
@@ -907,12 +1048,42 @@ export default function DashboardPage() {
         userId={user?.id}
       />
 
-      {/* Hide scrollbar */}
+      {/* Styles responsive */}
       <style jsx global>{`
         div::-webkit-scrollbar {
           display: none;
         }
+        .dashboard-layout {
+          display: flex;
+          gap: 32px;
+        }
+        .main-column {
+          flex: 1;
+          min-width: 0;
+        }
+        .sidebar-column {
+          width: 320px;
+          flex-shrink: 0;
+          display: none;
+        }
+        
+        /* Desktop - afficher sidebar */
+        @media (min-width: 1024px) {
+          .sidebar-column {
+            display: block;
+          }
+        }
+        
+        /* Large desktop */
+        @media (min-width: 1280px) {
+          .sidebar-column {
+            width: 360px;
+          }
+          .dashboard-layout {
+            gap: 40px;
+          }
+        }
       `}</style>
-    </div>
+    </>
   )
 }

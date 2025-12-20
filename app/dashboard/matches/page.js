@@ -504,7 +504,7 @@ export default function MesPartiesPage() {
       {/* ============================================ */}
       {/* MINI STATS                                  */}
       {/* ============================================ */}
-      <div style={{
+      <div className="stats-mini-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
         gap: 12,
@@ -1384,6 +1384,27 @@ export default function MesPartiesPage() {
           </div>
         </div>
       )}
+
+      {/* Styles responsive */}
+      <style jsx global>{`
+        /* Stats grid responsive */
+        .stats-mini-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+        @media (max-width: 640px) {
+          .stats-mini-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+        @media (max-width: 400px) {
+          .stats-mini-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }
