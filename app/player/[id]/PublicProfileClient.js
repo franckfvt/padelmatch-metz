@@ -1,22 +1,30 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import PlayerCard from '@/app/components/PlayerCard'
 
-export default function PublicProfileClient({ playerId }) {
+export default function PublicProfileClient() {
+  const params = useParams()
+  const playerId = params?.id
+  
   const [profile, setProfile] = useState(null)
   const [recentMatches, setRecentMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    loadData()
+    if (playerId) {
+      loadData()
+    }
   }, [playerId])
 
   async function loadData() {
     try {
+      console.log('Loading player ID:', playerId)
+      
       // Charger le profil (doit être accessible publiquement via RLS)
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')

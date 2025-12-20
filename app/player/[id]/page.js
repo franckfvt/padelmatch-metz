@@ -65,6 +65,6 @@ export async function generateMetadata({ params }) {
   }
 }
 
-export default function PublicProfilePage({ params }) {
-  return <PublicProfileClient playerId={params.id} />
+export default function PublicProfilePage() {
+  return <PublicProfileClient />
 }
