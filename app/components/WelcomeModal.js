@@ -171,10 +171,10 @@ export default function WelcomeModal({ profile, onClose }) {
           </div>
         )}
 
-        {/* Step 2: L'app a besoin de toi */}
+        {/* Step 2: Rejoins le mouvement */}
         {step === 2 && (
           <div style={{ padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🚀</div>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🌍</div>
             
             <h2 style={{ 
               fontSize: 24, 
@@ -182,29 +182,42 @@ export default function WelcomeModal({ profile, onClose }) {
               margin: '0 0 12px',
               color: '#1a1a2e'
             }}>
-              L'app a besoin de toi !
+              Rejoins le mouvement !
             </h2>
             
             <p style={{ 
               fontSize: 15, 
               color: '#64748b', 
               lineHeight: 1.6,
-              marginBottom: 24
+              marginBottom: 20
             }}>
-              PadelMatch est tout nouveau et <strong style={{ color: '#1a1a2e' }}>plus on sera nombreux, plus l'app sera utile</strong> pour trouver des parties et des partenaires.
+              Tu fais désormais partie d'une <strong style={{ color: '#22c55e' }}>communauté de passionnés de padel</strong> qui grandit chaque jour. Ensemble, rendons ce sport plus accessible !
             </p>
+
+            {/* Stats communauté */}
+            <div style={{
+              background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 20,
+              border: '1px solid #bbf7d0'
+            }}>
+              <div style={{ fontSize: 13, color: '#166534', fontWeight: 600 }}>
+                🎾 Plus on sera nombreux, plus on trouvera de partenaires et de parties !
+              </div>
+            </div>
 
             <div style={{ textAlign: 'left', marginBottom: 24 }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e', marginBottom: 12 }}>
-                Comment tu peux aider :
+                🏅 Deviens ambassadeur :
               </h3>
               
               {[
-                { emoji: '👥', text: 'Invite tes partenaires de padel à rejoindre l\'app' },
-                { emoji: '🏟️', text: 'Ajoute les clubs où tu joues' },
-                { emoji: '💬', text: 'Ajoute les groupes WhatsApp que tu connais' },
-                { emoji: '💡', text: 'Partage tes idées dans la boîte à idées' },
-                { emoji: '🎾', text: 'Crée et organise des parties !' }
+                { emoji: '👥', text: 'Invite tes partenaires de padel habituels' },
+                { emoji: '🏟️', text: 'Ajoute les clubs de ta région' },
+                { emoji: '💬', text: 'Partage les groupes WhatsApp padel que tu connais' },
+                { emoji: '💡', text: 'Propose tes idées pour améliorer l\'app' },
+                { emoji: '🎾', text: 'Organise ta première partie !' }
               ].map((item, i) => (
                 <div key={i} style={{
                   display: 'flex',
@@ -241,7 +254,7 @@ export default function WelcomeModal({ profile, onClose }) {
                 style={{
                   flex: 2,
                   padding: 14,
-                  background: '#1a1a2e',
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 12,
@@ -250,7 +263,7 @@ export default function WelcomeModal({ profile, onClose }) {
                   cursor: 'pointer'
                 }}
               >
-                Continuer →
+                Voir les badges →
               </button>
             </div>
           </div>
@@ -259,47 +272,55 @@ export default function WelcomeModal({ profile, onClose }) {
         {/* Step 3: Parrainage */}
         {step === 3 && (
           <div style={{ padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🎁</div>
-            
             <h2 style={{ 
               fontSize: 24, 
               fontWeight: 700, 
-              margin: '0 0 12px',
+              margin: '0 0 8px',
               color: '#1a1a2e'
             }}>
-              Invite tes amis !
+              🎁 Invite et débloque des badges !
             </h2>
             
             <p style={{ 
-              fontSize: 15, 
+              fontSize: 14, 
               color: '#64748b', 
-              lineHeight: 1.6,
+              lineHeight: 1.5,
               marginBottom: 20
             }}>
-              Chaque personne qui rejoint grâce à toi te rapproche de <strong style={{ color: '#1a1a2e' }}>nouveaux badges</strong> et d'un réseau de padel plus grand !
+              Plus tu invites, plus tu gagnes de badges exclusifs !
             </p>
 
-            {/* Badges de parrainage */}
+            {/* Badges de parrainage - Améliорés */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 8,
-              marginBottom: 20
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 6,
+              marginBottom: 20,
+              padding: '0 4px'
             }}>
               {[
-                { emoji: '🤲', label: '1 invité', name: 'Parrain' },
-                { emoji: '📢', label: '5 invités', name: 'Ambassadeur' },
-                { emoji: '🌟', label: '20 invités', name: 'Super' },
-                { emoji: '🏆', label: '50 invités', name: 'Légende' }
+                { emoji: '🤲', count: '1', name: 'Parrain', color: '#dbeafe', border: '#93c5fd' },
+                { emoji: '📢', count: '5', name: 'Ambassadeur', color: '#fef3c7', border: '#fcd34d' },
+                { emoji: '🌟', count: '20', name: 'Super Star', color: '#f0fdf4', border: '#86efac' },
+                { emoji: '🏆', count: '50', name: 'Légende', color: '#fef2f2', border: '#fca5a5' }
               ].map((badge, i) => (
                 <div key={i} style={{
-                  background: '#f8fafc',
-                  borderRadius: 12,
-                  padding: '12px 8px',
-                  border: '1px solid #e2e8f0'
+                  flex: 1,
+                  background: badge.color,
+                  borderRadius: 14,
+                  padding: '14px 6px',
+                  border: `2px solid ${badge.border}`,
+                  position: 'relative'
                 }}>
-                  <div style={{ fontSize: 24, marginBottom: 4 }}>{badge.emoji}</div>
-                  <div style={{ fontSize: 10, color: '#64748b' }}>{badge.label}</div>
+                  <div style={{ fontSize: 28, marginBottom: 4 }}>{badge.emoji}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1a1a2e' }}>{badge.name}</div>
+                  <div style={{ 
+                    fontSize: 10, 
+                    color: '#64748b',
+                    marginTop: 2
+                  }}>
+                    {badge.count} invité{badge.count > 1 ? 's' : ''}
+                  </div>
                 </div>
               ))}
             </div>

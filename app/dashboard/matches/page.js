@@ -473,6 +473,17 @@ export default function MesPartiesPage() {
         gap: 16
       }}>
         <div>
+          <Link href="/dashboard/explore" style={{ 
+            color: '#64748b', 
+            textDecoration: 'none', 
+            fontSize: 14,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            marginBottom: 8
+          }}>
+            ← Explorer
+          </Link>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
             Mes parties
           </h1>

@@ -201,15 +201,20 @@ export default function ShareMatchModal({ match, players, onClose }) {
             <button
               onClick={() => setShowTextEdit(!showTextEdit)}
               style={{
-                background: 'none',
-                border: 'none',
-                fontSize: 12,
-                color: '#3b82f6',
+                background: showTextEdit ? '#e2e8f0' : '#f0fdf4',
+                border: '1px solid ' + (showTextEdit ? '#cbd5e1' : '#bbf7d0'),
+                borderRadius: 8,
+                padding: '8px 14px',
+                fontSize: 13,
+                color: showTextEdit ? '#64748b' : '#166534',
                 cursor: 'pointer',
-                fontWeight: 500
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
               }}
             >
-              {showTextEdit ? 'Masquer' : '✏️ Modifier'}
+              {showTextEdit ? '✕ Fermer' : '✏️ Modifier le texte'}
             </button>
           </div>
           
@@ -299,7 +304,7 @@ export default function ShareMatchModal({ match, players, onClose }) {
               onClick={shareEmail}
               style={{
                 padding: '14px 8px',
-                background: '#007AFF',
+                background: '#64748b',
                 border: 'none',
                 borderRadius: 12,
                 cursor: 'pointer',
@@ -318,7 +323,7 @@ export default function ShareMatchModal({ match, players, onClose }) {
               onClick={shareNative}
               style={{
                 padding: '14px 8px',
-                background: '#1a1a2e',
+                background: '#475569',
                 border: 'none',
                 borderRadius: 12,
                 cursor: 'pointer',
@@ -332,6 +337,17 @@ export default function ShareMatchModal({ match, players, onClose }) {
               <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>Plus</span>
             </button>
           </div>
+          
+          {/* Info technique */}
+          <p style={{ 
+            fontSize: 11, 
+            color: '#94a3b8', 
+            textAlign: 'center', 
+            marginTop: 12,
+            marginBottom: 0
+          }}>
+            💡 L'image n'est pas incluse par Email/SMS. Utilisez "Télécharger" pour la joindre manuellement.
+          </p>
         </div>
 
         {/* Actions */}

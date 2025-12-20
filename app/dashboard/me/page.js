@@ -361,49 +361,86 @@ export default function MePage() {
             </div>
           </div>
 
-          {/* Card Badges */}
+          {/* Card Badges - Amélioré */}
           <div style={{
-            background: '#fff',
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
             borderRadius: 16,
             padding: 24,
             marginBottom: 24,
-            border: '1px solid #f1f5f9'
+            border: '1px solid #fcd34d'
           }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 16px', color: '#1a1a2e' }}>
-              🏅 Badges ({profile?.badges_count || 0}/24)
-            </h3>
-
-            <div style={{ display: 'flex', gap: 12 }}>
-              {['🌟', '🎾', '👥', '🔥', '📅'].map((emoji, i) => (
-                <div key={i} style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: userBadges[i] ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : '#f1f5f9',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 20
-                }}>
-                  {userBadges[i]?.badges?.icon || emoji}
-                </div>
-              ))}
-              <Link href="/dashboard/me/badges" style={{ textDecoration: 'none' }}>
-                <div style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: '#f1f5f9',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: '#94a3b8'
-                }}>
-                  +19
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#92400e' }}>
+                🏅 Mes badges
+              </h3>
+              <Link href="/dashboard/me/badges" style={{ 
+                fontSize: 13, 
+                color: '#92400e', 
+                textDecoration: 'none',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}>
+                Voir tous →
               </Link>
+            </div>
+
+            {userBadges.length > 0 ? (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {userBadges.slice(0, 6).map((badge, i) => (
+                  <div key={i} style={{
+                    background: '#fff',
+                    borderRadius: 12,
+                    padding: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                  }}>
+                    <div style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 20
+                    }}>
+                      {badge.badges?.icon || '🏅'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>{badge.badges?.name || 'Badge'}</div>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>Obtenu</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ 
+                background: 'rgba(255,255,255,0.7)', 
+                borderRadius: 12, 
+                padding: 20, 
+                textAlign: 'center' 
+              }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🎯</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#92400e', marginBottom: 4 }}>Aucun badge encore</div>
+                <div style={{ fontSize: 13, color: '#a16207' }}>Joue des parties pour débloquer tes premiers badges !</div>
+              </div>
+            )}
+
+            <div style={{ 
+              marginTop: 16, 
+              padding: '10px 14px', 
+              background: 'rgba(255,255,255,0.6)', 
+              borderRadius: 10,
+              fontSize: 13,
+              color: '#92400e',
+              fontWeight: 500,
+              textAlign: 'center'
+            }}>
+              {userBadges.length}/24 badges débloqués
             </div>
           </div>
 

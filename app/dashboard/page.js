@@ -405,7 +405,7 @@ export default function DashboardPage() {
         border: '1px solid #f1f5f9'
       }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 16px', color: '#1a1a2e' }}>
-          👋 Salut {profile?.name?.split(' ')[0] || 'Joueur'} !
+          👋 {profile?.name ? `Salut ${profile.name.split(' ')[0]} !` : 'Bienvenue !'}
         </h2>
         <button
           onClick={() => setShowCreateModal(true)}

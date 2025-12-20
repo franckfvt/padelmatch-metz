@@ -114,11 +114,11 @@ export default function MatchShareCard({ match, players = [] }) {
       width: '100%',
       maxWidth: 600,
       aspectRatio: '1.91 / 1',
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)',
+      background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
       borderRadius: 16,
       overflow: 'hidden',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: '1px solid rgba(255,255,255,0.15)',
       display: 'flex',
       flexDirection: 'column'
     }}>
@@ -136,7 +136,12 @@ export default function MatchShareCard({ match, players = [] }) {
             <span style={{ fontSize: 20 }}>🎾</span>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{locationName}</div>
           </div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+            {match?.profiles?.name && (
+              <span style={{ background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: 4, fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}>
+                👑 {match.profiles.name}
+              </span>
+            )}
             <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4, fontSize: 10, color: 'rgba(255,255,255,0.9)' }}>
               {ambiance.emoji} {ambiance.label}
             </span>
@@ -192,8 +197,8 @@ export default function MatchShareCard({ match, players = [] }) {
 
       {/* Footer avec logo - VISIBLE */}
       <div style={{
-        background: 'rgba(0,0,0,0.5)',
-        padding: '8px 16px',
+        background: 'rgba(0,0,0,0.4)',
+        padding: '10px 16px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
@@ -211,15 +216,12 @@ export default function MatchShareCard({ match, players = [] }) {
               <ellipse cx="12" cy="12" rx="4" ry="10" stroke="#fff" strokeWidth="1.5"/>
             </svg>
           </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>PadelMatch</div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>Organise tes parties et trouve des joueurs !</div>
-          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>PadelMatch</div>
         </div>
         <div style={{
           background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-          padding: '6px 12px', borderRadius: 6,
-          fontSize: 11, fontWeight: 700, color: '#fff'
+          padding: '8px 14px', borderRadius: 8,
+          fontSize: 12, fontWeight: 700, color: '#fff'
         }}>
           Rejoindre →
         </div>

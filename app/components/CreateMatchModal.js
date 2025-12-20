@@ -101,7 +101,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
       club_id: null,
       club_name: '',
       club_data: null,
-      city: '',
+      city: profile?.city || '', // Pré-remplir avec la ville du profil
       radius: 10,
       dateType: 'precise',
       date: '',
@@ -293,6 +293,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
     const newPartner = {
       id: `manual_${Date.now()}`, // ID temporaire unique
       name: manualPartnerName.trim(),
+      email: formData.manualPartnerEmail?.trim() || null,
       level: null,
       team: null,
       isManual: true
@@ -300,7 +301,8 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
     
     setFormData({
       ...formData,
-      partners: [...formData.partners, newPartner]
+      partners: [...formData.partners, newPartner],
+      manualPartnerEmail: '' // Reset email
     })
     setManualPartnerName('')
   }
@@ -383,7 +385,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
       // Optionnels (seulement si définis)
       if (formData.organizer_team) matchData.organizer_team = formData.organizer_team
       if (formData.hasBooked !== null) matchData.has_booked = formData.hasBooked
-      if (formData.price_total) matchData.price_total = parseInt(formData.price_total) * 100
+      if (formData.price_total) matchData.price_total = Math.round(parseFloat(formData.price_total) * 100)
       if (formData.paymentMethod) matchData.payment_method = formData.paymentMethod
 
       console.log('Creating match with data:', matchData)
@@ -440,6 +442,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
           match_id: match.id,
           inviter_id: userId,
           invitee_name: p.name,
+          invitee_email: p.email || null,
           team: p.team || null,
           status: 'pending',
           invite_token: crypto.randomUUID()
@@ -454,6 +457,12 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
         if (inviteError) {
           console.error('Error adding invites:', inviteError)
           // Ne pas faire échouer la création du match pour ça
+        }
+        
+        // Log pour les invitations avec email (à implémenter côté backend)
+        const emailInvites = manualPartners.filter(p => p.email)
+        if (emailInvites.length > 0) {
+          console.log('📧 Email invites to send:', emailInvites.map(p => ({ name: p.name, email: p.email })))
         }
       }
 
@@ -1022,27 +1031,46 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
 
               {/* Date précise */}
               {(formData.hasBooked || formData.dateType === 'precise') && (
-                <>
+                <div style={{
+                  background: '#f8fafc',
+                  borderRadius: 16,
+                  padding: 20,
+                  border: '1px solid #e2e8f0'
+                }}>
                   <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>Date</label>
+                    <label style={{ fontSize: 14, fontWeight: '600', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      📅 Date
+                    </label>
                     <input
                       type="date"
                       value={formData.date}
                       onChange={e => setFormData({ ...formData, date: e.target.value })}
                       min={getMinDate()}
-                      style={inputStyle}
+                      style={{
+                        ...inputStyle,
+                        background: '#fff',
+                        fontSize: 16,
+                        padding: 16
+                      }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>Heure</label>
+                    <label style={{ fontSize: 14, fontWeight: '600', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      🕐 Heure
+                    </label>
                     <input
                       type="time"
                       value={formData.time}
                       onChange={e => setFormData({ ...formData, time: e.target.value })}
-                      style={inputStyle}
+                      style={{
+                        ...inputStyle,
+                        background: '#fff',
+                        fontSize: 16,
+                        padding: 16
+                      }}
                     />
                   </div>
-                </>
+                </div>
               )}
 
               {/* Date flexible */}
@@ -1173,36 +1201,42 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                           {partner.isManual ? '⏳ Pas encore sur l\'app' : `Niveau ${partner.level}/10`}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 4 }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
                         <button
                           onClick={() => setPartnerTeam(partner.id, 'A')}
                           style={{
-                            padding: '6px 10px',
+                            padding: '8px 14px',
                             border: 'none',
-                            borderRadius: 6,
-                            background: partner.team === 'A' ? '#22c55e' : '#e5e5e5',
-                            color: partner.team === 'A' ? '#fff' : '#666',
+                            borderRadius: 8,
+                            background: partner.team === 'A' ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#f1f5f9',
+                            color: partner.team === 'A' ? '#fff' : '#64748b',
                             fontSize: 12,
-                            fontWeight: '600',
-                            cursor: 'pointer'
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
                           }}
                         >
-                          A
+                          🅰️ Équipe A
                         </button>
                         <button
                           onClick={() => setPartnerTeam(partner.id, 'B')}
                           style={{
-                            padding: '6px 10px',
+                            padding: '8px 14px',
                             border: 'none',
-                            borderRadius: 6,
-                            background: partner.team === 'B' ? '#3b82f6' : '#e5e5e5',
-                            color: partner.team === 'B' ? '#fff' : '#666',
+                            borderRadius: 8,
+                            background: partner.team === 'B' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : '#f1f5f9',
+                            color: partner.team === 'B' ? '#fff' : '#64748b',
                             fontSize: 12,
-                            fontWeight: '600',
-                            cursor: 'pointer'
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
                           }}
                         >
-                          B
+                          🅱️ Équipe B
                         </button>
                       </div>
                       <button
@@ -1276,36 +1310,49 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                     <div style={{ flex: 1, height: 1, background: '#e5e5e5' }}></div>
                   </div>
 
-                  {/* Ajout manuel */}
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 13, fontWeight: '600', color: '#666', display: 'block', marginBottom: 8 }}>
-                      ✏️ Ajouter quelqu'un qui n'est pas sur l'app
+                  {/* Ajout manuel avec email */}
+                  <div style={{ marginBottom: 16, padding: 16, background: '#f8fafc', borderRadius: 12 }}>
+                    <label style={{ fontSize: 13, fontWeight: '600', color: '#1a1a2e', display: 'block', marginBottom: 12 }}>
+                      ✉️ Inviter quelqu'un qui n'est pas sur l'app
                     </label>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <input
                         type="text"
                         value={manualPartnerName}
                         onChange={e => setManualPartnerName(e.target.value)}
-                        placeholder="Nom ou pseudo..."
-                        style={{ ...inputStyle, flex: 1 }}
-                        onKeyPress={e => e.key === 'Enter' && addManualPartner()}
+                        placeholder="Nom ou pseudo *"
+                        style={{ ...inputStyle }}
+                      />
+                      <input
+                        type="email"
+                        value={formData.manualPartnerEmail || ''}
+                        onChange={e => setFormData({...formData, manualPartnerEmail: e.target.value})}
+                        placeholder="Email (optionnel - pour l'inviter)"
+                        style={{ ...inputStyle }}
                       />
                       <button
                         onClick={addManualPartner}
                         disabled={!manualPartnerName.trim()}
                         style={{
                           padding: '12px 16px',
-                          background: manualPartnerName.trim() ? '#1a1a1a' : '#e5e5e5',
+                          background: manualPartnerName.trim() ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#e5e5e5',
                           color: manualPartnerName.trim() ? '#fff' : '#999',
                           border: 'none',
                           borderRadius: 10,
                           fontWeight: '600',
-                          cursor: manualPartnerName.trim() ? 'pointer' : 'not-allowed'
+                          cursor: manualPartnerName.trim() ? 'pointer' : 'not-allowed',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8
                         }}
                       >
-                        +
+                        {formData.manualPartnerEmail ? '✉️ Ajouter et envoyer invitation' : '+ Ajouter à la partie'}
                       </button>
                     </div>
+                    <p style={{ fontSize: 11, color: '#64748b', marginTop: 8, textAlign: 'center' }}>
+                      💡 Si tu ajoutes un email, cette personne recevra une invitation pour rejoindre
+                    </p>
                   </div>
 
                   {/* Joueurs récents */}
@@ -1402,17 +1449,48 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
               <h2 style={{ fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>
                 Derniers détails
               </h2>
-              <p style={{ textAlign: 'center', color: '#666', fontSize: 14, marginBottom: 24 }}>
+              <p style={{ textAlign: 'center', color: '#666', fontSize: 14, marginBottom: 8 }}>
                 Optionnel mais utile pour trouver des joueurs
               </p>
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                style={{
+                  display: 'block',
+                  margin: '0 auto 24px',
+                  padding: '8px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#22c55e',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                {loading ? '...' : '→ Passer et créer directement'}
+              </button>
 
               {/* Niveau */}
               <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  Niveau recherché : {formData.level_min} - {formData.level_max}
+                  Niveau recherché
                 </label>
+                {/* Aide niveau */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  fontSize: 11, 
+                  color: '#64748b', 
+                  marginBottom: 8,
+                  padding: '0 4px'
+                }}>
+                  <span>1-3 Débutant</span>
+                  <span>4-6 Intermédiaire</span>
+                  <span>7+ Avancé</span>
+                </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: '#888' }}>1</span>
+                  <span style={{ fontSize: 12, color: '#888', minWidth: 16 }}>{formData.level_min}</span>
                   <input
                     type="range"
                     min="1"
@@ -1422,7 +1500,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                       ...formData,
                       level_min: Math.min(parseInt(e.target.value), formData.level_max)
                     })}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, accentColor: '#22c55e' }}
                   />
                   <input
                     type="range"
@@ -1433,9 +1511,12 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                       ...formData,
                       level_max: Math.max(parseInt(e.target.value), formData.level_min)
                     })}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, accentColor: '#22c55e' }}
                   />
-                  <span style={{ fontSize: 12, color: '#888' }}>10</span>
+                  <span style={{ fontSize: 12, color: '#888', minWidth: 20 }}>{formData.level_max === 10 ? '10' : formData.level_max + '+'}</span>
+                </div>
+                <div style={{ textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: 600, color: '#166534' }}>
+                  Niveau {formData.level_min} à {formData.level_max}
                 </div>
               </div>
 
@@ -1476,16 +1557,18 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                 <div style={{ position: 'relative' }}>
                   <input
                     type="number"
+                    step="0.50"
+                    min="0"
                     value={formData.price_total}
                     onChange={e => setFormData({ ...formData, price_total: e.target.value })}
-                    placeholder="Ex: 60"
+                    placeholder="Ex: 60.00"
                     style={{ ...inputStyle, paddingRight: 40 }}
                   />
                   <span style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', color: '#999' }}>€</span>
                 </div>
                 {formData.price_total && (
                   <p style={{ fontSize: 13, color: '#22c55e', marginTop: 6 }}>
-                    → {Math.round(parseInt(formData.price_total) / 4)}€ par personne
+                    → {(parseFloat(formData.price_total) / 4).toFixed(2)}€ par personne
                   </p>
                 )}
               </div>
@@ -1535,13 +1618,25 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
           {step === 6 && matchCreated && !showAddClub && !showClubInfo && (
             <>
               <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-                <h2 style={{ fontSize: 22, fontWeight: '700', marginBottom: 8 }}>Partie créée !</h2>
-                <p style={{ color: '#666', fontSize: 14 }}>Partage-la pour trouver des joueurs</p>
+                <div style={{ 
+                  width: 80, 
+                  height: 80, 
+                  borderRadius: '50%', 
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                  fontSize: 40
+                }}>
+                  ✓
+                </div>
+                <h2 style={{ fontSize: 24, fontWeight: '700', marginBottom: 8, color: '#1a1a2e' }}>Partie créée ! 🎉</h2>
+                <p style={{ color: '#64748b', fontSize: 15 }}>Partage-la maintenant pour trouver des joueurs</p>
               </div>
 
               {/* Carte de match style FIFA */}
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 24 }}>
                 <MatchCard 
                   match={{
                     ...matchCreated,
@@ -1562,24 +1657,71 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                 />
               </div>
 
-              {/* Boutons */}
-              <button
-                onClick={copyLink}
-                style={{
-                  width: '100%',
-                  padding: 16,
-                  background: copied ? '#22c55e' : '#1a1a1a',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: 16,
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  marginBottom: 10
-                }}
-              >
-                {copied ? '✓ Lien copié !' : '📋 Copier le lien'}
-              </button>
+              {/* Boutons de partage rapide */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 10, textAlign: 'center' }}>
+                  Partager via
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  <button
+                    onClick={() => {
+                      const text = `🎾 Partie de padel !\n📅 ${formData.date || 'Date flexible'}\n📍 ${selectedClub?.name || formData.city}\n\nRejoins-nous : ${window.location.origin}/join/${matchCreated.id}`
+                      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+                    }}
+                    style={{
+                      padding: '14px 8px',
+                      background: '#25D366',
+                      border: 'none',
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <span style={{ fontSize: 22 }}>💬</span>
+                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>WhatsApp</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const text = `🎾 Partie de padel ! Rejoins-nous : ${window.location.origin}/join/${matchCreated.id}`
+                      window.open(`sms:?body=${encodeURIComponent(text)}`, '_blank')
+                    }}
+                    style={{
+                      padding: '14px 8px',
+                      background: '#f1f5f9',
+                      border: 'none',
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <span style={{ fontSize: 22 }}>✉️</span>
+                    <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>SMS</span>
+                  </button>
+                  <button
+                    onClick={copyLink}
+                    style={{
+                      padding: '14px 8px',
+                      background: copied ? '#dcfce7' : '#f1f5f9',
+                      border: 'none',
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <span style={{ fontSize: 22 }}>{copied ? '✓' : '🔗'}</span>
+                    <span style={{ fontSize: 11, color: copied ? '#166534' : '#64748b', fontWeight: 600 }}>{copied ? 'Copié !' : 'Copier'}</span>
+                  </button>
+                </div>
+              </div>
 
               <button
                 onClick={() => {
@@ -1590,16 +1732,20 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                 style={{
                   width: '100%',
                   padding: 16,
-                  background: '#1a1a1a',
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 12,
                   fontSize: 16,
                   fontWeight: '600',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
                 }}
               >
-                Voir la partie →
+                Voir ma partie →
               </button>
             </>
           )}

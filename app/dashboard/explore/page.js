@@ -33,6 +33,10 @@ export default function ExplorePage() {
   const [filterCity, setFilterCity] = useState('all')
   const [showAllMatches, setShowAllMatches] = useState(false)
   
+  // Suggestions de recherche
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedClub, setSelectedClub] = useState(null)
+  
   // Données
   const [matches, setMatches] = useState([])
   const [clubs, setClubs] = useState([])
@@ -121,6 +125,17 @@ export default function ExplorePage() {
 
     ;(groupsData || []).forEach(g => {
       if (g.city) citiesSet.add(g.city)
+    })
+
+    // Charger les villes depuis les profils utilisateurs (points 47-48)
+    const { data: profileCities } = await supabase
+      .from('profiles')
+      .select('city')
+      .not('city', 'is', null)
+      .limit(100)
+    
+    ;(profileCities || []).forEach(p => {
+      if (p.city) citiesSet.add(p.city)
     })
 
     setCities(Array.from(citiesSet).sort())
@@ -251,6 +266,30 @@ export default function ExplorePage() {
       g.city?.toLowerCase() === filterCity.toLowerCase() ||
       g.region?.toLowerCase().includes(filterCity.toLowerCase())
     )
+  }
+
+  // Suggestions de recherche (clubs + villes)
+  function getSearchSuggestions() {
+    if (!searchQuery.trim() || searchQuery.length < 2) return []
+    const query = searchQuery.toLowerCase()
+    
+    const suggestions = []
+    
+    // Clubs correspondants
+    clubs.forEach(club => {
+      if (club.name?.toLowerCase().includes(query) || club.city?.toLowerCase().includes(query)) {
+        suggestions.push({ type: 'club', data: club, label: club.name, sublabel: club.city })
+      }
+    })
+    
+    // Villes correspondantes
+    cities.forEach(city => {
+      if (city.toLowerCase().includes(query)) {
+        suggestions.push({ type: 'city', data: city, label: city, sublabel: 'Ville' })
+      }
+    })
+    
+    return suggestions.slice(0, 8)
   }
 
   // === AVATAR COMPONENT ===
@@ -430,7 +469,8 @@ export default function ExplorePage() {
               left: 14,
               top: '50%',
               transform: 'translateY(-50%)',
-              fontSize: 18
+              fontSize: 18,
+              zIndex: 1
             }}>
               🔍
             </span>
@@ -438,7 +478,12 @@ export default function ExplorePage() {
               type="text"
               placeholder="Rechercher un club, une ville..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setShowSuggestions(e.target.value.length >= 2)
+              }}
+              onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               style={{
                 width: '100%',
                 padding: '14px 14px 14px 44px',
@@ -449,6 +494,58 @@ export default function ExplorePage() {
                 background: '#fff'
               }}
             />
+            
+            {/* Suggestions dropdown */}
+            {showSuggestions && getSearchSuggestions().length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: '#fff',
+                borderRadius: 12,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                marginTop: 4,
+                zIndex: 100,
+                maxHeight: 300,
+                overflowY: 'auto',
+                border: '1px solid #e2e8f0'
+              }}>
+                {getSearchSuggestions().map((suggestion, i) => (
+                  <div
+                    key={i}
+                    onClick={() => {
+                      if (suggestion.type === 'city') {
+                        setFilterCity(suggestion.data)
+                        setSearchQuery('')
+                      } else if (suggestion.type === 'club') {
+                        setSelectedClub(suggestion.data)
+                      }
+                      setShowSuggestions(false)
+                    }}
+                    style={{
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      borderBottom: i < getSearchSuggestions().length - 1 ? '1px solid #f1f5f9' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                  >
+                    <span style={{ fontSize: 20 }}>
+                      {suggestion.type === 'club' ? '🏟️' : '📍'}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>{suggestion.label}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>{suggestion.sublabel}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -509,29 +606,35 @@ export default function ExplorePage() {
             <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
               ⭐ Niveau
             </label>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {[
-                { id: 'all', label: 'Tous' },
-                { id: '1-3', label: '1-3' },
-                { id: '4-6', label: '4-6' },
-                { id: '7-10', label: '7-10' }
+                { id: 'all', label: 'Tous', desc: '' },
+                { id: '1-3', label: '1-3', desc: 'Débutant' },
+                { id: '4-6', label: '4-6', desc: 'Intermédiaire' },
+                { id: '7-10', label: '7+', desc: 'Avancé' }
               ].map(n => (
                 <button
                   key={n.id}
                   onClick={() => setFilterLevel(n.id)}
                   style={{
                     flex: 1,
-                    padding: '10px',
-                    border: filterLevel === n.id ? '2px solid #1a1a2e' : '1px solid #e2e8f0',
-                    borderRadius: 8,
-                    background: filterLevel === n.id ? '#f8fafc' : '#fff',
-                    fontSize: 13,
+                    minWidth: 70,
+                    padding: '8px 6px',
+                    border: filterLevel === n.id ? '2px solid #22c55e' : '1px solid #e2e8f0',
+                    borderRadius: 10,
+                    background: filterLevel === n.id ? '#f0fdf4' : '#fff',
+                    fontSize: 12,
                     fontWeight: 600,
                     cursor: 'pointer',
-                    color: '#1a1a2e'
+                    color: filterLevel === n.id ? '#166534' : '#374151',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 2
                   }}
                 >
-                  {n.label}
+                  <span>{n.label}</span>
+                  {n.desc && <span style={{ fontSize: 10, fontWeight: 400, color: '#64748b' }}>{n.desc}</span>}
                 </button>
               ))}
             </div>
@@ -544,26 +647,32 @@ export default function ExplorePage() {
             </label>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
-                { id: 'all', label: 'Toutes' },
-                { id: 'loisir', label: '😎' },
-                { id: 'mix', label: '⚡' },
-                { id: 'compet', label: '🏆' }
+                { id: 'all', label: 'Toutes', emoji: '' },
+                { id: 'loisir', label: 'Détente', emoji: '😎' },
+                { id: 'mix', label: 'Équilibré', emoji: '⚡' },
+                { id: 'compet', label: 'Compétitif', emoji: '🏆' }
               ].map(a => (
                 <button
                   key={a.id}
                   onClick={() => setFilterAmbiance(a.id)}
                   style={{
                     flex: 1,
-                    padding: '10px',
-                    border: filterAmbiance === a.id ? '2px solid #1a1a2e' : '1px solid #e2e8f0',
-                    borderRadius: 8,
-                    background: filterAmbiance === a.id ? '#f8fafc' : '#fff',
-                    fontSize: 13,
+                    padding: '10px 6px',
+                    border: filterAmbiance === a.id ? '2px solid #22c55e' : '1px solid #e2e8f0',
+                    borderRadius: 10,
+                    background: filterAmbiance === a.id ? '#f0fdf4' : '#fff',
+                    fontSize: 11,
                     fontWeight: 600,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    color: filterAmbiance === a.id ? '#166534' : '#374151',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 2
                   }}
                 >
-                  {a.label}
+                  {a.emoji && <span style={{ fontSize: 16 }}>{a.emoji}</span>}
+                  <span style={{ fontSize: 10 }}>{a.label}</span>
                 </button>
               ))}
             </div>
@@ -765,18 +874,22 @@ export default function ExplorePage() {
             </div>
           ) : (
             getFilteredClubs().slice(0, 5).map(club => (
-              <Link
-                href={`/dashboard/clubs?id=${club.id}`}
+              <div
                 key={club.id}
-                style={{ textDecoration: 'none', flexShrink: 0 }}
+                onClick={() => setSelectedClub(club)}
+                style={{ textDecoration: 'none', flexShrink: 0, cursor: 'pointer' }}
               >
                 <div style={{
                   width: 200,
                   background: '#fff',
                   borderRadius: 12,
                   padding: 16,
-                  border: '1px solid #e2e8f0'
-                }}>
+                  border: '1px solid #e2e8f0',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#22c55e'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'translateY(0)' }}
+                >
                   <div style={{
                     width: 48,
                     height: 48,
@@ -797,7 +910,7 @@ export default function ExplorePage() {
                     📍 {club.city || club.address || 'Adresse inconnue'}
                   </div>
                 </div>
-              </Link>
+              </div>
             ))
           )}
         </div>
@@ -918,6 +1031,134 @@ export default function ExplorePage() {
           </Link>
         </div>
       </section>
+
+      {/* ============================================ */}
+      {/* MODAL CLUB                                  */}
+      {/* ============================================ */}
+      {selectedClub && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: 16
+        }} onClick={() => setSelectedClub(null)}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            maxWidth: 400,
+            width: '100%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 16,
+                  background: '#f0fdf4',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 32
+                }}>
+                  🏟️
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>{selectedClub.name}</h3>
+                  {selectedClub.city && <p style={{ fontSize: 14, color: '#64748b', margin: '4px 0 0' }}>📍 {selectedClub.city}</p>}
+                </div>
+              </div>
+              <button onClick={() => setSelectedClub(null)} style={{
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: 10,
+                width: 36,
+                height: 36,
+                cursor: 'pointer',
+                fontSize: 18
+              }}>×</button>
+            </div>
+
+            {/* Infos */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              {selectedClub.address && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#f8fafc', borderRadius: 10 }}>
+                  <span style={{ fontSize: 18 }}>📍</span>
+                  <span style={{ fontSize: 14, color: '#475569' }}>{selectedClub.address}</span>
+                </div>
+              )}
+              {selectedClub.phone && (
+                <a href={`tel:${selectedClub.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#f8fafc', borderRadius: 10, textDecoration: 'none' }}>
+                  <span style={{ fontSize: 18 }}>📞</span>
+                  <span style={{ fontSize: 14, color: '#3b82f6', fontWeight: 500 }}>{selectedClub.phone}</span>
+                </a>
+              )}
+              {selectedClub.website && (
+                <a href={selectedClub.website.startsWith('http') ? selectedClub.website : `https://${selectedClub.website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#f8fafc', borderRadius: 10, textDecoration: 'none' }}>
+                  <span style={{ fontSize: 18 }}>🌐</span>
+                  <span style={{ fontSize: 14, color: '#3b82f6', fontWeight: 500 }}>Voir le site web</span>
+                </a>
+              )}
+              {selectedClub.courts_count && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#f8fafc', borderRadius: 10 }}>
+                  <span style={{ fontSize: 18 }}>🎾</span>
+                  <span style={{ fontSize: 14, color: '#475569' }}>{selectedClub.courts_count} terrains</span>
+                </div>
+              )}
+            </div>
+
+            {/* Boutons */}
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setFilterCity(selectedClub.city || 'all')
+                  setSelectedClub(null)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Parties dans cette ville
+              </button>
+              <Link
+                href="/dashboard/clubs"
+                onClick={() => setSelectedClub(null)}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: '#22c55e',
+                  color: '#fff',
+                  textDecoration: 'none',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  textAlign: 'center'
+                }}
+              >
+                Tous les clubs
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============================================ */}
       {/* STYLES RESPONSIVE                           */}

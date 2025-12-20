@@ -190,6 +190,19 @@ export default function IdeasPage() {
 
   return (
     <div>
+      {/* Bouton retour */}
+      <Link href="/dashboard/me" style={{ 
+        color: '#64748b', 
+        textDecoration: 'none', 
+        fontSize: 14,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        marginBottom: 12
+      }}>
+        ← Retour
+      </Link>
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>

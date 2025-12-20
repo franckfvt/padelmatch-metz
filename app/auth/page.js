@@ -28,8 +28,16 @@ export default function AuthPage() {
           .eq('id', session.user.id)
           .single()
         
+        // Vérifier s'il y a un redirect en attente
+        const redirectUrl = sessionStorage.getItem('redirectAfterLogin')
+        
         if (profile?.experience && profile?.ambiance) {
-          router.push('/dashboard')
+          if (redirectUrl) {
+            sessionStorage.removeItem('redirectAfterLogin')
+            router.push(redirectUrl)
+          } else {
+            router.push('/dashboard')
+          }
         } else {
           router.push('/onboarding')
         }
@@ -113,8 +121,16 @@ export default function AuthPage() {
           .eq('id', data.user.id)
           .single()
         
+        // Vérifier s'il y a un redirect en attente
+        const redirectUrl = sessionStorage.getItem('redirectAfterLogin')
+        
         if (profile?.experience && profile?.ambiance) {
-          router.push('/dashboard')
+          if (redirectUrl) {
+            sessionStorage.removeItem('redirectAfterLogin')
+            router.push(redirectUrl)
+          } else {
+            router.push('/dashboard')
+          }
         } else {
           router.push('/onboarding')
         }

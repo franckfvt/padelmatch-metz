@@ -144,8 +144,16 @@ export default function BadgesPage() {
   }
 
   function getFilteredBadges() {
-    if (activeCategory === 'all') return allBadges
-    return allBadges.filter(b => b.category === activeCategory)
+    let badges = activeCategory === 'all' ? allBadges : allBadges.filter(b => b.category === activeCategory)
+    
+    // Trier: badges obtenus d'abord, puis non-obtenus
+    return badges.sort((a, b) => {
+      const aEarned = earnedBadges.has(a.id)
+      const bEarned = earnedBadges.has(b.id)
+      if (aEarned && !bEarned) return -1
+      if (!aEarned && bEarned) return 1
+      return 0
+    })
   }
 
   if (loading) {

@@ -437,6 +437,17 @@ export default function MatchPage() {
     loadData()
   }
 
+  // Supprimer un invité en attente
+  async function deleteInvite(inviteId) {
+    if (!confirm('Supprimer cet invité ?')) return
+    try {
+      await supabase.from('pending_invites').delete().eq('id', inviteId)
+      loadData()
+    } catch (err) {
+      console.error('Erreur suppression invité:', err)
+    }
+  }
+
   // Recherche duo
   async function searchDuo(query) {
     setDuoSearch(query)
@@ -777,20 +788,42 @@ export default function MatchPage() {
         padding: 20,
         marginBottom: 16
       }}>
+        {/* Date et heure - cliquable pour l'orga */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div>
-            <div style={{ fontSize: 13, color: '#22c55e', fontWeight: '600', marginBottom: 2 }}>
-              {formatDate(match.match_date)}
+          <div 
+            onClick={() => isOrganizer() && match.status === 'open' && setModal('edit')}
+            style={{ cursor: isOrganizer() && match.status === 'open' ? 'pointer' : 'default' }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 6,
+              fontSize: 13, 
+              color: '#22c55e', 
+              fontWeight: '600', 
+              marginBottom: 4 
+            }}>
+              📅 {formatDate(match.match_date)}
+              {isOrganizer() && match.status === 'open' && (
+                <span style={{ fontSize: 10, color: '#94a3b8' }}>✏️</span>
+              )}
             </div>
-            <div style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a' }}>
-              {match.match_time?.slice(0, 5) || '??:??'}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 6,
+              fontSize: 32, 
+              fontWeight: '800', 
+              color: '#1a1a2e' 
+            }}>
+              🕐 {match.match_time?.slice(0, 5) || '??:??'}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 14, color: '#1a1a1a', fontWeight: '600' }}>
+            <div style={{ fontSize: 15, color: '#1a1a2e', fontWeight: '600', marginBottom: 4 }}>
               📍 {match.clubs?.name || match.city || 'Lieu à définir'}
             </div>
-            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
               {match.clubs?.address || (match.radius ? `${match.radius}km autour` : '')}
             </div>
           </div>
@@ -798,7 +831,7 @@ export default function MatchPage() {
 
         {/* Badges */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-          <span style={badgeStyle}>⭐ Niv. {match.level_min}-{match.level_max}</span>
+          <span style={{ ...badgeStyle, background: '#f0fdf4', color: '#166534' }}>⭐ Niv. {match.level_min}-{match.level_max}</span>
           <span style={badgeStyle}>{ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}</span>
           {pricePerPerson > 0 && <span style={{ ...badgeStyle, background: '#fef3c7', color: '#92400e' }}>💰 {pricePerPerson}€/pers</span>}
           <span style={{
@@ -861,23 +894,6 @@ export default function MatchPage() {
                 👥 Inviter
               </button>
             )}
-            {isOrganizer() && (
-              <button
-                onClick={() => setModal('cancel')}
-                style={{
-                  padding: '12px 16px',
-                  background: '#fee2e2',
-                  color: '#dc2626',
-                  border: 'none',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                ✕
-              </button>
-            )}
           </div>
         )}
 
@@ -888,6 +904,31 @@ export default function MatchPage() {
             <button onClick={addToCalendar} style={btnSmall}>📅 Calendrier</button>
             {isOrganizer() && <button onClick={duplicateMatch} style={btnSmall}>📋 Dupliquer</button>}
           </div>
+        )}
+
+        {/* Bouton Annuler pour l'organisateur - bien visible */}
+        {isOrganizer() && match.status === 'open' && (
+          <button
+            onClick={() => setModal('cancel')}
+            style={{
+              width: '100%',
+              marginTop: 16,
+              padding: '12px',
+              background: '#fff',
+              color: '#dc2626',
+              border: '1px solid #fecaca',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            ❌ Annuler la partie
+          </button>
         )}
       </div>
 
@@ -950,6 +991,7 @@ export default function MatchPage() {
                   onSelect={(p) => { setSelectedPlayer(p); setModal('player') }}
                   isOrg={isOrganizer()}
                   onSwap={(id) => swapPlayer(id, 'B')}
+                  onDelete={deleteInvite}
                   showPayment={pricePerPerson > 0}
                 />
               ))}
@@ -972,6 +1014,7 @@ export default function MatchPage() {
                   onSelect={(p) => { setSelectedPlayer(p); setModal('player') }}
                   isOrg={isOrganizer()}
                   onSwap={(id) => swapPlayer(id, 'A')}
+                  onDelete={deleteInvite}
                   showPayment={pricePerPerson > 0}
                 />
               ))}
@@ -1147,16 +1190,38 @@ export default function MatchPage() {
             </div>
           )}
 
-          <form onSubmit={sendMessage} style={{ borderTop: '1px solid #eee', padding: 12, display: 'flex', gap: 8 }}>
-            <input
-              ref={messageInputRef}
-              type="text"
-              value={newMessage}
-              onChange={handleMessageChange}
-              placeholder="Écrire... (@ pour mentionner)"
-              style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: '1px solid #e5e5e5', fontSize: 14, outline: 'none' }}
-            />
-            <button type="submit" style={{ padding: '12px 18px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 16 }}>→</button>
+          <form onSubmit={sendMessage} style={{ borderTop: '1px solid #eee', padding: 12 }}>
+            {/* Emojis rapides */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {['👍', '👎', '🎾', '⏰', '✅', '❌'].map(emoji => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setNewMessage(prev => prev + emoji)}
+                  style={{
+                    padding: '6px 10px',
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 16,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                ref={messageInputRef}
+                type="text"
+                value={newMessage}
+                onChange={handleMessageChange}
+                placeholder="Écrire... (@ pour mentionner)"
+                style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: '1px solid #e5e5e5', fontSize: 14, outline: 'none' }}
+              />
+              <button type="submit" style={{ padding: '12px 18px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 16, fontWeight: 600 }}>→</button>
+            </div>
           </form>
         </div>
       </div>
@@ -1460,50 +1525,121 @@ function Avatar({ profile, size = 40, style = {} }) {
   )
 }
 
-function PlayerSlot({ player, onSelect, isOrg, onSwap, showPayment }) {
-  const positionLabels = { 'left': 'G', 'right': 'D', 'both': 'P' }
+function PlayerSlot({ player, onSelect, isOrg, onSwap, onDelete, showPayment }) {
+  const positionLabels = { 'left': 'Gauche', 'right': 'Droite', 'both': 'Les 2' }
+  const positionEmoji = { 'left': '⬅️', 'right': '➡️', 'both': '↔️' }
 
   if (!player) {
     return (
       <div style={{
-        background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 14,
-        textAlign: 'center', border: '2px dashed rgba(255,255,255,0.2)',
-        minHeight: 70, display: 'flex', alignItems: 'center', justifyContent: 'center'
+        background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 16,
+        textAlign: 'center', border: '2px dashed rgba(255,255,255,0.25)',
+        minHeight: 76, display: 'flex', alignItems: 'center', justifyContent: 'center'
       }}>
-        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Place libre</span>
+        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 500 }}>🎾 Place libre</span>
       </div>
     )
   }
 
   if (player.isPendingInvite) {
     return (
-      <div style={{ background: '#fff', borderRadius: 10, padding: 12, textAlign: 'center', border: '2px dashed #f59e0b' }}>
-        <div style={{ fontSize: 18, marginBottom: 4 }}>⏳</div>
-        <div style={{ fontWeight: '600', fontSize: 13 }}>{player.invitee_name}</div>
-        <div style={{ fontSize: 10, background: '#f59e0b', color: '#fff', padding: '2px 8px', borderRadius: 4, display: 'inline-block', marginTop: 4 }}>INVITÉ</div>
+      <div style={{ 
+        background: '#fffbeb', 
+        borderRadius: 12, 
+        padding: 14, 
+        border: '2px solid #fcd34d',
+        minHeight: 76,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        position: 'relative'
+      }}>
+        {/* Bouton supprimer pour l'organisateur */}
+        {isOrg && onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(player.id) }}
+            style={{
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              background: '#fee2e2',
+              border: 'none',
+              borderRadius: 6,
+              padding: '4px 8px',
+              fontSize: 10,
+              cursor: 'pointer',
+              color: '#dc2626',
+              fontWeight: 600
+            }}
+            title="Supprimer cet invité"
+          >
+            ✕
+          </button>
+        )}
+        <div style={{ fontSize: 20 }}>⏳</div>
+        <div style={{ fontWeight: '600', fontSize: 13, color: '#92400e' }}>{player.invitee_name}</div>
+        <div style={{ fontSize: 10, background: '#f59e0b', color: '#fff', padding: '3px 10px', borderRadius: 10, fontWeight: 600 }}>INVITÉ EN ATTENTE</div>
       </div>
     )
   }
 
   const isConfirmed = player.status === 'confirmed'
+  const level = player.profiles?.level
+  const position = player.profiles?.position
 
   return (
     <div style={{
-      background: '#fff', borderRadius: 10, padding: 10,
-      border: isConfirmed ? '2px solid transparent' : '2px solid #f59e0b',
-      position: 'relative'
+      background: '#fff', borderRadius: 12, padding: 12,
+      border: isConfirmed ? '2px solid #e2e8f0' : '2px solid #f59e0b',
+      position: 'relative',
+      minHeight: 76
     }}>
-      <div onClick={() => onSelect(player)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-        <Avatar profile={player.profiles} size={36} />
+      <div onClick={() => onSelect(player)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+        <Avatar profile={player.profiles} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: '600', fontSize: 13, color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: 4 }}>
-            {player.isOrganizer && <span>👑</span>}
+          <div style={{ fontWeight: '600', fontSize: 14, color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            {player.isOrganizer && <span title="Organisateur">👑</span>}
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.profiles?.name}</span>
           </div>
-          <div style={{ fontSize: 11, color: '#888' }}>⭐{player.profiles?.level} • {positionLabels[player.profiles?.position] || 'P'}</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {level && (
+              <span style={{ 
+                fontSize: 11, 
+                background: '#f0fdf4', 
+                color: '#166534', 
+                padding: '2px 8px', 
+                borderRadius: 6,
+                fontWeight: 600
+              }}>
+                ⭐ Niv. {level}
+              </span>
+            )}
+            {position && (
+              <span style={{ 
+                fontSize: 11, 
+                background: '#f1f5f9', 
+                color: '#475569', 
+                padding: '2px 8px', 
+                borderRadius: 6,
+                fontWeight: 500
+              }}>
+                {positionEmoji[position]} {positionLabels[position]}
+              </span>
+            )}
+          </div>
         </div>
         {!isConfirmed && (
-          <span style={{ fontSize: 9, background: '#fef3c7', color: '#92400e', padding: '3px 6px', borderRadius: 4, fontWeight: '600' }}>EN ATTENTE</span>
+          <span style={{ 
+            fontSize: 9, 
+            background: '#fef3c7', 
+            color: '#92400e', 
+            padding: '4px 8px', 
+            borderRadius: 6, 
+            fontWeight: '600',
+            whiteSpace: 'nowrap'
+          }}>EN ATTENTE</span>
         )}
       </div>
       
@@ -1513,18 +1649,20 @@ function PlayerSlot({ player, onSelect, isOrg, onSwap, showPayment }) {
           onClick={(e) => { e.stopPropagation(); onSwap(player.id) }}
           style={{
             position: 'absolute',
-            top: 4,
-            right: 4,
-            background: 'rgba(0,0,0,0.1)',
+            top: 6,
+            right: 6,
+            background: '#f1f5f9',
             border: 'none',
-            borderRadius: 4,
-            padding: '2px 6px',
+            borderRadius: 6,
+            padding: '4px 8px',
             fontSize: 10,
             cursor: 'pointer',
-            color: '#666'
+            color: '#64748b',
+            fontWeight: 600
           }}
+          title="Changer d'équipe"
         >
-          ↔
+          ↔️
         </button>
       )}
     </div>

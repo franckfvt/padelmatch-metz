@@ -387,12 +387,34 @@ export default function CommunityPage() {
       {/* HEADER                                      */}
       {/* ============================================ */}
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-          Communauté
-        </h1>
-        <p style={{ color: '#64748b', margin: '4px 0 0', fontSize: 14 }}>
-          Trouve des joueurs et agrandis ton réseau
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+              👥 Mon réseau
+            </h1>
+            <p style={{ color: '#64748b', margin: '4px 0 0', fontSize: 14 }}>
+              Joueurs favoris et partenaires de jeu
+            </p>
+          </div>
+          <button
+            onClick={() => setShowInviteModal(true)}
+            style={{
+              padding: '10px 16px',
+              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            📱 Ma carte
+          </button>
+        </div>
       </div>
 
       {/* ============================================ */}
@@ -757,7 +779,7 @@ export default function CommunityPage() {
               alignItems: 'center'
             }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
-                Inviter des amis
+                📱 Ma carte de joueur
               </h3>
               <button
                 onClick={() => setShowInviteModal(false)}
@@ -776,13 +798,60 @@ export default function CommunityPage() {
             </div>
 
             <div style={{ padding: 20 }}>
-              <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
-                Partage ton lien pour que tes amis rejoignent PadelMatch !
-              </p>
+              {/* QR Code */}
+              <div style={{
+                background: '#f8fafc',
+                borderRadius: 16,
+                padding: 20,
+                textAlign: 'center',
+                marginBottom: 20
+              }}>
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/player/${user?.id}` : '')}`}
+                  alt="QR Code"
+                  style={{ width: 180, height: 180, margin: '0 auto 12px' }}
+                />
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
+                  Scanne ce QR code pour voir ma carte
+                </p>
+              </div>
 
-              <div style={{ marginBottom: 20 }}>
+              {/* Mini carte joueur */}
+              <div style={{
+                background: 'linear-gradient(135deg, #1a1a2e, #334155)',
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14
+              }}>
+                <div style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  background: playerColors[0],
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 20
+                }}>
+                  {profile?.name?.[0] || '?'}
+                </div>
+                <div>
+                  <div style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>{profile?.name || 'Joueur'}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
+                    Niveau {profile?.level || '?'} • {profile?.city || 'France'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Lien */}
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
-                  Ton lien personnel
+                  Ou partage ton lien
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <div style={{
@@ -818,81 +887,79 @@ export default function CommunityPage() {
                 </div>
               </div>
 
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 12 }}>
-                Partager via
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              {/* Boutons partage */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                 <button
                   onClick={shareWhatsApp}
                   style={{
-                    padding: '16px 8px',
+                    padding: '14px 8px',
                     background: '#25D366',
                     border: 'none',
-                    borderRadius: 12,
+                    borderRadius: 10,
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 6
+                    gap: 4
                   }}
                 >
-                  <span style={{ fontSize: 24 }}>💬</span>
+                  <span style={{ fontSize: 22 }}>💬</span>
                   <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>WhatsApp</span>
                 </button>
                 <button
                   onClick={shareSMS}
                   style={{
-                    padding: '16px 8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 12,
+                    padding: '14px 8px',
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: 10,
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 6
+                    gap: 4
                   }}
                 >
-                  <span style={{ fontSize: 24 }}>✉️</span>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>SMS</span>
+                  <span style={{ fontSize: 22 }}>✉️</span>
+                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>SMS</span>
                 </button>
                 <button
                   onClick={() => {
-                    const subject = 'Rejoins-moi sur PadelMatch !'
-                    const body = `Salut !\n\nRejoins-moi sur PadelMatch pour organiser des parties de padel.\n\n${inviteLink}`
+                    const subject = 'Ma carte de joueur PadelMatch'
+                    const body = `Salut !\n\nVoici ma carte de joueur PadelMatch. Ajoute-moi pour qu'on organise des parties ensemble !\n\n${inviteLink}`
                     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
                   }}
                   style={{
-                    padding: '16px 8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 12,
+                    padding: '14px 8px',
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: 10,
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 6
+                    gap: 4
                   }}
                 >
-                  <span style={{ fontSize: 24 }}>📧</span>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>Email</span>
+                  <span style={{ fontSize: 22 }}>📧</span>
+                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Email</span>
                 </button>
               </div>
             </div>
 
             <div style={{
-              padding: 20,
+              padding: 16,
               background: '#f0fdf4',
               borderTop: '1px solid #dcfce7'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ fontSize: 32 }}>🎁</div>
+                <div style={{ fontSize: 28 }}>🎁</div>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: '#166534' }}>
-                    Gagne des badges !
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#166534' }}>
+                    Invite tes amis et gagne des badges !
                   </div>
-                  <div style={{ fontSize: 13, color: '#15803d' }}>
-                    Tu as invité <strong>{profile?.referral_count || 0}</strong> personnes
+                  <div style={{ fontSize: 12, color: '#15803d' }}>
+                    {profile?.referral_count || 0} invité{(profile?.referral_count || 0) > 1 ? 's' : ''} jusqu'ici
                   </div>
                 </div>
               </div>

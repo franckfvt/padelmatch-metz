@@ -20,7 +20,8 @@ export default function OnboardingPage() {
     ambiance: '',
     frequency: '',
     experience: '',
-    region: ''
+    region: '',
+    city: ''
   })
 
   // Vérifier que l'utilisateur est connecté
@@ -46,7 +47,15 @@ export default function OnboardingPage() {
       
       // Si profil complet, rediriger
       if (profileData?.level && profileData?.position && profileData?.ambiance) {
-        router.push('/dashboard')
+        // Vérifier s'il y a un redirect en attente
+        const redirectUrl = sessionStorage.getItem('redirectAfterOnboarding') || sessionStorage.getItem('redirectAfterLogin')
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterOnboarding')
+          sessionStorage.removeItem('redirectAfterLogin')
+          router.push(redirectUrl)
+        } else {
+          router.push('/dashboard')
+        }
         return
       }
       
@@ -83,7 +92,8 @@ export default function OnboardingPage() {
           ambiance: profile.ambiance,
           frequency: profile.frequency,
           experience: profile.experience,
-          region: profile.region
+          region: profile.region,
+          city: profile.city
         })
         .eq('id', user.id)
       
@@ -128,21 +138,25 @@ export default function OnboardingPage() {
     { id: 'more5years', label: 'Plus de 5 ans', desc: 'Joueur expérimenté', emoji: '🏆' }
   ]
 
-  const regionOptions = [
-    { id: 'Île-de-France', label: 'Île-de-France' },
-    { id: 'Hauts-de-France', label: 'Hauts-de-France' },
-    { id: 'Grand Est', label: 'Grand Est' },
-    { id: 'Normandie', label: 'Normandie' },
-    { id: 'Bretagne', label: 'Bretagne' },
-    { id: 'Pays de la Loire', label: 'Pays de la Loire' },
-    { id: 'Centre-Val de Loire', label: 'Centre-Val de Loire' },
-    { id: 'Bourgogne-Franche-Comté', label: 'Bourgogne-F.-Comté' },
-    { id: 'Nouvelle-Aquitaine', label: 'Nouvelle-Aquitaine' },
-    { id: 'Occitanie', label: 'Occitanie' },
-    { id: 'Auvergne-Rhône-Alpes', label: 'Auvergne-Rhône-Alpes' },
-    { id: 'PACA', label: 'PACA' },
-    { id: 'Corse', label: 'Corse' }
-  ]
+  // Régions et villes principales
+  const regionsWithCities = {
+    'Île-de-France': ['Paris', 'Boulogne-Billancourt', 'Saint-Denis', 'Versailles', 'Nanterre', 'Créteil', 'Argenteuil', 'Montreuil'],
+    'Hauts-de-France': ['Lille', 'Amiens', 'Roubaix', 'Tourcoing', 'Dunkerque', 'Valenciennes', 'Lens', 'Calais'],
+    'Grand Est': ['Strasbourg', 'Reims', 'Metz', 'Mulhouse', 'Nancy', 'Colmar', 'Troyes', 'Charleville-Mézières'],
+    'Normandie': ['Rouen', 'Le Havre', 'Caen', 'Cherbourg', 'Évreux', 'Dieppe', 'Alençon'],
+    'Bretagne': ['Rennes', 'Brest', 'Quimper', 'Lorient', 'Vannes', 'Saint-Malo', 'Saint-Brieuc'],
+    'Pays de la Loire': ['Nantes', 'Angers', 'Le Mans', 'Saint-Nazaire', 'La Roche-sur-Yon', 'Cholet', 'Laval'],
+    'Centre-Val de Loire': ['Tours', 'Orléans', 'Bourges', 'Blois', 'Chartres', 'Châteauroux', 'Dreux'],
+    'Bourgogne-Franche-Comté': ['Dijon', 'Besançon', 'Belfort', 'Chalon-sur-Saône', 'Auxerre', 'Mâcon', 'Nevers'],
+    'Nouvelle-Aquitaine': ['Bordeaux', 'Limoges', 'Poitiers', 'La Rochelle', 'Pau', 'Bayonne', 'Angoulême', 'Biarritz'],
+    'Occitanie': ['Toulouse', 'Montpellier', 'Nîmes', 'Perpignan', 'Béziers', 'Tarbes', 'Albi', 'Carcassonne'],
+    'Auvergne-Rhône-Alpes': ['Lyon', 'Grenoble', 'Saint-Étienne', 'Villeurbanne', 'Clermont-Ferrand', 'Annecy', 'Valence', 'Chambéry'],
+    'PACA': ['Marseille', 'Nice', 'Toulon', 'Aix-en-Provence', 'Avignon', 'Cannes', 'Antibes', 'Fréjus'],
+    'Corse': ['Ajaccio', 'Bastia', 'Porto-Vecchio', 'Corte', 'Calvi']
+  }
+
+  const regionOptions = Object.keys(regionsWithCities).map(r => ({ id: r, label: r }))
+  const cityOptions = profile.region ? regionsWithCities[profile.region] || [] : []
 
   // Affichage loading
   if (loading) {
@@ -238,7 +252,16 @@ export default function OnboardingPage() {
             </button>
             
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => {
+                const redirectUrl = sessionStorage.getItem('redirectAfterOnboarding') || sessionStorage.getItem('redirectAfterLogin')
+                if (redirectUrl) {
+                  sessionStorage.removeItem('redirectAfterOnboarding')
+                  sessionStorage.removeItem('redirectAfterLogin')
+                  router.push(redirectUrl)
+                } else {
+                  router.push('/dashboard')
+                }
+              }}
               style={{
                 padding: '18px',
                 background: '#22c55e',
@@ -326,9 +349,29 @@ export default function OnboardingPage() {
               <h2 style={{ fontSize: 26, fontWeight: '700', marginBottom: 8, color: '#1a1a1a' }}>
                 Quel est ton niveau ?
               </h2>
-              <p style={{ color: '#666', marginBottom: 32, fontSize: 16, lineHeight: 1.5 }}>
-                De 1 (débutant) à 10 (pro). Sois honnête, ça aide à trouver de bons matchs !
+              <p style={{ color: '#666', marginBottom: 20, fontSize: 15, lineHeight: 1.5 }}>
+                Un niveau précis permet de trouver des partenaires adaptés.
               </p>
+
+              {/* Aide niveau */}
+              <div style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 24,
+                fontSize: 13,
+                color: '#166534'
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>💡 Repères :</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12 }}>
+                  <span><strong>1-2</strong> : Débutant</span>
+                  <span><strong>3-4</strong> : Intermédiaire</span>
+                  <span><strong>5-6</strong> : Confirmé</span>
+                  <span><strong>7-8</strong> : Avancé</span>
+                  <span><strong>9-10</strong> : Compétiteur/Pro</span>
+                </div>
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
                 {levelOptions.map(lvl => (
@@ -626,47 +669,91 @@ export default function OnboardingPage() {
             </>
           )}
 
-          {/* ========== ÉTAPE 6 : RÉGION ========== */}
+          {/* ========== ÉTAPE 6 : RÉGION + VILLE ========== */}
           {step === 6 && (
             <>
               <h2 style={{ fontSize: 26, fontWeight: '700', marginBottom: 8, color: '#1a1a1a' }}>
-                Dans quelle région tu joues ?
+                Où joues-tu habituellement ?
               </h2>
-              <p style={{ color: '#666', marginBottom: 32, fontSize: 16, lineHeight: 1.5 }}>
-                Pour te connecter avec des joueurs proches de toi.
+              <p style={{ color: '#666', marginBottom: 24, fontSize: 15, lineHeight: 1.5 }}>
+                Pour te proposer des parties et joueurs près de chez toi.
               </p>
 
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(2, 1fr)', 
-                gap: 10,
-                maxHeight: 350,
-                overflowY: 'auto',
-                padding: 4
-              }}>
-                {regionOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setProfile({ ...profile, region: opt.id })}
-                    style={{
-                      padding: '14px 12px',
-                      border: profile.region === opt.id ? '2px solid #1a1a1a' : '2px solid #e5e5e5',
-                      borderRadius: 12,
-                      cursor: 'pointer',
-                      background: profile.region === opt.id ? '#fafafa' : '#fff',
-                      transition: 'all 0.2s',
-                      textAlign: 'center',
-                      fontSize: 13,
-                      fontWeight: profile.region === opt.id ? '700' : '500',
-                      color: profile.region === opt.id ? '#1a1a1a' : '#666'
-                    }}
-                  >
-                    {opt.label}
-                  </div>
-                ))}
+              {/* Sélection région */}
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>
+                  Ta région
+                </label>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(2, 1fr)', 
+                  gap: 8,
+                  maxHeight: 200,
+                  overflowY: 'auto',
+                  padding: 4
+                }}>
+                  {regionOptions.map(opt => (
+                    <div
+                      key={opt.id}
+                      onClick={() => setProfile({ ...profile, region: opt.id, city: '' })}
+                      style={{
+                        padding: '12px 10px',
+                        border: profile.region === opt.id ? '2px solid #22c55e' : '2px solid #e5e5e5',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        background: profile.region === opt.id ? '#f0fdf4' : '#fff',
+                        transition: 'all 0.2s',
+                        textAlign: 'center',
+                        fontSize: 12,
+                        fontWeight: profile.region === opt.id ? '600' : '500',
+                        color: profile.region === opt.id ? '#166534' : '#666'
+                      }}
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+              {/* Sélection ville si région choisie */}
+              {profile.region && cityOptions.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>
+                    Ta ville (ou la plus proche)
+                  </label>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gap: 8,
+                    maxHeight: 180,
+                    overflowY: 'auto',
+                    padding: 4
+                  }}>
+                    {cityOptions.map(city => (
+                      <div
+                        key={city}
+                        onClick={() => setProfile({ ...profile, city })}
+                        style={{
+                          padding: '12px 10px',
+                          border: profile.city === city ? '2px solid #22c55e' : '2px solid #e5e5e5',
+                          borderRadius: 10,
+                          cursor: 'pointer',
+                          background: profile.city === city ? '#f0fdf4' : '#fff',
+                          transition: 'all 0.2s',
+                          textAlign: 'center',
+                          fontSize: 13,
+                          fontWeight: profile.city === city ? '600' : '500',
+                          color: profile.city === city ? '#166534' : '#666'
+                        }}
+                      >
+                        📍 {city}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
                 <button onClick={() => setStep(5)} style={{
                   padding: '18px 24px', background: '#fff', color: '#1a1a1a',
                   border: '2px solid #e5e5e5', borderRadius: 14, fontSize: 16, fontWeight: '600', cursor: 'pointer'
@@ -675,16 +762,16 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   onClick={saveProfile}
-                  disabled={!profile.region || saving}
+                  disabled={!profile.region || !profile.city || saving}
                   style={{
                     flex: 1, padding: '18px',
-                    background: profile.region && !saving ? '#22c55e' : '#e5e5e5',
-                    color: profile.region && !saving ? '#fff' : '#999',
+                    background: profile.region && profile.city && !saving ? '#22c55e' : '#e5e5e5',
+                    color: profile.region && profile.city && !saving ? '#fff' : '#999',
                     border: 'none', borderRadius: 14, fontSize: 16, fontWeight: '600',
-                    cursor: profile.region && !saving ? 'pointer' : 'not-allowed'
+                    cursor: profile.region && profile.city && !saving ? 'pointer' : 'not-allowed'
                   }}
                 >
-                  {saving ? 'Enregistrement...' : 'Créer ma carte ! 🎴'}
+                  {saving ? 'Enregistrement...' : 'Créer ma carte de joueur 🎴'}
                 </button>
               </div>
             </>
@@ -694,7 +781,16 @@ export default function OnboardingPage() {
         {/* Skip pour plus tard */}
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => {
+              const redirectUrl = sessionStorage.getItem('redirectAfterOnboarding') || sessionStorage.getItem('redirectAfterLogin')
+              if (redirectUrl) {
+                sessionStorage.removeItem('redirectAfterOnboarding')
+                sessionStorage.removeItem('redirectAfterLogin')
+                router.push(redirectUrl)
+              } else {
+                router.push('/dashboard')
+              }
+            }}
             style={{
               background: 'none',
               border: 'none',

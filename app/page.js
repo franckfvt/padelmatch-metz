@@ -186,7 +186,7 @@ export default function HomePage() {
                 alignItems: 'center',
                 gap: 8
               }}>
-                Voir comment ça marche
+                <span style={{ fontSize: 18 }}>▶</span> Découvrir en 30 secondes
               </a>
             </div>
             
@@ -294,13 +294,13 @@ export default function HomePage() {
             fontWeight: 600,
             marginBottom: 20
           }}>
-            😫 Le problème
+            Le constat
           </div>
           <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 700, color: '#1a1a2e', marginBottom: 16 }}>
-            Tu connais cette galère ?
+            Organiser une partie ne devrait pas être si compliqué
           </h2>
-          <p style={{ fontSize: 18, color: '#64748b', marginBottom: 48 }}>
-            Organiser une partie de padel, c'est souvent ça...
+          <p style={{ fontSize: 18, color: '#475569', marginBottom: 48 }}>
+            Pourtant, c'est souvent la même histoire...
           </p>
           
           <div className="problem-grid" style={{
@@ -309,9 +309,9 @@ export default function HomePage() {
             gap: 24
           }}>
             {[
-              { emoji: '📱', number: '47', title: 'messages WhatsApp', desc: '"T\'es dispo samedi ?" "Quel niveau ?" "Finalement non désolé"...' },
-              { emoji: '🤷', number: '?', title: 'Niveaux inconnus', desc: 'Tu invites quelqu\'un... et tu découvres son niveau sur le terrain.' },
-              { emoji: '💨', number: '2h', title: 'avant le match', desc: '"Désolé je peux plus venir". Et tu repars à zéro.' }
+              { emoji: '📱', number: '47', title: 'messages WhatsApp', desc: 'Disponibilités, niveaux, annulations... La coordination devient un casse-tête.' },
+              { emoji: '🤷', number: '?', title: 'Niveaux incertains', desc: 'Difficile d\'évaluer le niveau des joueurs avant d\'être sur le terrain.' },
+              { emoji: '💨', number: '2h', title: 'avant le match', desc: 'Les désistements de dernière minute obligent à tout recommencer.' }
             ].map((item, i) => (
               <div key={i} style={{
                 background: '#fff',
@@ -331,7 +331,7 @@ export default function HomePage() {
                   {item.number}
                 </div>
                 <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a2e', marginBottom: 8 }}>{item.title}</h3>
-                <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.5, margin: 0 }}>{item.desc}</p>
+                <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.5, margin: 0 }}>{item.desc}</p>
               </div>
             ))}
           </div>
@@ -580,10 +580,10 @@ export default function HomePage() {
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 700, marginBottom: 16 }}>
-              Comment ça marche ?
+              Simple comme 1, 2, 3
             </h2>
-            <p style={{ fontSize: 18, opacity: 0.8 }}>
-              En 3 étapes, ta partie est organisée
+            <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.8)' }}>
+              Une partie organisée en moins d'une minute
             </p>
           </div>
 
@@ -593,21 +593,21 @@ export default function HomePage() {
             gap: 40
           }}>
             {[
-              { num: '1', icon: '⚡', title: 'Crée ta partie', desc: 'Date, heure, lieu, niveau. C\'est prêt en 15 secondes.' },
-              { num: '2', icon: '🔗', title: 'Partage le lien', desc: 'Sur WhatsApp, Instagram, Facebook... où tu veux.' },
-              { num: '3', icon: '✅', title: 'Jouez !', desc: 'Les joueurs s\'inscrivent. Tu vois leur niveau. C\'est parti !' }
+              { num: '1', icon: '⚡', title: 'Créez votre partie', desc: 'Date, heure, lieu et niveau souhaité. Votre partie est prête en quelques clics.' },
+              { num: '2', icon: '🔗', title: 'Partagez le lien', desc: 'Envoyez votre carte de match sur WhatsApp, Instagram, ou par SMS.' },
+              { num: '3', icon: '✅', title: 'Jouez !', desc: 'Les joueurs s\'inscrivent avec leur profil. Vous voyez leur niveau et c\'est parti !' }
             ].map((step, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{
                   width: 80, height: 80, borderRadius: 20,
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
+                  background: 'linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.1))',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 40, margin: '0 auto 20px',
-                  border: '1px solid rgba(255,255,255,0.1)'
+                  border: '1px solid rgba(34,197,94,0.3)'
                 }}>{step.icon}</div>
                 <div style={{ fontSize: 14, color: '#22c55e', fontWeight: 700, marginBottom: 8 }}>Étape {step.num}</div>
                 <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{step.title}</h3>
-                <p style={{ fontSize: 15, opacity: 0.7, lineHeight: 1.6 }}>{step.desc}</p>
+                <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>{step.desc}</p>
               </div>
             ))}
           </div>
@@ -625,11 +625,11 @@ export default function HomePage() {
       }}>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>
-            Prêt à organiser ta<br/>prochaine partie ?
+            Prêt à simplifier vos<br/>parties de padel ?
           </h2>
-          <p style={{ fontSize: 20, opacity: 0.95, marginBottom: 40, lineHeight: 1.6 }}>
-            Rejoins les joueurs qui ont dit adieu aux galères d'organisation.<br/>
-            C'est gratuit, rapide, et ça change tout.
+          <p style={{ fontSize: 20, color: 'rgba(255,255,255,0.95)', marginBottom: 40, lineHeight: 1.6 }}>
+            Rejoignez les joueurs qui ont adopté une nouvelle façon d'organiser.<br/>
+            Gratuit, rapide et efficace.
           </p>
           <Link href="/auth" style={{
             display: 'inline-block',
@@ -642,10 +642,10 @@ export default function HomePage() {
             fontWeight: 700,
             boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
           }}>
-            Créer ma partie gratuitement →
+            Créer ma première partie →
           </Link>
-          <p style={{ marginTop: 20, fontSize: 14, opacity: 0.85 }}>
-            Aucune carte bancaire requise
+          <p style={{ marginTop: 20, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>
+            Inscription gratuite • Aucune carte bancaire requise
           </p>
         </div>
       </section>
