@@ -2,12 +2,18 @@
 
 /**
  * ============================================
- * LAYOUT DASHBOARD - VERSION DÉFINITIVE
+ * LAYOUT DASHBOARD - NOUVELLE ARCHITECTURE
  * ============================================
  * 
- * Navbar: Accueil | Parties | Stats | [🎴] [🔔] | Profil
+ * Navigation: 5 onglets
+ * 1. Accueil 🏠
+ * 2. Explorer 🔍
+ * 3. Mes parties 🎾
+ * 4. Communauté 👥
+ * 5. Moi 👤
  * 
- * ⚠️ NE PLUS MODIFIER CE FICHIER ⚠️
+ * Branding: Plateforme sobre + Joueurs colorés
+ * 
  * ============================================
  */
 
@@ -24,6 +30,7 @@ export default function DashboardLayout({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showCardModal, setShowCardModal] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
 
   useEffect(() => {
@@ -59,15 +66,24 @@ export default function DashboardLayout({ children }) {
     setLoading(false)
   }
 
-  // 4 onglets principaux
+  // 5 onglets principaux
   const navItems = [
-    { href: '/dashboard', label: 'Accueil', icon: '🏠' },
-    { href: '/dashboard/matches', label: 'Parties', icon: '🎾' },
-    { href: '/dashboard/stats', label: 'Stats', icon: '📊' },
-    { href: '/dashboard/profile', label: 'Profil', icon: '👤' },
+    { href: '/dashboard', label: 'Accueil', icon: '🏠', exact: true },
+    { href: '/dashboard/explore', label: 'Explorer', icon: '🔍', exact: false },
+    { href: '/dashboard/matches', label: 'Mes parties', icon: '🎾', exact: false },
+    { href: '/dashboard/community', label: 'Communauté', icon: '👥', exact: false },
+    { href: '/dashboard/me', label: 'Moi', icon: '👤', exact: false },
   ]
 
   const unreadCount = notifications.filter(n => !n.read).length
+
+  // Vérifier si un onglet est actif
+  function isActive(item) {
+    if (item.exact) {
+      return pathname === item.href
+    }
+    return pathname.startsWith(item.href)
+  }
 
   if (loading) {
     return (
@@ -76,12 +92,12 @@ export default function DashboardLayout({ children }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f8f9fa',
+        background: '#f8fafc',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
-          <div style={{ color: '#666' }}>Chargement...</div>
+          <div style={{ color: '#64748b' }}>Chargement...</div>
         </div>
       </div>
     )
@@ -90,16 +106,16 @@ export default function DashboardLayout({ children }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#f8f9fa',
+      background: '#f8fafc',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       
       {/* ============================================ */}
-      {/* NAVBAR - HAUT DE PAGE - STICKY              */}
+      {/* HEADER - STICKY                             */}
       {/* ============================================ */}
       <header style={{
         background: '#fff',
-        borderBottom: '1px solid #e5e7eb',
+        borderBottom: '1px solid #e2e8f0',
         position: 'sticky',
         top: 0,
         zIndex: 100
@@ -108,7 +124,7 @@ export default function DashboardLayout({ children }) {
           maxWidth: 1200,
           margin: '0 auto',
           padding: '0 16px',
-          height: 60,
+          height: 56,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between'
@@ -122,111 +138,60 @@ export default function DashboardLayout({ children }) {
             gap: 8,
             flexShrink: 0
           }}>
-            <span style={{ fontSize: 26 }}>🎾</span>
+            <span style={{ fontSize: 24 }}>🎾</span>
             <span style={{ 
               fontSize: 18, 
-              fontWeight: '700', 
-              color: '#111',
-              display: 'none'
+              fontWeight: 700, 
+              color: '#1a1a2e'
             }} className="logo-text">
               PadelMatch
             </span>
           </Link>
 
-          {/* Navigation centrale */}
+          {/* Navigation centrale - Desktop */}
           <nav style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 4
-          }}>
-            {/* Accueil */}
-            <Link href="/dashboard" style={{
-              padding: '8px 12px',
-              borderRadius: 8,
-              textDecoration: 'none',
-              fontSize: 14,
-              fontWeight: '600',
-              color: pathname === '/dashboard' ? '#111' : '#666',
-              background: pathname === '/dashboard' ? '#f3f4f6' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}>
-              <span>🏠</span>
-              <span className="nav-label">Accueil</span>
-            </Link>
+            gap: 2
+          }} className="desktop-nav">
+            {navItems.map(item => {
+              const active = isActive(item)
+              return (
+                <Link 
+                  key={item.href}
+                  href={item.href} 
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    textDecoration: 'none',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: active ? '#1a1a2e' : '#64748b',
+                    background: active ? '#f1f5f9' : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span>{item.icon}</span>
+                  <span className="nav-label">{item.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
 
-            {/* Parties */}
-            <Link href="/dashboard/matches" style={{
-              padding: '8px 12px',
-              borderRadius: 8,
-              textDecoration: 'none',
-              fontSize: 14,
-              fontWeight: '600',
-              color: pathname === '/dashboard/matches' ? '#111' : '#666',
-              background: pathname === '/dashboard/matches' ? '#f3f4f6' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}>
-              <span>🎾</span>
-              <span className="nav-label">Parties</span>
-            </Link>
-
-            {/* Stats */}
-            <Link href="/dashboard/stats" style={{
-              padding: '8px 12px',
-              borderRadius: 8,
-              textDecoration: 'none',
-              fontSize: 14,
-              fontWeight: '600',
-              color: pathname === '/dashboard/stats' ? '#111' : '#666',
-              background: pathname === '/dashboard/stats' ? '#f3f4f6' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}>
-              <span>📊</span>
-              <span className="nav-label">Stats</span>
-            </Link>
-
-            {/* Séparateur */}
-            <div style={{ 
-              width: 1, 
-              height: 24, 
-              background: '#e5e7eb',
-              margin: '0 8px'
-            }} />
-
-            {/* Bouton Ma Carte */}
-            <button
-              onClick={() => setShowCardModal(true)}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                border: 'none',
-                background: '#f3f4f6',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18
-              }}
-              title="Ma carte joueur"
-            >
-              🎴
-            </button>
-
+          {/* Actions droite */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* Bouton Notifications */}
             <button
-              onClick={() => {/* TODO: Ouvrir panneau notifs */}}
+              onClick={() => setShowNotifications(!showNotifications)}
               style={{
                 width: 40,
                 height: 40,
                 borderRadius: 10,
                 border: 'none',
-                background: '#f3f4f6',
+                background: '#f1f5f9',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -247,7 +212,7 @@ export default function DashboardLayout({ children }) {
                   background: '#ef4444',
                   borderRadius: '50%',
                   fontSize: 10,
-                  fontWeight: '700',
+                  fontWeight: 700,
                   color: '#fff',
                   display: 'flex',
                   alignItems: 'center',
@@ -258,34 +223,28 @@ export default function DashboardLayout({ children }) {
               )}
             </button>
 
-            {/* Séparateur */}
-            <div style={{ 
-              width: 1, 
-              height: 24, 
-              background: '#e5e7eb',
-              margin: '0 8px'
-            }} />
-
-            {/* Profil */}
-            <Link href="/dashboard/profile" style={{
-              padding: '8px 12px',
-              borderRadius: 8,
-              textDecoration: 'none',
-              fontSize: 14,
-              fontWeight: '600',
-              color: pathname === '/dashboard/profile' ? '#111' : '#666',
-              background: pathname === '/dashboard/profile' ? '#f3f4f6' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}>
-              <span>👤</span>
-              <span className="nav-label">Profil</span>
+            {/* Avatar utilisateur - Desktop */}
+            <Link 
+              href="/dashboard/me"
+              className="user-avatar-desktop"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: '#1a1a2e',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 14,
+                textDecoration: 'none',
+                border: pathname.startsWith('/dashboard/me') ? '2px solid #22c55e' : '2px solid transparent'
+              }}
+            >
+              {profile?.name?.[0]?.toUpperCase() || '?'}
             </Link>
-          </nav>
-
-          {/* Spacer pour équilibrer sur desktop */}
-          <div style={{ width: 60 }} className="spacer" />
+          </div>
         </div>
       </header>
 
@@ -295,10 +254,124 @@ export default function DashboardLayout({ children }) {
       <main style={{
         maxWidth: 800,
         margin: '0 auto',
-        padding: '24px 16px'
+        padding: '24px 16px',
+        paddingBottom: 100 // Espace pour la navbar mobile
       }}>
         {children}
       </main>
+
+      {/* ============================================ */}
+      {/* NAVBAR MOBILE - BOTTOM                      */}
+      {/* ============================================ */}
+      <nav 
+        className="mobile-nav"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: '#fff',
+          borderTop: '1px solid #e2e8f0',
+          padding: '8px 0',
+          paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+          display: 'none', // Affiché via CSS sur mobile
+          justifyContent: 'space-around',
+          zIndex: 100
+        }}
+      >
+        {navItems.map(item => {
+          const active = isActive(item)
+          return (
+            <Link 
+              key={item.href}
+              href={item.href} 
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                padding: '6px 12px',
+                borderRadius: 8,
+                textDecoration: 'none',
+                color: active ? '#1a1a2e' : '#94a3b8',
+                background: active ? '#f1f5f9' : 'transparent',
+                minWidth: 56
+              }}
+            >
+              <span style={{ fontSize: 22 }}>{item.icon}</span>
+              <span style={{ 
+                fontSize: 10, 
+                fontWeight: active ? 600 : 500
+              }}>
+                {item.label === 'Mes parties' ? 'Parties' : item.label}
+              </span>
+            </Link>
+          )
+        })}
+      </nav>
+
+      {/* ============================================ */}
+      {/* PANNEAU NOTIFICATIONS                       */}
+      {/* ============================================ */}
+      {showNotifications && (
+        <>
+          <div 
+            onClick={() => setShowNotifications(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.3)',
+              zIndex: 200
+            }}
+          />
+          <div style={{
+            position: 'fixed',
+            top: 60,
+            right: 16,
+            width: 320,
+            maxWidth: 'calc(100vw - 32px)',
+            maxHeight: 'calc(100vh - 100px)',
+            background: '#fff',
+            borderRadius: 16,
+            boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+            zIndex: 201,
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+                Notifications
+              </h3>
+              <button
+                onClick={() => setShowNotifications(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 18,
+                  cursor: 'pointer',
+                  color: '#94a3b8'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: 20, textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>🔔</div>
+              <p style={{ color: '#64748b', fontSize: 14 }}>
+                Aucune notification pour le moment
+              </p>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ============================================ */}
       {/* MODAL CARTE JOUEUR                          */}
@@ -314,26 +387,59 @@ export default function DashboardLayout({ children }) {
       {/* STYLES RESPONSIVE                           */}
       {/* ============================================ */}
       <style jsx global>{`
+        /* Mobile first */
         .nav-label {
           display: none;
         }
         .logo-text {
           display: none !important;
         }
-        .spacer {
+        .desktop-nav {
+          display: none !important;
+        }
+        .mobile-nav {
+          display: flex !important;
+        }
+        .user-avatar-desktop {
           display: none !important;
         }
         
-        @media (min-width: 640px) {
+        /* Desktop */
+        @media (min-width: 768px) {
           .nav-label {
             display: inline !important;
           }
           .logo-text {
             display: inline !important;
           }
-          .spacer {
-            display: block !important;
+          .desktop-nav {
+            display: flex !important;
           }
+          .mobile-nav {
+            display: none !important;
+          }
+          .user-avatar-desktop {
+            display: flex !important;
+          }
+          main {
+            padding-bottom: 24px !important;
+          }
+        }
+
+        /* Scrollbar sobre */
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
         }
       `}</style>
     </div>

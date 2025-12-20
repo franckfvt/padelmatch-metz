@@ -1,5 +1,16 @@
 'use client'
 
+/**
+ * ============================================
+ * PAGE GROUPES
+ * ============================================
+ * 
+ * Liste de tous les groupes WhatsApp, Facebook, etc.
+ * avec filtres par ville, type, recherche
+ * 
+ * ============================================
+ */
+
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -9,611 +20,423 @@ export default function GroupsPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(true)
   
-  // Modals
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [selectedGroup, setSelectedGroup] = useState(null)
-  
-  // Form
-  const [newGroupName, setNewGroupName] = useState('')
-  const [newGroupDesc, setNewGroupDesc] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [groups, setGroups] = useState([])
+  const [myGroups, setMyGroups] = useState(new Set())
+  const [filterCity, setFilterCity] = useState('all')
+  const [filterType, setFilterType] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [cities, setCities] = useState([])
+
+  const typeConfig = {
+    whatsapp: { icon: '💬', label: 'WhatsApp', color: '#dcfce7' },
+    facebook: { icon: '👥', label: 'Facebook', color: '#dbeafe' },
+    telegram: { icon: '✈️', label: 'Telegram', color: '#e0e7ff' },
+    discord: { icon: '🎮', label: 'Discord', color: '#fae8ff' },
+    other: { icon: '🔗', label: 'Autre', color: '#f1f5f9' }
+  }
 
   useEffect(() => {
     loadData()
   }, [])
 
   async function loadData() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/auth')
-        return
-      }
-
-      setUser(session.user)
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
-
-      setProfile(profileData)
-
-      // Charger les groupes où je suis membre
-      const { data: memberships } = await supabase
-        .from('group_members')
-        .select('group_id')
-        .eq('user_id', session.user.id)
-
-      const groupIds = memberships?.map(m => m.group_id) || []
-
-      // Charger aussi les groupes que j'ai créés
-      const { data: createdGroups } = await supabase
-        .from('player_groups')
-        .select('id')
-        .eq('created_by', session.user.id)
-
-      const createdGroupIds = createdGroups?.map(g => g.id) || []
-      const allGroupIds = [...new Set([...groupIds, ...createdGroupIds])]
-
-      if (allGroupIds.length > 0) {
-        const { data: groupsData } = await supabase
-          .from('player_groups')
-          .select(`
-            *,
-            profiles!player_groups_created_by_fkey (id, name),
-            group_members (
-              user_id,
-              role,
-              profiles (id, name, level)
-            )
-          `)
-          .in('id', allGroupIds)
-          .order('created_at', { ascending: false })
-
-        setGroups(groupsData || [])
-      }
-
-      setLoading(false)
-    } catch (error) {
-      console.error('Error:', error)
-      setLoading(false)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      router.push('/auth')
+      return
     }
-  }
 
-  async function createGroup(e) {
-    e.preventDefault()
-    if (!newGroupName.trim()) return
+    setUser(session.user)
 
-    setCreating(true)
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single()
 
-    try {
-      const { data, error } = await supabase
-        .from('player_groups')
-        .insert({
-          name: newGroupName.trim(),
-          description: newGroupDesc.trim() || null,
-          created_by: user.id
-        })
-        .select()
-        .single()
+    setProfile(profileData)
 
-      if (error) throw error
+    // Charger tous les groupes
+    const { data: groupsData } = await supabase
+      .from('community_groups')
+      .select('*')
+      .eq('is_active', true)
+      .order('member_count', { ascending: false })
 
-      // Ajouter le créateur comme admin
-      await supabase
-        .from('group_members')
-        .insert({
-          group_id: data.id,
-          user_id: user.id,
-          role: 'admin'
-        })
+    setGroups(groupsData || [])
 
-      setNewGroupName('')
-      setNewGroupDesc('')
-      setShowCreateModal(false)
-      loadData()
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Erreur lors de la création')
-    } finally {
-      setCreating(false)
+    // Extraire les villes uniques
+    const citiesSet = new Set()
+    ;(groupsData || []).forEach(g => {
+      if (g.city) citiesSet.add(g.city)
+    })
+    setCities(Array.from(citiesSet).sort())
+
+    // Si l'utilisateur a une ville, la sélectionner par défaut
+    if (profileData?.city) {
+      setFilterCity(profileData.city)
     }
+
+    // Charger les groupes rejoints
+    const { data: memberships } = await supabase
+      .from('user_group_memberships')
+      .select('group_id')
+      .eq('user_id', session.user.id)
+
+    setMyGroups(new Set((memberships || []).map(m => m.group_id)))
+
+    setLoading(false)
   }
 
-  async function leaveGroup(groupId) {
-    if (!confirm('Quitter ce groupe ?')) return
+  async function joinGroup(groupId, inviteLink) {
+    // Enregistrer l'adhésion
+    await supabase
+      .from('user_group_memberships')
+      .insert({
+        user_id: user.id,
+        group_id: groupId
+      })
 
-    try {
-      await supabase
-        .from('group_members')
-        .delete()
-        .eq('group_id', groupId)
-        .eq('user_id', user.id)
+    setMyGroups(prev => new Set([...prev, groupId]))
 
-      loadData()
-    } catch (error) {
-      console.error('Error:', error)
+    // Ouvrir le lien d'invitation
+    window.open(inviteLink, '_blank')
+  }
+
+  function getFilteredGroups() {
+    let filtered = groups
+
+    // Recherche
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(g =>
+        g.name?.toLowerCase().includes(query) ||
+        g.city?.toLowerCase().includes(query) ||
+        g.region?.toLowerCase().includes(query)
+      )
     }
-  }
 
-  async function deleteGroup(groupId) {
-    if (!confirm('Supprimer ce groupe ? Cette action est irréversible.')) return
-
-    try {
-      await supabase
-        .from('player_groups')
-        .delete()
-        .eq('id', groupId)
-
-      loadData()
-    } catch (error) {
-      console.error('Error:', error)
+    // Filtre ville
+    if (filterCity !== 'all') {
+      filtered = filtered.filter(g =>
+        g.city?.toLowerCase() === filterCity.toLowerCase() ||
+        g.region?.toLowerCase().includes(filterCity.toLowerCase())
+      )
     }
-  }
 
-  function openInviteModal(group) {
-    setSelectedGroup(group)
-    setShowInviteModal(true)
-    setCopied(false)
-  }
+    // Filtre type
+    if (filterType !== 'all') {
+      filtered = filtered.filter(g => g.type === filterType)
+    }
 
-  function copyInviteLink() {
-    const link = `${window.location.origin}/join-group/${selectedGroup.id}`
-    navigator.clipboard.writeText(link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  function isGroupAdmin(group) {
-    return group.created_by === user?.id
+    return filtered
   }
 
   if (loading) {
     return (
-      <div style={{ padding: 20, textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 16 }}>👥</div>
-        <div style={{ color: '#666' }}>Chargement...</div>
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
+        <div style={{ color: '#64748b' }}>Chargement...</div>
       </div>
     )
   }
 
+  const filteredGroups = getFilteredGroups()
+
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: '0 auto' }}>
-      
+    <div>
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 24
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: '700', color: '#1a1a1a', margin: 0 }}>
-            Mes groupes
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+            Groupes
           </h1>
-          <p style={{ color: '#666', margin: '4px 0 0', fontSize: 14 }}>
-            Organise tes parties entre potes
+          <p style={{ color: '#64748b', margin: '4px 0 0', fontSize: 14 }}>
+            Rejoins des communautés de padel
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
+        <Link
+          href="/dashboard/groups/add"
           style={{
-            padding: '12px 20px',
-            background: '#1a1a1a',
+            padding: '10px 16px',
+            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
             color: '#fff',
-            border: 'none',
-            borderRadius: 12,
+            borderRadius: 10,
+            textDecoration: 'none',
             fontSize: 14,
-            fontWeight: '600',
-            cursor: 'pointer'
+            fontWeight: 600
           }}
         >
-          + Créer
-        </button>
-      </div>
-
-      {/* Liste des groupes */}
-      {groups.length === 0 ? (
-        <div style={{
-          background: '#fff',
-          borderRadius: 16,
-          padding: 40,
-          textAlign: 'center',
-          border: '1px solid #eee'
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>👥</div>
-          <h3 style={{ fontSize: 18, fontWeight: '600', margin: '0 0 8px' }}>
-            Pas encore de groupe
-          </h3>
-          <p style={{ color: '#666', margin: '0 0 20px', fontSize: 14 }}>
-            Crée un groupe pour jouer régulièrement avec tes potes
-          </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            style={{
-              padding: '14px 28px',
-              background: '#1a1a1a',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 12,
-              fontSize: 15,
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            Créer mon premier groupe
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {groups.map(group => (
-            <div
-              key={group.id}
-              style={{
-                background: '#fff',
-                borderRadius: 16,
-                padding: 20,
-                border: '1px solid #eee'
-              }}
-            >
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'flex-start',
-                marginBottom: 12
-              }}>
-                <div>
-                  <h3 style={{ fontSize: 18, fontWeight: '600', margin: '0 0 4px' }}>
-                    {group.name}
-                  </h3>
-                  {group.description && (
-                    <p style={{ fontSize: 13, color: '#666', margin: 0 }}>
-                      {group.description}
-                    </p>
-                  )}
-                </div>
-                {isGroupAdmin(group) && (
-                  <span style={{
-                    background: '#fef3c7',
-                    color: '#92400e',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: '600'
-                  }}>
-                    Admin
-                  </span>
-                )}
-              </div>
-
-              {/* Membres */}
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-                  {group.group_members?.length || 0} membre{(group.group_members?.length || 0) > 1 ? 's' : ''}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {group.group_members?.slice(0, 8).map(member => (
-                    <span
-                      key={member.user_id}
-                      style={{
-                        background: member.user_id === user?.id ? '#1a1a1a' : '#f5f5f5',
-                        color: member.user_id === user?.id ? '#fff' : '#666',
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        fontSize: 13
-                      }}
-                    >
-                      {member.profiles?.name?.split(' ')[0]}
-                      {member.profiles?.level && (
-                        <span style={{ opacity: 0.7 }}> • {member.profiles.level}</span>
-                      )}
-                    </span>
-                  ))}
-                  {(group.group_members?.length || 0) > 8 && (
-                    <span style={{
-                      background: '#f5f5f5',
-                      color: '#666',
-                      padding: '6px 12px',
-                      borderRadius: 8,
-                      fontSize: 13
-                    }}>
-                      +{group.group_members.length - 8}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => openInviteModal(group)}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    background: '#1a1a1a',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 10,
-                    fontSize: 13,
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🔗 Inviter
-                </button>
-                <Link
-                  href={`/dashboard/polls?group=${group.id}`}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    background: '#f5f5f5',
-                    color: '#1a1a1a',
-                    border: 'none',
-                    borderRadius: 10,
-                    fontSize: 13,
-                    fontWeight: '600',
-                    textDecoration: 'none',
-                    textAlign: 'center'
-                  }}
-                >
-                  📊 Sondage
-                </Link>
-                {isGroupAdmin(group) ? (
-                  <button
-                    onClick={() => deleteGroup(group.id)}
-                    style={{
-                      padding: '10px 16px',
-                      background: '#fee2e2',
-                      color: '#dc2626',
-                      border: 'none',
-                      borderRadius: 10,
-                      fontSize: 13,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    🗑️
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => leaveGroup(group.id)}
-                    style={{
-                      padding: '10px 16px',
-                      background: '#f5f5f5',
-                      color: '#666',
-                      border: 'none',
-                      borderRadius: 10,
-                      fontSize: 13,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Quitter
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Retour */}
-      <div style={{ marginTop: 24, textAlign: 'center' }}>
-        <Link
-          href="/dashboard/profile"
-          style={{ color: '#666', fontSize: 14, textDecoration: 'none' }}
-        >
-          ← Retour au profil
+          + Ajouter
         </Link>
       </div>
 
-      {/* Modal Créer */}
-      {showCreateModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 200,
-          padding: 20
-        }}
-        onClick={(e) => e.target === e.currentTarget && setShowCreateModal(false)}
-        >
-          <div style={{
-            background: '#fff',
-            borderRadius: 20,
-            padding: 24,
-            width: '100%',
-            maxWidth: 400
+      {/* Barre de recherche */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ position: 'relative' }}>
+          <span style={{
+            position: 'absolute',
+            left: 14,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: 18
           }}>
-            <h2 style={{ fontSize: 20, fontWeight: '700', margin: '0 0 20px' }}>
-              👥 Nouveau groupe
-            </h2>
-
-            <form onSubmit={createGroup}>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
-                  Nom du groupe
-                </label>
-                <input
-                  type="text"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="Ex: Les padelos du jeudi"
-                  style={{
-                    width: '100%',
-                    padding: 14,
-                    borderRadius: 10,
-                    border: '2px solid #eee',
-                    fontSize: 16
-                  }}
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
-                  Description <span style={{ color: '#999', fontWeight: '400' }}>(optionnel)</span>
-                </label>
-                <input
-                  type="text"
-                  value={newGroupDesc}
-                  onChange={(e) => setNewGroupDesc(e.target.value)}
-                  placeholder="Ex: Parties tous les jeudis soir"
-                  style={{
-                    width: '100%',
-                    padding: 14,
-                    borderRadius: 10,
-                    border: '2px solid #eee',
-                    fontSize: 16
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  style={{
-                    flex: 1,
-                    padding: 14,
-                    background: '#f5f5f5',
-                    color: '#666',
-                    border: 'none',
-                    borderRadius: 10,
-                    fontSize: 14,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating || !newGroupName.trim()}
-                  style={{
-                    flex: 1,
-                    padding: 14,
-                    background: creating ? '#ccc' : '#1a1a1a',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 10,
-                    fontSize: 14,
-                    fontWeight: '600',
-                    cursor: creating ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {creating ? 'Création...' : 'Créer'}
-                </button>
-              </div>
-            </form>
-          </div>
+            🔍
+          </span>
+          <input
+            type="text"
+            placeholder="Rechercher un groupe..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '14px 14px 14px 44px',
+              border: '1px solid #e2e8f0',
+              borderRadius: 12,
+              fontSize: 15,
+              outline: 'none',
+              background: '#fff'
+            }}
+          />
         </div>
-      )}
+      </div>
 
-      {/* Modal Inviter */}
-      {showInviteModal && selectedGroup && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 200,
-          padding: 20
-        }}
-        onClick={(e) => e.target === e.currentTarget && setShowInviteModal(false)}
-        >
-          <div style={{
-            background: '#fff',
+      {/* Filtres ville */}
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        marginBottom: 12,
+        overflowX: 'auto',
+        paddingBottom: 4
+      }}>
+        <button
+          onClick={() => setFilterCity('all')}
+          style={{
+            padding: '8px 16px',
+            background: filterCity === 'all' ? '#1a1a2e' : '#fff',
+            color: filterCity === 'all' ? '#fff' : '#64748b',
+            border: '1px solid #e2e8f0',
             borderRadius: 20,
-            padding: 24,
-            width: '100%',
-            maxWidth: 400
-          }}>
-            <h2 style={{ fontSize: 18, fontWeight: '700', margin: '0 0 8px' }}>
-              🔗 Inviter dans {selectedGroup.name}
-            </h2>
-            <p style={{ color: '#666', fontSize: 14, margin: '0 0 20px' }}>
-              Partage ce lien pour inviter des joueurs
-            </p>
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          📍 Toutes
+        </button>
+        {cities.slice(0, 6).map(city => (
+          <button
+            key={city}
+            onClick={() => setFilterCity(city)}
+            style={{
+              padding: '8px 16px',
+              background: filterCity === city ? '#1a1a2e' : '#fff',
+              color: filterCity === city ? '#fff' : '#64748b',
+              border: '1px solid #e2e8f0',
+              borderRadius: 20,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {city}
+          </button>
+        ))}
+      </div>
 
-            <div style={{
-              background: '#f5f5f5',
+      {/* Filtres type */}
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        marginBottom: 20,
+        overflowX: 'auto',
+        paddingBottom: 4
+      }}>
+        <button
+          onClick={() => setFilterType('all')}
+          style={{
+            padding: '8px 16px',
+            background: filterType === 'all' ? '#1a1a2e' : '#fff',
+            color: filterType === 'all' ? '#fff' : '#64748b',
+            border: '1px solid #e2e8f0',
+            borderRadius: 20,
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          Tous les types
+        </button>
+        {Object.entries(typeConfig).map(([key, config]) => (
+          <button
+            key={key}
+            onClick={() => setFilterType(key)}
+            style={{
+              padding: '8px 16px',
+              background: filterType === key ? '#1a1a2e' : '#fff',
+              color: filterType === key ? '#fff' : '#64748b',
+              border: '1px solid #e2e8f0',
+              borderRadius: 20,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            {config.icon} {config.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Liste des groupes */}
+      {filteredGroups.length === 0 ? (
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          padding: 48,
+          textAlign: 'center',
+          border: '1px solid #e2e8f0'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>👥</div>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: '#1a1a2e' }}>
+            Aucun groupe trouvé
+          </h3>
+          <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
+            {filterCity !== 'all' && `Pas de groupe à ${filterCity}. `}
+            Tu peux en ajouter un !
+          </p>
+          <Link
+            href="/dashboard/groups/add"
+            style={{
+              display: 'inline-block',
+              padding: '12px 24px',
+              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+              color: '#fff',
               borderRadius: 10,
-              padding: 14,
-              marginBottom: 16,
-              wordBreak: 'break-all',
-              fontSize: 13
-            }}>
-              {typeof window !== 'undefined' && `${window.location.origin}/join-group/${selectedGroup.id}`}
-            </div>
+              textDecoration: 'none',
+              fontSize: 14,
+              fontWeight: 600
+            }}
+          >
+            + Ajouter un groupe
+          </Link>
+        </div>
+      ) : (
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden'
+        }}>
+          {filteredGroups.map((group, i, arr) => {
+            const config = typeConfig[group.type] || typeConfig.other
+            const hasJoined = myGroups.has(group.id)
 
-            <button
-              onClick={copyInviteLink}
-              style={{
-                width: '100%',
-                padding: 14,
-                background: copied ? '#dcfce7' : '#1a1a1a',
-                color: copied ? '#166534' : '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 15,
-                fontWeight: '600',
-                cursor: 'pointer',
-                marginBottom: 12
-              }}
-            >
-              {copied ? '✓ Lien copié !' : '📋 Copier le lien'}
-            </button>
+            return (
+              <div
+                key={group.id}
+                style={{
+                  padding: '16px 20px',
+                  borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12
+                }}
+              >
+                <div style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 12,
+                  background: config.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 24,
+                  flexShrink: 0
+                }}>
+                  {config.icon}
+                </div>
 
-            <button
-              onClick={() => {
-                const link = `${window.location.origin}/join-group/${selectedGroup.id}`
-                window.open(`https://wa.me/?text=${encodeURIComponent(`Rejoins notre groupe de padel "${selectedGroup.name}" ! 🎾\n\n${link}`)}`, '_blank')
-              }}
-              style={{
-                width: '100%',
-                padding: 12,
-                background: '#dcfce7',
-                color: '#166534',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: '600',
-                cursor: 'pointer',
-                marginBottom: 12
-              }}
-            >
-              📱 Partager sur WhatsApp
-            </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <span style={{
+                      fontWeight: 600,
+                      fontSize: 15,
+                      color: '#1a1a2e',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {group.name}
+                    </span>
+                    {group.is_verified && (
+                      <span style={{ color: '#3b82f6', fontSize: 14 }}>✓</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                    {config.label}
+                    {group.city && ` · ${group.city}`}
+                    {group.member_count > 0 && ` · ${group.member_count} membres`}
+                  </div>
+                  {group.description && (
+                    <div style={{
+                      fontSize: 12,
+                      color: '#94a3b8',
+                      marginTop: 4,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {group.description}
+                    </div>
+                  )}
+                </div>
 
-            <button
-              onClick={() => setShowInviteModal(false)}
-              style={{
-                width: '100%',
-                padding: 12,
-                background: '#f5f5f5',
-                color: '#666',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                cursor: 'pointer'
-              }}
-            >
-              Fermer
-            </button>
-          </div>
+                <button
+                  onClick={() => hasJoined ? window.open(group.invite_link, '_blank') : joinGroup(group.id, group.invite_link)}
+                  style={{
+                    padding: '10px 16px',
+                    background: hasJoined ? '#f1f5f9' : '#1a1a2e',
+                    color: hasJoined ? '#64748b' : '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  {hasJoined ? 'Ouvrir' : 'Rejoindre'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
+
+      {/* Info */}
+      <div style={{
+        background: '#f0f9ff',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 20,
+        border: '1px solid #bae6fd'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <span style={{ fontSize: 20 }}>ℹ️</span>
+          <div style={{ fontSize: 13, color: '#0c4a6e' }}>
+            Ces groupes sont gérés par leurs créateurs. PadelMatch n'est pas responsable de leur contenu.
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
