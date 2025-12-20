@@ -4,27 +4,32 @@ import { useState } from 'react'
 
 /**
  * ============================================
- * MODAL CARTE JOUEUR - NOUVEAU DESIGN V3
+ * MODAL CARTE JOUEUR - AVEC AVATAR
  * ============================================
  * 
- * Branding sobre : #1a1a2e / #64748b / #22c55e
- * Avec avatar/photo du joueur
- * 4 carrés d'infos
- * Logo en bas
+ * - Avatar (photo ou lettre colorée)
+ * - Niveau en badge
+ * - 4 carrés d'infos
+ * - Logo PadelMatch
+ * - Branding sobre #1a1a2e
  * 
  * ============================================
  */
 
-// Couleurs avatars
-const AVATAR_COLORS = {
-  blue: '#3b82f6',
-  green: '#22c55e',
-  orange: '#f59e0b',
-  purple: '#a855f7',
-  red: '#ef4444',
-  cyan: '#06b6d4',
-  pink: '#ec4899',
-  teal: '#14b8a6'
+// Couleurs automatiques basées sur la première lettre
+const LETTER_COLORS = {
+  A: '#3b82f6', B: '#22c55e', C: '#f59e0b', D: '#a855f7',
+  E: '#ef4444', F: '#06b6d4', G: '#ec4899', H: '#14b8a6',
+  I: '#3b82f6', J: '#22c55e', K: '#f59e0b', L: '#a855f7',
+  M: '#ef4444', N: '#06b6d4', O: '#ec4899', P: '#14b8a6',
+  Q: '#3b82f6', R: '#22c55e', S: '#f59e0b', T: '#a855f7',
+  U: '#ef4444', V: '#06b6d4', W: '#ec4899', X: '#14b8a6',
+  Y: '#3b82f6', Z: '#22c55e'
+}
+
+function getColorForName(name) {
+  const letter = (name || 'A')[0].toUpperCase()
+  return LETTER_COLORS[letter] || '#3b82f6'
 }
 
 export default function PlayerCardModal({ profile, onClose }) {
@@ -42,39 +47,36 @@ export default function PlayerCardModal({ profile, onClose }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
+  // Couleur basée sur le nom
+  const avatarColor = getColorForName(profile?.name)
+
   // Couleur selon niveau
   const getLevelColor = (level) => {
     const lvl = parseInt(level) || 5
-    if (lvl >= 8) return '#f59e0b' // Or
-    if (lvl >= 6) return '#a855f7' // Violet
-    if (lvl >= 4) return '#3b82f6' // Bleu
-    return '#22c55e' // Vert
+    if (lvl >= 8) return '#f59e0b'
+    if (lvl >= 6) return '#a855f7'
+    if (lvl >= 4) return '#3b82f6'
+    return '#22c55e'
   }
-
   const levelColor = getLevelColor(profile?.level)
-  const avatarColor = AVATAR_COLORS[profile?.avatar_color] || AVATAR_COLORS.blue
 
   // Labels
   const getStyleLabel = () => {
     const map = { compet: 'Compétitif', loisir: 'Détente', mix: 'Équilibré' }
     return map[profile?.ambiance] || 'Équilibré'
   }
-
   const getStyleEmoji = () => {
     const map = { compet: '🏆', loisir: '😎', mix: '⚡' }
     return map[profile?.ambiance] || '⚡'
   }
-
   const getPositionLabel = () => {
     const map = { right: 'Droite', left: 'Gauche', both: 'Polyvalent' }
     return map[profile?.position] || 'Polyvalent'
   }
-
   const getFrequencyLabel = () => {
     const map = { intense: '4+/sem', often: '2-3/sem', regular: '1/sem', occasional: '1-2/mois' }
     return map[profile?.frequency] || '1/sem'
   }
-
   const getExperienceLabel = () => {
     const map = { more5years: '+5 ans', '2to5years': '2-5 ans', '6months2years': '6m-2a', less6months: '<6 mois' }
     return map[profile?.experience] || '2-5 ans'
@@ -135,15 +137,16 @@ export default function PlayerCardModal({ profile, onClose }) {
           </button>
         </div>
 
-        {/* === CARTE === */}
+        {/* === LA CARTE === */}
         <div style={{
-          background: 'linear-gradient(135deg, #1a1a2e, #334155)',
+          background: 'linear-gradient(135deg, #1a1a2e, #2d3748)',
           borderRadius: 16,
           overflow: 'hidden',
           marginBottom: 16,
           boxShadow: '0 8px 32px rgba(26, 26, 46, 0.3)'
         }}>
-          {/* Top section avec avatar et niveau */}
+          
+          {/* Section haute: Avatar + Nom + Niveau */}
           <div style={{
             padding: 20,
             display: 'flex',
@@ -153,16 +156,16 @@ export default function PlayerCardModal({ profile, onClose }) {
           }}>
             {/* Avatar */}
             <div style={{
-              width: 72,
-              height: 72,
-              borderRadius: 16,
+              width: 70,
+              height: 70,
+              borderRadius: 14,
               overflow: 'hidden',
               border: `3px solid ${levelColor}`,
-              background: profile?.avatar_url ? '#000' : `linear-gradient(135deg, ${avatarColor}, ${avatarColor}99)`,
+              background: profile?.avatar_url ? '#000' : `linear-gradient(135deg, ${avatarColor}, ${avatarColor}cc)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 32,
+              fontSize: 30,
               fontWeight: 700,
               color: '#fff',
               flexShrink: 0
@@ -178,13 +181,13 @@ export default function PlayerCardModal({ profile, onClose }) {
               )}
             </div>
 
-            {/* Nom et infos */}
+            {/* Nom et badges */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ 
                 fontSize: 20, 
                 fontWeight: 700, 
                 color: '#fff', 
-                marginBottom: 6,
+                marginBottom: 8,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
@@ -215,7 +218,7 @@ export default function PlayerCardModal({ profile, onClose }) {
             </div>
           </div>
 
-          {/* Grille 2x2 infos */}
+          {/* Grille 2x2 */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 1fr)',
@@ -245,7 +248,12 @@ export default function PlayerCardModal({ profile, onClose }) {
                 }}>
                   {item.value}
                 </div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <div style={{ 
+                  fontSize: 10, 
+                  color: 'rgba(255,255,255,0.5)', 
+                  textTransform: 'uppercase', 
+                  letterSpacing: 0.5 
+                }}>
                   {item.label}
                 </div>
               </div>

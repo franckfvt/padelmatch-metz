@@ -13,7 +13,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
-export default function HelpPage() {
+export default function HelpSettingsPage() {
   const [openFaq, setOpenFaq] = useState(null)
   const [activeCategory, setActiveCategory] = useState('all')
 
