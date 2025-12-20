@@ -136,21 +136,13 @@ export default function PublicProfileClient() {
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)',
-      padding: '40px 20px',
+      padding: '24px 16px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      <div style={{ maxWidth: 500, margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <div style={{ fontSize: 20, fontWeight: '700', color: '#fff', opacity: 0.8 }}>
-              🎾 PadelMatch
-            </div>
-          </Link>
-        </div>
-
-        {/* Carte joueur */}
-        <div style={{ marginBottom: 24 }}>
+      <div style={{ maxWidth: 600, margin: '0 auto' }}>
+        
+        {/* Carte joueur - Grande */}
+        <div style={{ marginBottom: 20 }}>
           <PlayerCard 
             player={{
               name: profile.name,
@@ -159,87 +151,58 @@ export default function PublicProfileClient() {
               ambiance: profile.ambiance,
               frequency: profile.frequency,
               experience: profile.experience,
-              region: profile.region,
-              avatar_url: profile.avatar_url
+              region: profile.region || profile.city,
+              avatar_url: profile.avatar_url,
+              matches_played: profile.matches_played,
+              reliability_score: profile.reliability_score
             }} 
-            standalone 
+            standalone
+            size="large"
           />
         </div>
 
-        {/* Stats supplémentaires */}
+        {/* Stats rapides */}
         <div style={{
-          background: 'rgba(255,255,255,0.05)',
-          borderRadius: 20,
-          padding: 24,
-          marginBottom: 24,
-          backdropFilter: 'blur(10px)'
+          background: 'rgba(255,255,255,0.06)',
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 20,
+          display: 'flex',
+          justifyContent: 'space-around'
         }}>
-          <h3 style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 16, textAlign: 'center' }}>
-            📊 Statistiques
-          </h3>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 12,
-            marginBottom: 16
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 28, fontWeight: '800', color: '#fff' }}>
-                {profile.matches_played || 0}
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Parties</div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: '800', color: '#fff' }}>
+              {profile.matches_played || 0}
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 28, fontWeight: '800', color: '#22c55e' }}>
-                {profile.matches_won || 0}
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Victoires</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 28, fontWeight: '800', color: '#fff' }}>
-                {getWinRate()}%
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Win rate</div>
-            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Parties</div>
           </div>
-
-          {/* Streak et fiabilité */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 24,
-            paddingTop: 16,
-            borderTop: '1px solid rgba(255,255,255,0.1)'
-          }}>
-            {profile.current_streak > 0 && (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 20, fontWeight: '700', color: '#f59e0b' }}>
-                  🔥 {profile.current_streak}
-                </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Série en cours</div>
-              </div>
-            )}
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: '700', color: '#22c55e' }}>
-                ✅ {profile.reliability_score || 100}%
-              </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Fiabilité</div>
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: '800', color: '#22c55e' }}>
+              {profile.matches_won || 0}
             </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Victoires</div>
+          </div>
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: '800', color: '#3b82f6' }}>
+              {getWinRate()}%
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Win rate</div>
           </div>
         </div>
 
         {/* Historique récent */}
         {recentMatches.length > 0 && (
           <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            borderRadius: 20,
-            padding: 24,
-            marginBottom: 24
+            background: 'rgba(255,255,255,0.06)',
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 20
           }}>
-            <h3 style={{ color: '#fff', fontSize: 14, fontWeight: '600', marginBottom: 16, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1 }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12, textAlign: 'center' }}>
               Dernières parties
-            </h3>
+            </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               {recentMatches.slice(0, 5).map((match, i) => {
                 const won = didWin(match)
@@ -247,19 +210,17 @@ export default function PublicProfileClient() {
                   <div
                     key={i}
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: '50%',
-                      background: won === true ? '#22c55e' : won === false ? '#dc2626' : '#666',
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      background: won === true ? 'rgba(34, 197, 94, 0.2)' : won === false ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.1)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#fff',
-                      fontSize: 16,
-                      fontWeight: '700'
+                      fontSize: 16
                     }}
                   >
-                    {won === true ? 'W' : won === false ? 'L' : '?'}
+                    {won === true ? '✅' : won === false ? '❌' : '➖'}
                   </div>
                 )
               })}
@@ -268,33 +229,29 @@ export default function PublicProfileClient() {
         )}
 
         {/* CTA */}
-        <Link href="/auth" style={{ textDecoration: 'none' }}>
-          <button style={{
-            width: '100%',
-            padding: '18px',
+        <Link href="/" style={{ textDecoration: 'none', display: 'block' }}>
+          <div style={{
             background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+            borderRadius: 14,
+            padding: '16px 24px',
+            textAlign: 'center',
             color: '#fff',
-            border: 'none',
-            borderRadius: 16,
-            fontSize: 16,
             fontWeight: '700',
-            cursor: 'pointer',
-            marginBottom: 16
+            fontSize: 15
           }}>
-            🎾 Jouer avec {profile.name}
-          </button>
+            🎾 Rejoindre PadelMatch
+          </div>
         </Link>
 
-        {/* Lien PadelMatch */}
-        <div style={{
-          textAlign: 'center',
-          color: 'rgba(255,255,255,0.5)',
-          fontSize: 14
+        {/* Petite note */}
+        <p style={{ 
+          textAlign: 'center', 
+          color: 'rgba(255,255,255,0.4)', 
+          fontSize: 12, 
+          marginTop: 16 
         }}>
-          <Link href="/" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>
-            Crée ta carte sur PadelMatch →
-          </Link>
-        </div>
+          Trouve des partenaires de padel près de chez toi
+        </p>
       </div>
     </div>
   )

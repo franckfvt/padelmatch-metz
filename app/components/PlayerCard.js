@@ -7,8 +7,7 @@ import { useRef, useState } from 'react'
  * COMPOSANT PLAYER CARD - Style Match Card
  * ============================================
  * 
- * Même branding que la carte match
- * Structure: niveau à gauche, infos à droite
+ * Ratio 1.91:1 - Tout visible, rien ne déborde
  * 
  * ============================================
  */
@@ -46,10 +45,10 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
   // Couleur accent selon le niveau
   const getAccentColor = (level) => {
     const lvl = parseInt(level) || 5
-    if (lvl >= 8) return '#f59e0b' // Or
-    if (lvl >= 6) return '#a855f7' // Violet
-    if (lvl >= 4) return '#3b82f6' // Bleu
-    return '#22c55e' // Vert
+    if (lvl >= 8) return '#f59e0b'
+    if (lvl >= 6) return '#a855f7'
+    if (lvl >= 4) return '#3b82f6'
+    return '#22c55e'
   }
 
   // Config labels
@@ -57,53 +56,38 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
     loisir: { text: 'Détente', icon: '😎', color: '#22c55e' },
     mix: { text: 'Équilibré', icon: '⚡', color: '#3b82f6' },
     compet: { text: 'Compétitif', icon: '🏆', color: '#f59e0b' },
-    progression: { text: 'Veut progresser', icon: '📈', color: '#3b82f6' }
+    progression: { text: 'Progresser', icon: '📈', color: '#3b82f6' }
   }
 
   const positionConfig = {
-    right: { text: 'Droite', short: 'D' },
-    left: { text: 'Gauche', short: 'G' },
-    both: { text: 'Polyvalent', short: '↔' },
-    droite: { text: 'Droite', short: 'D' },
-    gauche: { text: 'Gauche', short: 'G' },
-    les_deux: { text: 'Polyvalent', short: '↔' }
+    right: 'Droite', left: 'Gauche', both: 'Polyvalent',
+    droite: 'Droite', gauche: 'Gauche', les_deux: 'Polyvalent'
   }
 
   const frequencyConfig = {
-    'occasional': '1-2x/mois',
-    'regular': '1x/sem',
-    'often': '2-3x/sem',
-    'intense': '4x+/sem',
-    '1x/mois': '1-2x/mois',
-    '1x/sem': '1x/sem',
-    '2-3x': '2-3x/sem',
-    '4x+': '4x+/sem'
+    'occasional': '1-2x/mois', 'regular': '1x/sem', 'often': '2-3x/sem', 'intense': '4x+/sem',
+    '1x/mois': '1-2x/mois', '1x/sem': '1x/sem', '2-3x': '2-3x/sem', '4x+': '4x+/sem'
   }
 
   const experienceConfig = {
-    'less6months': '< 6 mois',
-    '6months2years': '6m - 2ans',
-    '2to5years': '2 - 5 ans',
-    'more5years': '+ 5 ans',
-    '<6mois': '< 6 mois',
-    '6mois-2ans': '6m - 2ans',
-    '2-5ans': '2 - 5 ans',
-    '5ans+': '+ 5 ans'
+    'less6months': '<6 mois', '6months2years': '6m-2ans', '2to5years': '2-5 ans', 'more5years': '+5 ans',
+    '<6mois': '<6 mois', '6mois-2ans': '6m-2ans', '2-5ans': '2-5 ans', '5ans+': '+5 ans'
   }
 
-  // Valeurs du joueur
+  // Valeurs
   const accentColor = getAccentColor(player.level)
   const style = styleConfig[player.ambiance || player.style] || styleConfig.mix
-  const position = positionConfig[player.position] || { text: 'Polyvalent', short: '↔' }
+  const position = positionConfig[player.position] || 'Polyvalent'
   const frequency = frequencyConfig[player.frequency] || '1x/sem'
-  const experience = experienceConfig[player.experience] || '2 - 5 ans'
-  const region = player.region || player.city || 'France'
+  const experience = experienceConfig[player.experience] || '2-5 ans'
+  const region = player.region || player.city || ''
+  const regionShort = region.length > 12 ? region.substring(0, 11) + '.' : region
 
-  // Tailles selon le prop size
+  // Tailles
   const sizeConfig = {
-    small: { width: '100%', maxWidth: 280 },
-    normal: { width: '100%', maxWidth: 400 },
-    large: { width: '100%', maxWidth: 540 }
+    small: { width: '100%', maxWidth: 300 },
+    normal: { width: '100%', maxWidth: 420 },
+    large: { width: '100%', maxWidth: 600 }
   }
   const sizeStyle = sizeConfig[size] || sizeConfig.normal
 
@@ -121,20 +105,20 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
         transformStyle: 'preserve-3d'
       }}
     >
-      {/* Glow externe (standalone only) */}
+      {/* Glow externe */}
       {standalone && (
         <div style={{
           position: 'absolute',
           inset: -8,
-          background: `linear-gradient(135deg, #334155, #1e293b)`,
-          filter: 'blur(25px)',
-          opacity: hoverStyle.isHovered ? 0.8 : 0.5,
+          background: 'linear-gradient(135deg, #334155, #1e293b)',
+          filter: 'blur(20px)',
+          opacity: hoverStyle.isHovered ? 0.7 : 0.4,
           borderRadius: 20,
           transition: 'opacity 0.3s'
         }} />
       )}
 
-      {/* Carte principale */}
+      {/* Carte */}
       <div style={{
         position: 'relative',
         width: '100%',
@@ -143,128 +127,87 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
         borderRadius: 16,
         overflow: 'hidden',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        border: '1px solid rgba(255,255,255,0.15)',
+        border: '1px solid rgba(255,255,255,0.12)',
         display: 'flex',
         flexDirection: 'column'
       }}>
         
-        {/* Motifs décoratifs */}
-        <div style={{
-          position: 'absolute',
-          top: -30,
-          right: -30,
-          width: 120,
-          height: 120,
-          background: 'rgba(255,255,255,0.03)',
-          borderRadius: '50%'
-        }} />
-        <div style={{
-          position: 'absolute',
-          bottom: -40,
-          left: -40,
-          width: 100,
-          height: 100,
-          background: 'rgba(255,255,255,0.02)',
-          borderRadius: '50%'
-        }} />
+        {/* Déco */}
+        <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, background: 'rgba(255,255,255,0.03)', borderRadius: '50%' }} />
+        <div style={{ position: 'absolute', bottom: -30, left: -30, width: 60, height: 60, background: 'rgba(255,255,255,0.02)', borderRadius: '50%' }} />
 
-        {/* === CONTENU PRINCIPAL === */}
-        <div style={{ 
-          flex: 1, 
-          display: 'flex',
-          position: 'relative',
-          zIndex: 1
-        }}>
+        {/* CONTENU */}
+        <div style={{ flex: 1, display: 'flex', position: 'relative', zIndex: 1 }}>
           
-          {/* ZONE GAUCHE : Niveau */}
+          {/* GAUCHE : Niveau */}
           <div style={{
-            width: '28%',
-            background: `linear-gradient(180deg, ${accentColor}25 0%, ${accentColor}08 100%)`,
-            borderRight: '1px solid rgba(255,255,255,0.1)',
+            width: '26%',
+            background: `linear-gradient(180deg, ${accentColor}20 0%, ${accentColor}05 100%)`,
+            borderRight: '1px solid rgba(255,255,255,0.08)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            position: 'relative',
-            padding: '16px 0'
+            padding: '12px 0'
           }}>
-            {/* Glow du niveau */}
+            {/* Glow */}
             <div style={{
               position: 'absolute',
-              top: '40%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 80,
-              height: 80,
-              background: `radial-gradient(circle, ${accentColor}50 0%, transparent 70%)`,
+              top: '35%',
+              left: '13%',
+              width: 60,
+              height: 60,
+              background: `radial-gradient(circle, ${accentColor}40 0%, transparent 70%)`,
               borderRadius: '50%'
             }} />
             
-            {/* Niveau */}
             <div style={{ position: 'relative', textAlign: 'center' }}>
               <div style={{
-                fontSize: 'clamp(48px, 12vw, 64px)',
+                fontSize: 48,
                 fontWeight: 900,
                 color: '#fff',
                 lineHeight: 1,
-                textShadow: `0 0 40px ${accentColor}80`
+                textShadow: `0 0 30px ${accentColor}60`
               }}>
                 {player.level || '5'}
               </div>
-              <div style={{
-                fontSize: 10,
-                color: 'rgba(255,255,255,0.5)',
-                fontWeight: 700,
-                letterSpacing: 2,
-                marginTop: 4
-              }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700, letterSpacing: 1.5, marginTop: 2 }}>
                 NIVEAU
               </div>
             </div>
 
-            {/* Badge position */}
+            {/* Position */}
             <div style={{
-              marginTop: 12,
+              marginTop: 10,
               background: 'rgba(255,255,255,0.1)',
-              padding: '6px 12px',
-              borderRadius: 20,
-              fontSize: 11,
+              padding: '4px 10px',
+              borderRadius: 12,
+              fontSize: 10,
               fontWeight: 600,
               color: 'rgba(255,255,255,0.8)'
             }}>
-              📍 {position.text}
+              {position}
             </div>
           </div>
 
-          {/* ZONE DROITE */}
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            padding: 'clamp(12px, 3vw, 18px)'
-          }}>
+          {/* DROITE */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 12 }}>
             
-            {/* Header : Photo + Nom + Style */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              marginBottom: 12
-            }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
               {/* Photo */}
               <div style={{
-                width: 52,
-                height: 52,
-                borderRadius: 12,
+                width: 44,
+                height: 44,
+                borderRadius: 10,
                 background: player.avatar_url 
                   ? `url(${player.avatar_url}) center/cover`
-                  : `linear-gradient(135deg, ${accentColor}, ${accentColor}99)`,
+                  : `linear-gradient(135deg, ${accentColor}, ${accentColor}aa)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 24,
-                border: '2px solid rgba(255,255,255,0.2)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                fontSize: 20,
+                border: '2px solid rgba(255,255,255,0.15)',
                 flexShrink: 0,
                 overflow: 'hidden',
                 color: '#fff',
@@ -273,92 +216,67 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
                 {!player.avatar_url && (player.name?.[0]?.toUpperCase() || '?')}
               </div>
 
-              {/* Nom + Style */}
+              {/* Nom + Badges */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h2 style={{
-                  fontSize: 'clamp(18px, 4.5vw, 24px)',
+                <div style={{
+                  fontSize: 18,
                   fontWeight: 800,
                   color: '#fff',
-                  margin: 0,
                   lineHeight: 1.1,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis'
                 }}>
                   {player.name || 'Joueur'}
-                </h2>
+                </div>
                 
-                {/* Badges */}
-                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                   <span style={{
-                    background: `${style.color}25`,
-                    padding: '4px 10px',
-                    borderRadius: 20,
-                    fontSize: 11,
+                    background: `${style.color}20`,
+                    padding: '2px 8px',
+                    borderRadius: 10,
+                    fontSize: 10,
                     fontWeight: 600,
-                    color: style.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4
+                    color: style.color
                   }}>
                     {style.icon} {style.text}
                   </span>
-                  {region && (
+                  {regionShort && (
                     <span style={{
                       background: 'rgba(255,255,255,0.1)',
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                      fontSize: 11,
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                      fontSize: 10,
                       fontWeight: 500,
                       color: 'rgba(255,255,255,0.7)'
                     }}>
-                      📍 {region.length > 10 ? region.substring(0, 10) + '.' : region}
+                      📍 {regionShort}
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Grille stats */}
-            <div style={{
-              flex: 1,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 8
-            }}>
+            {/* Stats 2x2 */}
+            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {[
                 { value: frequency, label: 'Fréquence', icon: '📅' },
                 { value: experience, label: 'Expérience', icon: '⏱️' },
-                { value: player.matches_played || '0', label: 'Parties', icon: '🎾' },
-                { value: player.reliability_score ? `${player.reliability_score}%` : '100%', label: 'Fiabilité', icon: '✓' }
+                { value: player.matches_played ?? '0', label: 'Parties', icon: '🎾' },
+                { value: `${player.reliability_score ?? 100}%`, label: 'Fiabilité', icon: '✓' }
               ].map((item, i) => (
-                <div 
-                  key={i}
-                  style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    borderRadius: 10,
-                    padding: '10px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10
-                  }}
-                >
-                  <span style={{ fontSize: 16, opacity: 0.8 }}>{item.icon}</span>
+                <div key={i} style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  borderRadius: 8,
+                  padding: '6px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <span style={{ fontSize: 12 }}>{item.icon}</span>
                   <div>
-                    <div style={{ 
-                      color: '#fff', 
-                      fontSize: 13, 
-                      fontWeight: 700
-                    }}>
-                      {item.value}
-                    </div>
-                    <div style={{ 
-                      color: 'rgba(255,255,255,0.5)', 
-                      fontSize: 10,
-                      fontWeight: 500
-                    }}>
-                      {item.label}
-                    </div>
+                    <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, lineHeight: 1.2 }}>{item.value}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 8, fontWeight: 500 }}>{item.label}</div>
                   </div>
                 </div>
               ))}
@@ -366,41 +284,41 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
           </div>
         </div>
 
-        {/* === FOOTER === */}
+        {/* FOOTER */}
         <div style={{
-          background: 'rgba(0,0,0,0.3)',
-          padding: '10px 16px',
+          background: 'rgba(0,0,0,0.25)',
+          padding: '8px 14px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderTop: '1px solid rgba(255,255,255,0.08)'
+          borderTop: '1px solid rgba(255,255,255,0.06)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{
-              width: 26,
-              height: 26,
-              borderRadius: 6,
+              width: 22,
+              height: 22,
+              borderRadius: 5,
               background: 'linear-gradient(135deg, #22c55e, #16a34a)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="2"/>
                 <path d="M12 2C12 2 12 8 12 12C12 16 12 22 12 22" stroke="#fff" strokeWidth="1.5"/>
                 <path d="M2 12C2 12 8 12 12 12C16 12 22 12 22 12" stroke="#fff" strokeWidth="1.5"/>
                 <ellipse cx="12" cy="12" rx="4" ry="10" stroke="#fff" strokeWidth="1.5"/>
               </svg>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>PadelMatch</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>PadelMatch</span>
           </div>
           
           {standalone && (
             <div style={{
               background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-              padding: '8px 14px',
-              borderRadius: 8,
-              fontSize: 12,
+              padding: '6px 12px',
+              borderRadius: 6,
+              fontSize: 11,
               fontWeight: 700,
               color: '#fff'
             }}>
@@ -408,7 +326,6 @@ export default function PlayerCard({ player, standalone = false, size = 'normal'
             </div>
           )}
         </div>
-
       </div>
     </div>
   )
