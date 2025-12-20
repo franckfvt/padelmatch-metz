@@ -143,23 +143,26 @@ export default function PublicProfileClient() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)',
+        background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
         padding: '24px 16px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
-        <div style={{ maxWidth: 550, margin: '0 auto' }}>
+        <div style={{ maxWidth: 500, margin: '0 auto' }}>
           
           {/* Header */}
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            marginBottom: 20 
+            marginBottom: 24 
           }}>
             <Link href="/dashboard" style={{ 
               color: 'rgba(255,255,255,0.6)', 
               textDecoration: 'none',
-              fontSize: 14 
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
             }}>
               ← Retour
             </Link>
@@ -169,13 +172,13 @@ export default function PublicProfileClient() {
               color: '#fff',
               margin: 0
             }}>
-              🎴 Ma carte joueur
+              🎴 Ma carte
             </h1>
             <div style={{ width: 50 }} />
           </div>
           
           {/* Carte format partage */}
-          <div ref={cardRef} style={{ marginBottom: 24 }}>
+          <div ref={cardRef} style={{ marginBottom: 20 }}>
             <PlayerCard 
               player={{
                 name: profile.name,
@@ -190,7 +193,6 @@ export default function PublicProfileClient() {
                 reliability_score: profile.reliability_score
               }} 
               variant="share"
-              standalone
             />
           </div>
 
@@ -274,14 +276,14 @@ export default function PublicProfileClient() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)',
+      background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
       padding: '20px 16px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      <div style={{ maxWidth: 380, margin: '0 auto' }}>
+      <div style={{ maxWidth: 420, margin: '0 auto' }}>
         
-        {/* Carte joueur - Version verticale mobile compacte */}
-        <div style={{ marginBottom: 16 }}>
+        {/* Carte joueur */}
+        <div style={{ marginBottom: 20 }}>
           <PlayerCard 
             player={{
               name: profile.name,
@@ -299,44 +301,53 @@ export default function PublicProfileClient() {
           />
         </div>
 
-        {/* Historique récent - Compact */}
-        {recentMatches.length > 0 && (
+        {/* Stats rapides si matchs joués */}
+        {(profile.matches_played > 0 || recentMatches.length > 0) && (
           <div style={{
             background: 'rgba(255,255,255,0.06)',
-            borderRadius: 12,
-            padding: 12,
+            borderRadius: 14,
+            padding: '14px 16px',
             marginBottom: 16,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 12
+            gap: 16
           }}>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Dernières :</span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {recentMatches.slice(0, 5).map((match, i) => {
-                const won = didWin(match)
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 6,
-                      background: won === true ? 'rgba(34, 197, 94, 0.25)' : won === false ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 12
-                    }}
-                  >
-                    {won === true ? '✅' : won === false ? '❌' : '➖'}
-                  </div>
-                )
-              })}
+            {recentMatches.length > 0 && (
+              <>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Récent</span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {recentMatches.slice(0, 5).map((match, i) => {
+                    const won = didWin(match)
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 6,
+                          background: won === true ? 'rgba(34, 197, 94, 0.3)' : won === false ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 10
+                        }}
+                      >
+                        {won === true ? '✓' : won === false ? '✗' : '-'}
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+            <div style={{ 
+              fontSize: 14, 
+              color: '#22c55e', 
+              fontWeight: 700,
+              marginLeft: 'auto'
+            }}>
+              {getWinRate()}% wins
             </div>
-            <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
-              {getWinRate()}%
-            </span>
           </div>
         )}
 
