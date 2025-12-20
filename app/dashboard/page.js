@@ -694,7 +694,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {filteredMatches.map(match => {
+            {filteredMatches.slice(0, 4).map(match => {
               const players = getMatchPlayers(match)
               const spots = getSpotsInfo(players)
               const ambiance = ambianceConfig[match.ambiance] || ambianceConfig.mix
@@ -828,8 +828,8 @@ export default function DashboardPage() {
         )}
 
         {/* Voir plus */}
-        {filteredMatches.length > 0 && (
-          <Link href="/dashboard/matches" style={{ textDecoration: 'none' }}>
+        {filteredMatches.length > 4 && (
+          <Link href="/dashboard/explore" style={{ textDecoration: 'none' }}>
             <button style={{
               width: '100%',
               padding: 14,
@@ -846,7 +846,7 @@ export default function DashboardPage() {
             onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
             onMouseOut={e => e.currentTarget.style.background = '#f8fafc'}
             >
-              Voir plus de parties
+              Voir les {filteredMatches.length - 4} autres parties →
             </button>
           </Link>
         )}

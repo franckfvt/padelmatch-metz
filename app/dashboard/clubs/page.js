@@ -1,5 +1,19 @@
 'use client'
 
+/**
+ * ============================================
+ * PAGE CLUBS - VERSION 2
+ * ============================================
+ * 
+ * Style similaire à la page Groupes
+ * - Filtres par ville
+ * - Infos complètes (site, adresse, etc.)
+ * - Clubs favoris
+ * - Clubs où j'ai joué
+ * 
+ * ============================================
+ */
+
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -9,531 +23,446 @@ export default function ClubsPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [clubs, setClubs] = useState([])
-  const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all') // 'all' ou 'compatible'
-  const [expandedClub, setExpandedClub] = useState(null)
-
-  const experienceLabels = {
-    'less6months': 'Debutant',
-    '6months2years': 'Intermediaire',
-    '2to5years': 'Confirme',
-    'more5years': 'Expert',
-    'all': 'Tous niveaux'
-  }
-
-  const experienceEmojis = {
-    'less6months': '🌱',
-    '6months2years': '📈',
-    '2to5years': '💪',
-    'more5years': '🏆',
-    'all': '🎾'
-  }
-
-  const ambianceLabels = {
-    'loisir': 'Detente',
-    'mix': 'Equilibre',
-    'compet': 'Competitif'
-  }
-
-  const ambianceEmojis = {
-    'loisir': '😎',
-    'mix': '⚡',
-    'compet': '🏆'
-  }
+  
+  // Données
+  const [clubs, setClubs] = useState([])
+  const [favoriteClubIds, setFavoriteClubIds] = useState(new Set())
+  const [playedClubIds, setPlayedClubIds] = useState(new Set())
+  
+  // Filtres
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterCity, setFilterCity] = useState('all')
+  const [activeTab, setActiveTab] = useState('all') // all, favorites, played
+  const [cities, setCities] = useState([])
 
   useEffect(() => {
     loadData()
   }, [])
 
   async function loadData() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/auth')
-        return
-      }
-
-      setUser(session.user)
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
-
-      setProfile(profileData)
-
-      // Clubs
-      const { data: clubsData } = await supabase
-        .from('clubs')
-        .select('*')
-        .order('name')
-
-      setClubs(clubsData || [])
-
-      // Matches a venir
-      const today = new Date().toISOString().split('T')[0]
-      
-      const { data: matchesData } = await supabase
-        .from('matches')
-        .select(`
-          *,
-          clubs (id, name, address),
-          profiles!matches_organizer_id_fkey (id, name, experience, ambiance),
-          match_participants (user_id, profiles (name))
-        `)
-        .eq('status', 'open')
-        .gte('match_date', today)
-        .order('match_date', { ascending: true })
-        .order('match_time', { ascending: true })
-
-      setMatches(matchesData || [])
-      setLoading(false)
-
-    } catch (error) {
-      console.error('Error loading data:', error)
-      setLoading(false)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      router.push('/auth')
+      return
     }
+
+    setUser(session.user)
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single()
+
+    setProfile(profileData)
+
+    // Charger les clubs
+    const { data: clubsData } = await supabase
+      .from('clubs')
+      .select('*')
+      .order('name', { ascending: true })
+
+    setClubs(clubsData || [])
+
+    // Extraire les villes uniques
+    const citiesSet = new Set()
+    ;(clubsData || []).forEach(c => {
+      if (c.city) citiesSet.add(c.city)
+    })
+    setCities(Array.from(citiesSet).sort())
+
+    // Charger mes clubs favoris
+    const { data: favorites } = await supabase
+      .from('club_favorites')
+      .select('club_id')
+      .eq('user_id', session.user.id)
+
+    setFavoriteClubIds(new Set((favorites || []).map(f => f.club_id)))
+
+    // Charger les clubs où j'ai joué
+    const { data: playedMatches } = await supabase
+      .from('match_participants')
+      .select('matches!inner(club_id)')
+      .eq('user_id', session.user.id)
+      .eq('status', 'confirmed')
+
+    const playedIds = new Set()
+    ;(playedMatches || []).forEach(mp => {
+      if (mp.matches?.club_id) playedIds.add(mp.matches.club_id)
+    })
+    setPlayedClubIds(playedIds)
+
+    // Filtre par défaut sur ma ville
+    if (profileData?.city) {
+      setFilterCity(profileData.city)
+    }
+
+    setLoading(false)
   }
 
-  function isMatchCompatible(match) {
-    if (!profile) return true
-    
-    // Compatible si niveau correspond ou si "tous niveaux"
-    const levelOk = !match.level_required || 
-                    match.level_required === 'all' || 
-                    match.level_required === profile.experience
-
-    // Compatible si ambiance correspond ou si profil est "mix"
-    const ambianceOk = !profile.ambiance || 
-                       profile.ambiance === 'mix' || 
-                       match.ambiance === profile.ambiance || 
-                       match.ambiance === 'mix'
-
-    return levelOk && ambianceOk
-  }
-
-  async function joinMatch(matchId, spotsAvailable) {
-    try {
-      const match = matches.find(m => m.id === matchId)
-      const isParticipant = match?.match_participants?.some(p => p.user_id === user.id)
-      const isOrganizer = match?.organizer_id === user.id
-
-      if (isParticipant || isOrganizer) {
-        router.push(`/dashboard/match/${matchId}`)
-        return
-      }
-
-      const { error } = await supabase
-        .from('match_participants')
-        .insert({
-          match_id: matchId,
-          user_id: user.id,
-          status: 'confirmed'
-        })
-
-      if (error) throw error
-
+  // Toggle favori
+  async function toggleFavorite(clubId) {
+    if (favoriteClubIds.has(clubId)) {
       await supabase
-        .from('matches')
-        .update({
-          spots_available: spotsAvailable - 1,
-          status: spotsAvailable - 1 === 0 ? 'full' : 'open'
-        })
-        .eq('id', matchId)
+        .from('club_favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('club_id', clubId)
 
-      await supabase.from('match_messages').insert({
-        match_id: matchId,
-        user_id: user.id,
-        message: `${profile?.name || 'Un joueur'} a rejoint la partie ! 🎾`
+      setFavoriteClubIds(prev => {
+        const next = new Set(prev)
+        next.delete(clubId)
+        return next
       })
+    } else {
+      await supabase
+        .from('club_favorites')
+        .insert({ user_id: user.id, club_id: clubId })
 
-      router.push(`/dashboard/match/${matchId}`)
-
-    } catch (error) {
-      console.error('Error joining match:', error)
-      alert('Erreur lors de inscription')
+      setFavoriteClubIds(prev => new Set([...prev, clubId]))
     }
   }
 
-  function formatDate(dateStr) {
-    const date = new Date(dateStr)
-    const options = { weekday: 'short', day: 'numeric', month: 'short' }
-    return date.toLocaleDateString('fr-FR', options)
-  }
+  // Filtrer les clubs
+  function getFilteredClubs() {
+    let filtered = clubs
 
-  function formatTime(timeStr) {
-    return timeStr?.slice(0, 5) || ''
-  }
-
-  function getMatchesForClub(clubId) {
-    return matches.filter(m => m.club_id === clubId)
-  }
-
-  function getFilteredMatches() {
-    if (filter === 'compatible') {
-      return matches.filter(isMatchCompatible)
+    // Recherche
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(c => 
+        c.name?.toLowerCase().includes(query) ||
+        c.city?.toLowerCase().includes(query) ||
+        c.address?.toLowerCase().includes(query)
+      )
     }
-    return matches
+
+    // Filtre ville
+    if (filterCity !== 'all') {
+      filtered = filtered.filter(c => 
+        c.city?.toLowerCase() === filterCity.toLowerCase()
+      )
+    }
+
+    // Filtre tab
+    if (activeTab === 'favorites') {
+      filtered = filtered.filter(c => favoriteClubIds.has(c.id))
+    } else if (activeTab === 'played') {
+      filtered = filtered.filter(c => playedClubIds.has(c.id))
+    }
+
+    return filtered
+  }
+
+  // Compter les parties jouées dans un club
+  function getMatchesCountForClub(clubId) {
+    // TODO: Implémenter le comptage réel
+    return playedClubIds.has(clubId) ? '✓ Déjà joué' : null
   }
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: 60 }}>
-        <div style={{ fontSize: 32, marginBottom: 16 }}>🎾</div>
-        <div style={{ color: '#666' }}>Chargement...</div>
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>🏟️</div>
+        <div style={{ color: '#64748b' }}>Chargement...</div>
       </div>
     )
   }
 
-  const filteredMatches = getFilteredMatches()
-  const compatibleCount = matches.filter(isMatchCompatible).length
+  const filteredClubs = getFilteredClubs()
 
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 }}>
-          Trouver une partie
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+          🏟️ Clubs de padel
         </h1>
-        <p style={{ color: '#666', fontSize: 16 }}>
-          {matches.length} partie{matches.length > 1 ? 's' : ''} disponible{matches.length > 1 ? 's' : ''} 
-          {compatibleCount > 0 && compatibleCount !== matches.length && (
-            <span> dont {compatibleCount} pour ton niveau</span>
-          )}
+        <p style={{ color: '#64748b', margin: '4px 0 0', fontSize: 14 }}>
+          Trouve un club près de chez toi
         </p>
       </div>
 
-      {/* Filtres */}
-      <div style={{
-        display: 'flex',
-        gap: 12,
-        marginBottom: 24
-      }}>
-        <button
-          onClick={() => setFilter('all')}
-          style={{
-            padding: '12px 20px',
-            background: filter === 'all' ? '#1a1a1a' : '#fff',
-            color: filter === 'all' ? '#fff' : '#1a1a1a',
-            border: filter === 'all' ? 'none' : '2px solid #e5e5e5',
-            borderRadius: 10,
-            fontSize: 14,
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          Toutes les parties ({matches.length})
-        </button>
-        <button
-          onClick={() => setFilter('compatible')}
-          style={{
-            padding: '12px 20px',
-            background: filter === 'compatible' ? '#2e7d32' : '#fff',
-            color: filter === 'compatible' ? '#fff' : '#2e7d32',
-            border: filter === 'compatible' ? 'none' : '2px solid #2e7d32',
-            borderRadius: 10,
-            fontSize: 14,
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          🎯 Pour ton niveau ({compatibleCount})
-        </button>
+      {/* Barre de recherche */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ position: 'relative' }}>
+          <span style={{
+            position: 'absolute',
+            left: 14,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: 18
+          }}>
+            🔍
+          </span>
+          <input
+            type="text"
+            placeholder="Rechercher un club, une ville..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '14px 14px 14px 44px',
+              border: '1px solid #e2e8f0',
+              borderRadius: 12,
+              fontSize: 15,
+              outline: 'none',
+              background: '#fff'
+            }}
+          />
+        </div>
       </div>
 
-      {/* Mon profil rappel */}
-      {profile && (
-        <div style={{
-          background: '#f5f5f5',
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 24,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 14, color: '#666' }}>Ton profil :</span>
-            <span style={{
-              background: '#e8f5e9',
-              color: '#2e7d32',
-              padding: '4px 10px',
-              borderRadius: 6,
+      {/* Filtres ville (pills) */}
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        marginBottom: 16,
+        overflowX: 'auto',
+        paddingBottom: 4
+      }}>
+        <button
+          onClick={() => setFilterCity('all')}
+          style={{
+            padding: '8px 16px',
+            background: filterCity === 'all' ? '#1a1a2e' : '#fff',
+            color: filterCity === 'all' ? '#fff' : '#64748b',
+            border: '1px solid #e2e8f0',
+            borderRadius: 20,
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          📍 Toutes
+        </button>
+        {cities.slice(0, 6).map(city => (
+          <button
+            key={city}
+            onClick={() => setFilterCity(city)}
+            style={{
+              padding: '8px 16px',
+              background: filterCity === city ? '#1a1a2e' : '#fff',
+              color: filterCity === city ? '#fff' : '#64748b',
+              border: '1px solid #e2e8f0',
+              borderRadius: 20,
               fontSize: 13,
-              fontWeight: '500'
-            }}>
-              {experienceEmojis[profile.experience]} {experienceLabels[profile.experience]}
-            </span>
-            <span style={{
-              background: profile.ambiance === 'compet' ? '#fef3c7' : 
-                         profile.ambiance === 'loisir' ? '#dbeafe' : '#f3f4f6',
-              color: profile.ambiance === 'compet' ? '#92400e' : 
-                     profile.ambiance === 'loisir' ? '#1e40af' : '#4b5563',
-              padding: '4px 10px',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: '500'
-            }}>
-              {ambianceEmojis[profile.ambiance]} {ambianceLabels[profile.ambiance]}
-            </span>
-          </div>
-          <Link href="/dashboard/profile" style={{ fontSize: 13, color: '#666' }}>
-            Modifier
-          </Link>
-        </div>
-      )}
+              fontWeight: 500,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {city}
+          </button>
+        ))}
+      </div>
 
-      {/* Liste des parties */}
-      {filteredMatches.length === 0 ? (
+      {/* Tabs */}
+      <div style={{
+        display: 'flex',
+        gap: 4,
+        marginBottom: 20,
+        borderBottom: '1px solid #e2e8f0'
+      }}>
+        {[
+          { id: 'all', label: 'Tous', count: clubs.length },
+          { id: 'favorites', label: '⭐ Favoris', count: favoriteClubIds.size },
+          { id: 'played', label: '✓ Déjà joué', count: playedClubIds.size }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '12px 16px',
+              border: 'none',
+              background: 'transparent',
+              color: activeTab === tab.id ? '#1a1a2e' : '#94a3b8',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              borderBottom: activeTab === tab.id ? '2px solid #1a1a2e' : '2px solid transparent',
+              marginBottom: -1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            {tab.label}
+            <span style={{
+              background: activeTab === tab.id ? '#1a1a2e' : '#f1f5f9',
+              color: activeTab === tab.id ? '#fff' : '#64748b',
+              padding: '2px 8px',
+              borderRadius: 10,
+              fontSize: 11
+            }}>
+              {tab.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Liste des clubs */}
+      {filteredClubs.length === 0 ? (
         <div style={{
           background: '#fff',
           borderRadius: 16,
-          padding: 40,
+          padding: 48,
           textAlign: 'center',
-          border: '1px solid #eee'
+          border: '1px solid #e2e8f0'
         }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
-          <p style={{ color: '#666', marginBottom: 16 }}>
-            {filter === 'compatible' 
-              ? 'Aucune partie compatible avec ton profil pour le moment'
-              : 'Aucune partie disponible pour le moment'
-            }
+          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🏟️</div>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: '#1a1a2e' }}>
+            {activeTab === 'favorites' 
+              ? 'Aucun club en favoris' 
+              : activeTab === 'played'
+              ? 'Tu n\'as pas encore joué dans un club'
+              : 'Aucun club trouvé'}
+          </h3>
+          <p style={{ color: '#64748b', fontSize: 14 }}>
+            {activeTab === 'favorites' 
+              ? 'Ajoute des clubs en favoris avec ⭐' 
+              : activeTab === 'played'
+              ? 'Participe à des parties pour voir tes clubs ici'
+              : 'Essaie d\'élargir ta recherche'}
           </p>
-          <Link href="/dashboard" style={{
-            display: 'inline-block',
-            padding: '12px 24px',
-            background: '#1a1a1a',
-            color: '#fff',
-            borderRadius: 10,
-            textDecoration: 'none',
-            fontSize: 14,
-            fontWeight: '600'
-          }}>
-            Creer une partie
-          </Link>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {filteredMatches.map(match => {
-            const isOrganizer = match.organizer_id === user?.id
-            const isParticipant = match.match_participants?.some(p => p.user_id === user?.id)
-            const isInvolved = isOrganizer || isParticipant
-            const isCompatible = isMatchCompatible(match)
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden'
+        }}>
+          {filteredClubs.map((club, i, arr) => {
+            const isFavorite = favoriteClubIds.has(club.id)
+            const hasPlayed = playedClubIds.has(club.id)
 
-            return (
-              <div
-                key={match.id}
-                style={{
-                  background: '#fff',
-                  borderRadius: 16,
-                  padding: 24,
-                  border: isInvolved ? '2px solid #2e7d32' : '1px solid #eee'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 16 }}>
-                  <div style={{ flex: 1, minWidth: 250 }}>
-                    {/* Date et heure */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                      <span style={{ fontWeight: '700', fontSize: 18, color: '#1a1a1a' }}>
-                        {formatDate(match.match_date)}
-                      </span>
-                      <span style={{ 
-                        background: '#2e7d32', 
-                        color: '#fff',
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        fontSize: 15,
-                        fontWeight: '600'
-                      }}>
-                        {formatTime(match.match_time)}
-                      </span>
-                      {isCompatible && !isInvolved && (
-                        <span style={{
-                          background: '#e8f5e9',
-                          color: '#2e7d32',
-                          padding: '4px 8px',
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: '600'
-                        }}>
-                          🎯 Pour toi
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Club */}
-                    <div style={{ color: '#666', fontSize: 15, marginBottom: 12 }}>
-                      📍 {match.clubs?.name}
-                    </div>
-
-                    {/* Organisateur */}
-                    <div style={{ fontSize: 14, color: '#666', marginBottom: 12 }}>
-                      Organise par <strong>{match.profiles?.name}</strong>
-                      {isOrganizer && <span style={{ color: '#2e7d32' }}> (toi)</span>}
-                    </div>
-
-                    {/* Tags */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {/* Niveau recherche */}
-                      <span style={{
-                        fontSize: 13,
-                        background: '#e8f5e9',
-                        color: '#2e7d32',
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        fontWeight: '500'
-                      }}>
-                        {experienceEmojis[match.level_required || 'all']} {experienceLabels[match.level_required || 'all']}
-                      </span>
-                      {/* Ambiance */}
-                      <span style={{
-                        fontSize: 13,
-                        background: match.ambiance === 'compet' ? '#fef3c7' : 
-                                   match.ambiance === 'loisir' ? '#dbeafe' : '#f3f4f6',
-                        color: match.ambiance === 'compet' ? '#92400e' : 
-                               match.ambiance === 'loisir' ? '#1e40af' : '#4b5563',
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        fontWeight: '500'
-                      }}>
-                        {ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}
-                      </span>
-                      {/* Places */}
-                      <span style={{
-                        fontSize: 13,
-                        background: '#f5f5f5',
-                        color: '#666',
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        fontWeight: '500'
-                      }}>
-                        👥 {match.spots_total - match.spots_available}/{match.spots_total} joueurs
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {isInvolved ? (
-                      <Link href={`/dashboard/match/${match.id}`}>
-                        <button style={{
-                          padding: '12px 24px',
-                          background: '#2e7d32',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 10,
-                          fontSize: 15,
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {isOrganizer ? 'Gerer ma partie' : 'Voir la partie'}
-                        </button>
-                      </Link>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => joinMatch(match.id, match.spots_available)}
-                          style={{
-                            padding: '12px 24px',
-                            background: '#1a1a1a',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: 10,
-                            fontSize: 15,
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          Rejoindre
-                        </button>
-                        <Link href={`/dashboard/match/${match.id}`}>
-                          <button style={{
-                            padding: '10px 24px',
-                            background: '#fff',
-                            color: '#666',
-                            border: '1px solid #e5e5e5',
-                            borderRadius: 10,
-                            fontSize: 14,
-                            fontWeight: '500',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            width: '100%'
-                          }}>
-                            Voir details
-                          </button>
-                        </Link>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Clubs */}
-      <div style={{ marginTop: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 20 }}>
-          Clubs a Metz
-        </h2>
-        <div style={{ display: 'grid', gap: 12 }}>
-          {clubs.map(club => {
-            const clubMatches = getMatchesForClub(club.id)
-            
             return (
               <div
                 key={club.id}
                 style={{
-                  background: '#fff',
-                  borderRadius: 16,
-                  padding: 20,
-                  border: '1px solid #eee'
+                  padding: '16px 20px',
+                  borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none',
+                  display: 'flex',
+                  gap: 14
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontWeight: '700', fontSize: 18, color: '#1a1a1a', marginBottom: 4 }}>
+                {/* Icône */}
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 14,
+                  background: hasPlayed ? '#dcfce7' : '#f1f5f9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 28,
+                  flexShrink: 0
+                }}>
+                  🏟️
+                </div>
+
+                {/* Infos */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600, fontSize: 15, color: '#1a1a2e' }}>
                       {club.name}
-                    </div>
-                    <div style={{ fontSize: 14, color: '#666' }}>
-                      {club.address}
-                    </div>
-                    {clubMatches.length > 0 && (
-                      <div style={{ fontSize: 13, color: '#2e7d32', marginTop: 8 }}>
-                        🎾 {clubMatches.length} partie{clubMatches.length > 1 ? 's' : ''} a venir
-                      </div>
+                    </span>
+                    {hasPlayed && (
+                      <span style={{
+                        background: '#dcfce7',
+                        color: '#16a34a',
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        fontSize: 10,
+                        fontWeight: 600
+                      }}>
+                        ✓ Déjà joué
+                      </span>
                     )}
                   </div>
-                  {club.booking_url && (
-                    <a
-                      href={club.booking_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        padding: '10px 16px',
-                        background: '#f5f5f5',
-                        color: '#1a1a1a',
-                        borderRadius: 10,
-                        fontSize: 13,
-                        fontWeight: '600',
-                        textDecoration: 'none'
-                      }}
-                    >
-                      Reserver
-                    </a>
+
+                  {/* Adresse */}
+                  {(club.address || club.city) && (
+                    <div style={{ fontSize: 13, color: '#64748b', marginBottom: 6 }}>
+                      📍 {[club.address, club.city].filter(Boolean).join(', ')}
+                    </div>
                   )}
+
+                  {/* Infos complémentaires */}
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    {club.courts_count && (
+                      <span style={{ fontSize: 12, color: '#64748b' }}>
+                        🎾 {club.courts_count} terrains
+                      </span>
+                    )}
+                    {club.phone && (
+                      <a 
+                        href={`tel:${club.phone}`}
+                        style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none' }}
+                      >
+                        📞 {club.phone}
+                      </a>
+                    )}
+                    {club.website && (
+                      <a 
+                        href={club.website.startsWith('http') ? club.website : `https://${club.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none' }}
+                      >
+                        🌐 Site web
+                      </a>
+                    )}
+                  </div>
                 </div>
+
+                {/* Bouton favori */}
+                <button
+                  onClick={() => toggleFavorite(club.id)}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    border: 'none',
+                    background: isFavorite ? '#fef3c7' : '#f1f5f9',
+                    cursor: 'pointer',
+                    fontSize: 20,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                  title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                >
+                  {isFavorite ? '⭐' : '☆'}
+                </button>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Info */}
+      <div style={{
+        background: '#f0f9ff',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 20,
+        border: '1px solid #bae6fd'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <span style={{ fontSize: 20 }}>💡</span>
+          <div>
+            <div style={{ fontSize: 13, color: '#0c4a6e', fontWeight: 600, marginBottom: 4 }}>
+              Tu connais un club qui n'est pas listé ?
+            </div>
+            <div style={{ fontSize: 12, color: '#0369a1' }}>
+              Contacte-nous à <a href="mailto:clubs@padelmatch.app" style={{ color: '#0369a1' }}>clubs@padelmatch.app</a> pour l'ajouter !
+            </div>
+          </div>
         </div>
       </div>
     </div>

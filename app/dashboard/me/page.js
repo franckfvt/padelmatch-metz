@@ -182,8 +182,33 @@ export default function MePage() {
         padding: 24,
         marginBottom: 20,
         border: '1px solid #e2e8f0',
-        textAlign: 'center'
+        textAlign: 'center',
+        position: 'relative'
       }}>
+        {/* Bouton Modifier en haut à droite */}
+        <Link href="/dashboard/profile/edit" style={{ 
+          position: 'absolute', 
+          top: 16, 
+          right: 16,
+          textDecoration: 'none'
+        }}>
+          <button style={{
+            padding: '8px 14px',
+            background: '#f1f5f9',
+            border: 'none',
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 600,
+            color: '#475569',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            ✏️ Modifier
+          </button>
+        </Link>
+
         {/* Avatar */}
         <div style={{
           width: 80,
@@ -558,6 +583,11 @@ export default function MePage() {
         </h2>
 
         <div>
+          <SettingsRow 
+            icon="👤" 
+            label="Mon compte" 
+            href="/dashboard/settings/account"
+          />
           <SettingsRow 
             icon="🔔" 
             label="Notifications" 
