@@ -407,26 +407,52 @@ export default function DashboardPage() {
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 16px', color: '#1a1a2e' }}>
           👋 {profile?.name ? `Salut ${profile.name.split(' ')[0]} !` : 'Bienvenue !'}
         </h2>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          style={{
-            width: '100%',
-            padding: 16,
-            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 12,
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8
-          }}
-        >
-          + Créer une partie
-        </button>
+        
+        {/* Boutons d'action */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              flex: 1,
+              padding: 16,
+              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 12,
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8
+            }}
+          >
+            + Créer une partie
+          </button>
+          
+          <Link href={`/player/${user?.id}`} style={{ textDecoration: 'none' }}>
+            <button
+              style={{
+                padding: '16px 20px',
+                background: 'linear-gradient(135deg, #334155, #1e293b)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              🎴 Ma carte
+            </button>
+          </Link>
+        </div>
       </div>
 
       {/* ============================================ */}

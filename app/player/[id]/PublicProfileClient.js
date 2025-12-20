@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
@@ -9,11 +9,15 @@ import PlayerCard from '@/app/components/PlayerCard'
 export default function PublicProfileClient() {
   const params = useParams()
   const playerId = params?.id
+  const cardRef = useRef(null)
   
   const [profile, setProfile] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
   const [recentMatches, setRecentMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const isOwnProfile = currentUser?.id === playerId
 
   useEffect(() => {
     if (playerId) {
@@ -23,9 +27,11 @@ export default function PublicProfileClient() {
 
   async function loadData() {
     try {
-      console.log('Loading player ID:', playerId)
-      
-      // Charger le profil (doit être accessible publiquement via RLS)
+      // Vérifier si connecté
+      const { data: { session } } = await supabase.auth.getSession()
+      setCurrentUser(session?.user || null)
+
+      // Charger le profil
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -132,6 +138,139 @@ export default function PublicProfileClient() {
     )
   }
 
+  // === SI C'EST SA PROPRE CARTE (connecté) ===
+  if (isOwnProfile) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)',
+        padding: '24px 16px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
+        <div style={{ maxWidth: 550, margin: '0 auto' }}>
+          
+          {/* Header */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: 20 
+          }}>
+            <Link href="/dashboard" style={{ 
+              color: 'rgba(255,255,255,0.6)', 
+              textDecoration: 'none',
+              fontSize: 14 
+            }}>
+              ← Retour
+            </Link>
+            <h1 style={{ 
+              fontSize: 18, 
+              fontWeight: 700, 
+              color: '#fff',
+              margin: 0
+            }}>
+              🎴 Ma carte joueur
+            </h1>
+            <div style={{ width: 50 }} />
+          </div>
+          
+          {/* Carte format partage */}
+          <div ref={cardRef} style={{ marginBottom: 24 }}>
+            <PlayerCard 
+              player={{
+                name: profile.name,
+                level: profile.level,
+                position: profile.position,
+                ambiance: profile.ambiance,
+                frequency: profile.frequency,
+                experience: profile.experience,
+                region: profile.region || profile.city,
+                avatar_url: profile.avatar_url,
+                matches_played: profile.matches_played,
+                reliability_score: profile.reliability_score
+              }} 
+              variant="share"
+              standalone
+            />
+          </div>
+
+          {/* Boutons d'action */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            
+            {/* Partager */}
+            <button
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: `${profile.name} - Joueur PadelMatch`,
+                    text: `Découvre mon profil de joueur de padel !`,
+                    url: window.location.href
+                  })
+                } else {
+                  navigator.clipboard.writeText(window.location.href)
+                  alert('Lien copié !')
+                }
+              }}
+              style={{
+                padding: 16,
+                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8
+              }}
+            >
+              📤 Partager ma carte
+            </button>
+
+            {/* QR Code */}
+            <div style={{
+              background: 'rgba(255,255,255,0.06)',
+              borderRadius: 16,
+              padding: 20,
+              textAlign: 'center'
+            }}>
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
+                alt="QR Code"
+                style={{ width: 150, height: 150, margin: '0 auto 12px', borderRadius: 8 }}
+              />
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>
+                Scanne ce QR code pour voir ma carte
+              </p>
+            </div>
+
+            {/* Modifier mon profil */}
+            <Link href="/dashboard/me" style={{ textDecoration: 'none' }}>
+              <button
+                style={{
+                  width: '100%',
+                  padding: 14,
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                ✏️ Modifier mon profil
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // === SI C'EST UN AUTRE JOUEUR (QR code scanné) ===
   return (
     <div style={{
       minHeight: '100vh',
@@ -139,9 +278,9 @@ export default function PublicProfileClient() {
       padding: '24px 16px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      <div style={{ maxWidth: 420, margin: '0 auto' }}>
         
-        {/* Carte joueur - Grande */}
+        {/* Carte joueur - Version verticale mobile */}
         <div style={{ marginBottom: 20 }}>
           <PlayerCard 
             player={{
@@ -156,8 +295,7 @@ export default function PublicProfileClient() {
               matches_played: profile.matches_played,
               reliability_score: profile.reliability_score
             }} 
-            standalone
-            size="large"
+            variant="profile"
           />
         </div>
 
