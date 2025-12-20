@@ -4,9 +4,28 @@ import { useState } from 'react'
 
 /**
  * ============================================
- * MODAL CARTE JOUEUR
+ * MODAL CARTE JOUEUR - NOUVEAU DESIGN V3
+ * ============================================
+ * 
+ * Branding sobre : #1a1a2e / #64748b / #22c55e
+ * Avec avatar/photo du joueur
+ * 4 carrés d'infos
+ * Logo en bas
+ * 
  * ============================================
  */
+
+// Couleurs avatars
+const AVATAR_COLORS = {
+  blue: '#3b82f6',
+  green: '#22c55e',
+  orange: '#f59e0b',
+  purple: '#a855f7',
+  red: '#ef4444',
+  cyan: '#06b6d4',
+  pink: '#ec4899',
+  teal: '#14b8a6'
+}
 
 export default function PlayerCardModal({ profile, onClose }) {
   const [copied, setCopied] = useState(false)
@@ -18,21 +37,32 @@ export default function PlayerCardModal({ profile, onClose }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  function shareWhatsApp() {
+    const text = `🎾 Découvre mon profil PadelMatch !\n\nJe suis niveau ${profile?.level || '?'} et je recherche des partenaires.\n\n👉 ${window.location.origin}/player/${profile?.id}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
   // Couleur selon niveau
   const getLevelColor = (level) => {
     const lvl = parseInt(level) || 5
-    if (lvl >= 8) return '#f59e0b'
-    if (lvl >= 6) return '#a855f7'
-    if (lvl >= 4) return '#3b82f6'
-    return '#22c55e'
+    if (lvl >= 8) return '#f59e0b' // Or
+    if (lvl >= 6) return '#a855f7' // Violet
+    if (lvl >= 4) return '#3b82f6' // Bleu
+    return '#22c55e' // Vert
   }
 
   const levelColor = getLevelColor(profile?.level)
+  const avatarColor = AVATAR_COLORS[profile?.avatar_color] || AVATAR_COLORS.blue
 
   // Labels
   const getStyleLabel = () => {
-    const map = { compet: '🏆 Compétitif', loisir: '😎 Détente', mix: '⚡ Équilibré', progression: '📈 Progression' }
-    return map[profile?.ambiance] || '⚡ Équilibré'
+    const map = { compet: 'Compétitif', loisir: 'Détente', mix: 'Équilibré' }
+    return map[profile?.ambiance] || 'Équilibré'
+  }
+
+  const getStyleEmoji = () => {
+    const map = { compet: '🏆', loisir: '😎', mix: '⚡' }
+    return map[profile?.ambiance] || '⚡'
   }
 
   const getPositionLabel = () => {
@@ -41,12 +71,12 @@ export default function PlayerCardModal({ profile, onClose }) {
   }
 
   const getFrequencyLabel = () => {
-    const map = { intense: '4x+/sem', often: '2-3x/sem', regular: '1x/sem', occasional: '1-2x/mois' }
-    return map[profile?.frequency] || '1x/sem'
+    const map = { intense: '4+/sem', often: '2-3/sem', regular: '1/sem', occasional: '1-2/mois' }
+    return map[profile?.frequency] || '1/sem'
   }
 
   const getExperienceLabel = () => {
-    const map = { more5years: '+5 ans', '2to5years': '2-5 ans', '6months2years': '6m-2ans', less6months: '<6 mois' }
+    const map = { more5years: '+5 ans', '2to5years': '2-5 ans', '6months2years': '6m-2a', less6months: '<6 mois' }
     return map[profile?.experience] || '2-5 ans'
   }
 
@@ -55,116 +85,158 @@ export default function PlayerCardModal({ profile, onClose }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.9)',
+        background: 'rgba(0,0,0,0.85)',
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 16
+        padding: 16,
+        backdropFilter: 'blur(4px)'
       }}
       onClick={onClose}
     >
       <div 
         style={{
-          background: '#0f0f0f',
-          borderRadius: 20,
+          background: '#fff',
+          borderRadius: 24,
           padding: 20,
           width: '100%',
           maxWidth: 360
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Titre */}
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <h2 style={{ color: '#fff', fontSize: 18, fontWeight: '700', margin: 0 }}>
-            🎴 Ta carte joueur
+        {/* Header */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: 16 
+        }}>
+          <h2 style={{ color: '#1a1a2e', fontSize: 18, fontWeight: 700, margin: 0 }}>
+            🎴 Ma carte joueur
           </h2>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              border: 'none',
+              background: '#f1f5f9',
+              color: '#64748b',
+              fontSize: 16,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Carte */}
+        {/* === CARTE === */}
         <div style={{
-          background: '#080810',
-          borderRadius: 12,
+          background: 'linear-gradient(135deg, #1a1a2e, #334155)',
+          borderRadius: 16,
           overflow: 'hidden',
-          border: `2px solid ${levelColor}`,
-          marginBottom: 16
+          marginBottom: 16,
+          boxShadow: '0 8px 32px rgba(26, 26, 46, 0.3)'
         }}>
-          {/* Header */}
+          {/* Top section avec avatar et niveau */}
           <div style={{
-            background: `linear-gradient(135deg, ${levelColor}20, transparent)`,
-            padding: 14,
+            padding: 20,
             display: 'flex',
             alignItems: 'center',
-            gap: 12
+            gap: 16,
+            borderBottom: '1px solid rgba(255,255,255,0.1)'
           }}>
-            {/* Niveau */}
+            {/* Avatar */}
             <div style={{
-              width: 54,
-              height: 54,
-              background: `linear-gradient(135deg, ${levelColor}30, ${levelColor}10)`,
-              borderRadius: 10,
+              width: 72,
+              height: 72,
+              borderRadius: 16,
+              overflow: 'hidden',
+              border: `3px solid ${levelColor}`,
+              background: profile?.avatar_url ? '#000' : `linear-gradient(135deg, ${avatarColor}, ${avatarColor}99)`,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              border: `2px solid ${levelColor}`,
+              fontSize: 32,
+              fontWeight: 700,
+              color: '#fff',
               flexShrink: 0
             }}>
-              <span style={{ fontSize: 24, fontWeight: '900', color: levelColor, lineHeight: 1 }}>
-                {profile?.level || '?'}
-              </span>
-              <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginTop: 2 }}>
-                NIVEAU
-              </span>
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                profile?.name?.[0]?.toUpperCase() || '?'
+              )}
             </div>
 
-            {/* Nom + Style */}
+            {/* Nom et infos */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ 
-                fontSize: 18, 
-                fontWeight: '700', 
+                fontSize: 20, 
+                fontWeight: 700, 
                 color: '#fff', 
-                marginBottom: 4,
+                marginBottom: 6,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
               }}>
                 {profile?.name || 'Joueur'}
               </div>
-              <div style={{
-                display: 'inline-block',
-                padding: '3px 8px',
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: 10,
-                fontSize: 11,
-                color: 'rgba(255,255,255,0.7)'
-              }}>
-                {getStyleLabel()}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{
+                  padding: '4px 10px',
+                  background: levelColor,
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: '#fff'
+                }}>
+                  ⭐ Niveau {profile?.level || '?'}
+                </span>
+                <span style={{
+                  padding: '4px 10px',
+                  background: 'rgba(255,255,255,0.15)',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: 'rgba(255,255,255,0.9)'
+                }}>
+                  {getStyleEmoji()} {getStyleLabel()}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Infos 2x2 */}
+          {/* Grille 2x2 infos */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 1fr)',
             gap: 1,
-            background: 'rgba(255,255,255,0.05)'
+            background: 'rgba(255,255,255,0.1)'
           }}>
             {[
-              { label: 'Poste', value: getPositionLabel() },
-              { label: 'Fréquence', value: getFrequencyLabel() },
-              { label: 'Expérience', value: getExperienceLabel() },
-              { label: 'Région', value: profile?.region || 'France' }
+              { label: 'Poste', value: getPositionLabel(), icon: '🎯' },
+              { label: 'Fréquence', value: getFrequencyLabel(), icon: '📅' },
+              { label: 'Expérience', value: getExperienceLabel(), icon: '⏱️' },
+              { label: 'Ville', value: profile?.city || 'France', icon: '📍' }
             ].map((item, i) => (
               <div key={i} style={{
-                padding: '10px 8px',
-                background: '#080810',
+                padding: '14px 12px',
+                background: '#1a1a2e',
                 textAlign: 'center'
               }}>
+                <div style={{ fontSize: 16, marginBottom: 4 }}>{item.icon}</div>
                 <div style={{ 
-                  fontSize: 12, 
-                  fontWeight: '700', 
+                  fontSize: 14, 
+                  fontWeight: 700, 
                   color: '#fff', 
                   marginBottom: 2,
                   overflow: 'hidden',
@@ -173,7 +245,7 @@ export default function PlayerCardModal({ profile, onClose }) {
                 }}>
                   {item.value}
                 </div>
-                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   {item.label}
                 </div>
               </div>
@@ -182,55 +254,69 @@ export default function PlayerCardModal({ profile, onClose }) {
 
           {/* Footer branding */}
           <div style={{
-            padding: '6px 12px',
-            background: 'rgba(255,255,255,0.02)',
+            padding: '10px 16px',
+            background: 'rgba(0,0,0,0.3)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 5
+            gap: 8
           }}>
-            <span style={{ fontSize: 11 }}>🎾</span>
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: '600', letterSpacing: 0.5 }}>
-              PADELMATCH
+            <span style={{ fontSize: 14 }}>🎾</span>
+            <span style={{ 
+              fontSize: 11, 
+              color: 'rgba(255,255,255,0.7)', 
+              fontWeight: 600, 
+              letterSpacing: 1,
+              textTransform: 'uppercase'
+            }}>
+              PadelMatch
             </span>
           </div>
         </div>
 
         {/* Boutons */}
-        <button
-          onClick={copyLink}
-          style={{
-            width: '100%',
-            padding: '14px',
-            background: copied ? '#22c55e' : '#3b82f6',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 10,
-            fontSize: 15,
-            fontWeight: '600',
-            cursor: 'pointer',
-            marginBottom: 8
-          }}
-        >
-          {copied ? '✓ Lien copié !' : '📋 Copier le lien pour partager'}
-        </button>
-        
-        <button
-          onClick={onClose}
-          style={{
-            width: '100%',
-            padding: '14px',
-            background: 'rgba(255,255,255,0.08)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 10,
-            fontSize: 15,
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          Fermer
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={copyLink}
+            style={{
+              flex: 1,
+              padding: 14,
+              background: copied ? '#dcfce7' : '#f1f5f9',
+              border: 'none',
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: 600,
+              color: copied ? '#16a34a' : '#1a1a2e',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            {copied ? '✓ Copié !' : '🔗 Copier le lien'}
+          </button>
+          <button
+            onClick={shareWhatsApp}
+            style={{
+              flex: 1,
+              padding: 14,
+              background: '#22c55e',
+              border: 'none',
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#fff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            📲 WhatsApp
+          </button>
+        </div>
       </div>
     </div>
   )

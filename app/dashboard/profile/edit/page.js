@@ -2,17 +2,12 @@
 
 /**
  * ============================================
- * PAGE: Modifier mon profil
+ * PAGE: Modifier mon profil - CORRIGÉE
  * ============================================
  * 
- * Modifier rapidement :
- * - Photo de profil
- * - Nom
- * - Bio
- * - Niveau
- * - Ville
- * - Position
- * - Ambiance
+ * - Avatars prédéfinis (8 couleurs)
+ * - Upload photo optionnel
+ * - Toutes les infos modifiables
  * 
  * ============================================
  */
@@ -22,13 +17,24 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+// 8 avatars colorés prédéfinis
+const AVATAR_COLORS = [
+  { id: 'blue', color: '#3b82f6', emoji: '🎾' },
+  { id: 'green', color: '#22c55e', emoji: '🏆' },
+  { id: 'orange', color: '#f59e0b', emoji: '⚡' },
+  { id: 'purple', color: '#a855f7', emoji: '🎯' },
+  { id: 'red', color: '#ef4444', emoji: '🔥' },
+  { id: 'cyan', color: '#06b6d4', emoji: '💎' },
+  { id: 'pink', color: '#ec4899', emoji: '⭐' },
+  { id: 'teal', color: '#14b8a6', emoji: '🌟' }
+]
+
 export default function EditProfilePage() {
   const router = useRouter()
   const fileInputRef = useRef(null)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState(null)
 
   // Formulaire
@@ -39,10 +45,11 @@ export default function EditProfilePage() {
     level: 5,
     position: 'both',
     ambiance: 'mix',
-    avatar_url: ''
+    avatar_url: '',
+    avatar_color: 'blue' // Couleur avatar par défaut
   })
 
-  const playerColors = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6']
+  const [usePhoto, setUsePhoto] = useState(false) // false = avatar coloré, true = photo
 
   const positionOptions = [
     { id: 'left', label: 'Gauche', emoji: '⬅️' },
@@ -61,52 +68,67 @@ export default function EditProfilePage() {
   }, [])
 
   async function loadData() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      router.push('/auth')
-      return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/auth')
+        return
+      }
+
+      setUser(session.user)
+
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+
+      if (error) {
+        console.error('Error loading profile:', error)
+        setMessage({ type: 'error', text: 'Erreur lors du chargement' })
+        setLoading(false)
+        return
+      }
+
+      if (profileData) {
+        setForm({
+          name: profileData.name || '',
+          bio: profileData.bio || '',
+          city: profileData.city || '',
+          level: profileData.level || 5,
+          position: profileData.position || 'both',
+          ambiance: profileData.ambiance || 'mix',
+          avatar_url: profileData.avatar_url || '',
+          avatar_color: profileData.avatar_color || 'blue'
+        })
+        
+        // Si l'utilisateur a une photo, activer le mode photo
+        setUsePhoto(!!profileData.avatar_url && profileData.avatar_url.startsWith('http'))
+      }
+
+      setLoading(false)
+    } catch (err) {
+      console.error('Error:', err)
+      setMessage({ type: 'error', text: 'Erreur inattendue' })
+      setLoading(false)
     }
-
-    setUser(session.user)
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single()
-
-    if (profileData) {
-      setForm({
-        name: profileData.name || '',
-        bio: profileData.bio || '',
-        city: profileData.city || '',
-        level: profileData.level || 5,
-        position: profileData.position || 'both',
-        ambiance: profileData.ambiance || 'mix',
-        avatar_url: profileData.avatar_url || ''
-      })
-    }
-
-    setLoading(false)
   }
 
   async function handleImageUpload(e) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Vérifier le type
     if (!file.type.startsWith('image/')) {
       setMessage({ type: 'error', text: 'Le fichier doit être une image' })
       return
     }
 
-    // Vérifier la taille (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       setMessage({ type: 'error', text: 'L\'image doit faire moins de 2 Mo' })
       return
     }
 
-    setUploading(true)
+    setSaving(true)
     setMessage(null)
 
     try {
@@ -114,12 +136,17 @@ export default function EditProfilePage() {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
-      // Upload
+      // Upload vers Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file)
+        .upload(filePath, file, { upsert: true })
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        setMessage({ type: 'error', text: 'Erreur upload: ' + uploadError.message })
+        setSaving(false)
+        return
+      }
 
       // Obtenir l'URL publique
       const { data: { publicUrl } } = supabase.storage
@@ -127,13 +154,14 @@ export default function EditProfilePage() {
         .getPublicUrl(filePath)
 
       setForm(prev => ({ ...prev, avatar_url: publicUrl }))
+      setUsePhoto(true)
       setMessage({ type: 'success', text: 'Photo uploadée !' })
 
     } catch (error) {
       console.error('Error uploading:', error)
       setMessage({ type: 'error', text: 'Erreur lors de l\'upload' })
     } finally {
-      setUploading(false)
+      setSaving(false)
     }
   }
 
@@ -147,25 +175,38 @@ export default function EditProfilePage() {
     setMessage(null)
 
     try {
+      const updateData = {
+        name: form.name.trim(),
+        bio: form.bio.trim() || null,
+        city: form.city.trim() || null,
+        level: form.level,
+        position: form.position,
+        ambiance: form.ambiance,
+        avatar_color: form.avatar_color,
+        updated_at: new Date().toISOString()
+      }
+
+      // Si on utilise une photo, garder l'URL, sinon la vider
+      if (usePhoto && form.avatar_url) {
+        updateData.avatar_url = form.avatar_url
+      } else {
+        updateData.avatar_url = null
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          name: form.name.trim(),
-          bio: form.bio.trim() || null,
-          city: form.city.trim() || null,
-          level: form.level,
-          position: form.position,
-          ambiance: form.ambiance,
-          avatar_url: form.avatar_url || null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', user.id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Save error:', error)
+        setMessage({ type: 'error', text: 'Erreur: ' + error.message })
+        setSaving(false)
+        return
+      }
 
       setMessage({ type: 'success', text: 'Profil mis à jour !' })
       
-      // Rediriger après 1 seconde
       setTimeout(() => {
         router.push('/dashboard/me')
       }, 1000)
@@ -176,6 +217,42 @@ export default function EditProfilePage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // Obtenir l'avatar actuel (couleur ou photo)
+  function getCurrentAvatar() {
+    if (usePhoto && form.avatar_url) {
+      return (
+        <img
+          src={form.avatar_url}
+          alt="Avatar"
+          style={{
+            width: 100,
+            height: 100,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            border: '3px solid #22c55e'
+          }}
+        />
+      )
+    }
+
+    const avatarConfig = AVATAR_COLORS.find(a => a.id === form.avatar_color) || AVATAR_COLORS[0]
+    return (
+      <div style={{
+        width: 100,
+        height: 100,
+        borderRadius: '50%',
+        background: `linear-gradient(135deg, ${avatarConfig.color}, ${avatarConfig.color}99)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 44,
+        border: '3px solid #e2e8f0'
+      }}>
+        {form.name?.[0]?.toUpperCase() || '?'}
+      </div>
+    )
   }
 
   if (loading) {
@@ -240,7 +317,7 @@ export default function EditProfilePage() {
         </div>
       )}
 
-      {/* Photo de profil */}
+      {/* Avatar Section */}
       <div style={{
         background: '#fff',
         borderRadius: 16,
@@ -250,61 +327,113 @@ export default function EditProfilePage() {
         textAlign: 'center'
       }}>
         <div style={{ marginBottom: 16 }}>
-          {form.avatar_url ? (
-            <img
-              src={form.avatar_url}
-              alt="Avatar"
-              style={{
-                width: 100,
-                height: 100,
-                borderRadius: '50%',
-                objectFit: 'cover',
-                border: '3px solid #e2e8f0'
-              }}
-            />
-          ) : (
-            <div style={{
-              width: 100,
-              height: 100,
-              borderRadius: '50%',
-              background: playerColors[0],
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 40,
-              fontWeight: 600,
-              color: '#fff',
-              margin: '0 auto'
-            }}>
-              {form.name?.[0]?.toUpperCase() || '?'}
-            </div>
-          )}
+          {getCurrentAvatar()}
         </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          style={{ display: 'none' }}
-        />
+        {/* Toggle Photo / Avatar */}
+        <div style={{ 
+          display: 'flex', 
+          gap: 8, 
+          justifyContent: 'center',
+          marginBottom: 16 
+        }}>
+          <button
+            onClick={() => setUsePhoto(false)}
+            style={{
+              padding: '8px 16px',
+              background: !usePhoto ? '#1a1a2e' : '#f1f5f9',
+              color: !usePhoto ? '#fff' : '#64748b',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            🎨 Avatar
+          </button>
+          <button
+            onClick={() => setUsePhoto(true)}
+            style={{
+              padding: '8px 16px',
+              background: usePhoto ? '#1a1a2e' : '#f1f5f9',
+              color: usePhoto ? '#fff' : '#64748b',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            📷 Photo
+          </button>
+        </div>
 
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          style={{
-            padding: '10px 20px',
-            background: '#f1f5f9',
-            color: '#475569',
-            border: 'none',
-            borderRadius: 10,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer'
-          }}
-        >
-          {uploading ? 'Upload...' : '📷 Changer la photo'}
-        </button>
+        {/* Sélection avatar coloré */}
+        {!usePhoto && (
+          <div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+              Choisis ta couleur d'avatar
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {AVATAR_COLORS.map(avatar => (
+                <button
+                  key={avatar.id}
+                  onClick={() => setForm(prev => ({ ...prev, avatar_color: avatar.id }))}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${avatar.color}, ${avatar.color}99)`,
+                    border: form.avatar_color === avatar.id ? '3px solid #1a1a2e' : '3px solid transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 18,
+                    transition: 'transform 0.2s'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  {avatar.emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Upload photo */}
+        {usePhoto && (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              style={{ display: 'none' }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={saving}
+              style={{
+                padding: '10px 20px',
+                background: '#f1f5f9',
+                color: '#475569',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              📷 {form.avatar_url ? 'Changer la photo' : 'Ajouter une photo'}
+            </button>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
+              JPG, PNG • Max 2 Mo
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Infos de base */}
@@ -361,7 +490,7 @@ export default function EditProfilePage() {
             }}
           />
           <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4, textAlign: 'right' }}>
-            {form.bio.length}/200
+            {form.bio?.length || 0}/200
           </div>
         </div>
 
@@ -411,7 +540,8 @@ export default function EditProfilePage() {
             height: 8,
             borderRadius: 4,
             outline: 'none',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            accentColor: '#22c55e'
           }}
         />
         

@@ -2,14 +2,7 @@
 
 /**
  * ============================================
- * PAGE: Paramètres du compte
- * ============================================
- * 
- * - Voir email
- * - Modifier téléphone
- * - Modifier ville
- * - Modifier mot de passe
- * 
+ * PAGE: Mon compte - CORRIGÉE
  * ============================================
  */
 
@@ -26,13 +19,10 @@ export default function AccountSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
 
-  // Formulaire
   const [phone, setPhone] = useState('')
   const [city, setCity] = useState('')
   
-  // Mot de passe
   const [showPasswordForm, setShowPasswordForm] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -41,25 +31,34 @@ export default function AccountSettingsPage() {
   }, [])
 
   async function loadData() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      router.push('/auth')
-      return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/auth')
+        return
+      }
+
+      setUser(session.user)
+
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+
+      if (error) {
+        console.error('Error loading profile:', error)
+      }
+
+      setProfile(profileData)
+      setPhone(profileData?.phone || '')
+      setCity(profileData?.city || '')
+
+      setLoading(false)
+    } catch (err) {
+      console.error('Error:', err)
+      setLoading(false)
     }
-
-    setUser(session.user)
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single()
-
-    setProfile(profileData)
-    setPhone(profileData?.phone || '')
-    setCity(profileData?.city || '')
-
-    setLoading(false)
   }
 
   async function saveProfile() {
@@ -76,15 +75,18 @@ export default function AccountSettingsPage() {
         })
         .eq('id', user.id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Save error:', error)
+        setMessage({ type: 'error', text: 'Erreur: ' + error.message })
+        setSaving(false)
+        return
+      }
 
       setMessage({ type: 'success', text: 'Informations mises à jour !' })
-      
-      // Mettre à jour le profil local
       setProfile(prev => ({ ...prev, phone: phone.trim(), city: city.trim() }))
 
     } catch (error) {
-      console.error('Error saving profile:', error)
+      console.error('Error saving:', error)
       setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde' })
     } finally {
       setSaving(false)
@@ -110,17 +112,21 @@ export default function AccountSettingsPage() {
         password: newPassword
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Password error:', error)
+        setMessage({ type: 'error', text: error.message })
+        setSaving(false)
+        return
+      }
 
       setMessage({ type: 'success', text: 'Mot de passe modifié !' })
       setShowPasswordForm(false)
-      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
 
     } catch (error) {
-      console.error('Error changing password:', error)
-      setMessage({ type: 'error', text: error.message || 'Erreur lors du changement de mot de passe' })
+      console.error('Error:', error)
+      setMessage({ type: 'error', text: 'Erreur lors du changement' })
     } finally {
       setSaving(false)
     }
@@ -173,7 +179,7 @@ export default function AccountSettingsPage() {
         </div>
       )}
 
-      {/* Email (lecture seule) */}
+      {/* Email */}
       <div style={{
         background: '#fff',
         borderRadius: 16,
@@ -226,7 +232,6 @@ export default function AccountSettingsPage() {
           📱 Coordonnées
         </h2>
 
-        {/* Téléphone */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
             Numéro de téléphone
@@ -251,7 +256,6 @@ export default function AccountSettingsPage() {
           </div>
         </div>
 
-        {/* Ville */}
         <div style={{ marginBottom: 20 }}>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
             Ville
