@@ -32,6 +32,7 @@ export default function ClubsPage() {
   
   // Filtres
   const [searchQuery, setSearchQuery] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [filterCity, setFilterCity] = useState('all')
   const [activeTab, setActiveTab] = useState('all') // all, favorites, played
   const [cities, setCities] = useState([])
@@ -155,6 +156,52 @@ export default function ClubsPage() {
     return filtered
   }
 
+  // Obtenir les suggestions de recherche
+  function getSearchSuggestions() {
+    if (!searchQuery.trim() || searchQuery.length < 2) return []
+    
+    const query = searchQuery.toLowerCase()
+    const suggestions = []
+    
+    // Suggestions de clubs
+    clubs.filter(c => 
+      c.name?.toLowerCase().includes(query) ||
+      c.city?.toLowerCase().includes(query)
+    ).slice(0, 5).forEach(club => {
+      suggestions.push({
+        type: 'club',
+        id: club.id,
+        label: club.name,
+        sublabel: club.city
+      })
+    })
+    
+    // Suggestions de villes
+    cities.filter(city => 
+      city.toLowerCase().includes(query)
+    ).slice(0, 3).forEach(city => {
+      if (!suggestions.find(s => s.type === 'city' && s.label === city)) {
+        suggestions.push({
+          type: 'city',
+          label: city,
+          sublabel: `${clubs.filter(c => c.city === city).length} clubs`
+        })
+      }
+    })
+    
+    return suggestions.slice(0, 6)
+  }
+
+  function handleSuggestionClick(suggestion) {
+    if (suggestion.type === 'club') {
+      router.push(`/dashboard/clubs/${suggestion.id}`)
+    } else if (suggestion.type === 'city') {
+      setFilterCity(suggestion.label)
+      setSearchQuery('')
+    }
+    setShowSuggestions(false)
+  }
+
   // Compter les parties jouées dans un club
   function getMatchesCountForClub(clubId) {
     // TODO: Implémenter le comptage réel
@@ -211,7 +258,12 @@ export default function ClubsPage() {
             type="text"
             placeholder="Rechercher un club, une ville..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setShowSuggestions(e.target.value.length >= 2)
+            }}
+            onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             style={{
               width: '100%',
               padding: '14px 14px 14px 44px',
@@ -222,6 +274,55 @@ export default function ClubsPage() {
               background: '#fff'
             }}
           />
+          
+          {/* Suggestions dropdown */}
+          {showSuggestions && getSearchSuggestions().length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: 12,
+              marginTop: 4,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              zIndex: 100,
+              overflow: 'hidden'
+            }}>
+              {getSearchSuggestions().map((suggestion, i) => (
+                <div
+                  key={i}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  style={{
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    cursor: 'pointer',
+                    borderBottom: i < getSearchSuggestions().length - 1 ? '1px solid #f1f5f9' : 'none',
+                    transition: 'background 0.15s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                >
+                  <span style={{ fontSize: 18 }}>
+                    {suggestion.type === 'club' ? '🏟️' : '📍'}
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 600, color: '#1a1a2e', fontSize: 14 }}>
+                      {suggestion.label}
+                    </div>
+                    {suggestion.sublabel && (
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        {suggestion.sublabel}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

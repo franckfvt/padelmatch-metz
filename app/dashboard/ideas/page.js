@@ -191,7 +191,7 @@ export default function IdeasPage() {
   return (
     <div>
       {/* Bouton retour */}
-      <Link href="/dashboard/me" style={{ 
+      <Link href="/dashboard" style={{ 
         color: '#64748b', 
         textDecoration: 'none', 
         fontSize: 14,
@@ -200,7 +200,7 @@ export default function IdeasPage() {
         gap: 4,
         marginBottom: 12
       }}>
-        ← Retour
+        ← Retour à l'accueil
       </Link>
 
       {/* Header */}

@@ -783,20 +783,20 @@ export default function ExplorePage() {
               {filteredMatches.length}
             </span>
           </h2>
-          {filteredMatches.length > 6 && (
-            <button
-              onClick={() => setShowAllMatches(!showAllMatches)}
+          {filteredMatches.length > 0 && (
+            <Link
+              href="/dashboard/explore/matches"
               style={{
                 background: 'none',
                 border: 'none',
                 color: '#3b82f6',
                 fontSize: 13,
                 fontWeight: 500,
-                cursor: 'pointer'
+                textDecoration: 'none'
               }}
             >
-              {showAllMatches ? 'Réduire' : 'Voir tout →'}
-            </button>
+              Voir tout →
+            </Link>
           )}
         </div>
 
@@ -816,15 +816,8 @@ export default function ExplorePage() {
               Essaie d'élargir tes filtres ou crée ta propre partie
             </p>
           </div>
-        ) : showAllMatches ? (
-          // Mode grille quand "Voir tout"
-          <div className="explore-matches-grid">
-            {filteredMatches.map(match => (
-              <MatchCardCompact key={match.id} match={match} />
-            ))}
-          </div>
         ) : (
-          // Mode scroll horizontal par défaut
+          // Mode scroll horizontal
           <div style={{
             display: 'flex',
             gap: 12,
@@ -833,7 +826,7 @@ export default function ExplorePage() {
             marginRight: -16,
             paddingRight: 16
           }}>
-            {displayedMatches.map(match => (
+            {filteredMatches.slice(0, 6).map(match => (
               <MatchCardCompact key={match.id} match={match} />
             ))}
           </div>

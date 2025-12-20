@@ -300,7 +300,7 @@ export default function MePage() {
               <SettingsLink href="/dashboard/settings/notifications" icon="🔔" label="Notifications" />
               <SettingsLink href="/dashboard/settings/privacy" icon="🔒" label="Confidentialité" />
               <SettingsLink href="/dashboard/ideas" icon="💡" label="Boîte à idées" />
-              <SettingsLink href="/dashboard/help" icon="❓" label="Aide" />
+              <SettingsLink href="/dashboard/settings/help" icon="❓" label="Aide" />
               <SettingsLink href="/dashboard/terms" icon="📄" label="CGU" />
               
               {/* Déconnexion */}

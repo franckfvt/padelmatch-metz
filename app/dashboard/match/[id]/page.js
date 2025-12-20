@@ -746,6 +746,143 @@ export default function MatchPage() {
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', paddingBottom: 100 }}>
 
+      {/* === HEADER STYLE CARTE === */}
+      <div style={{
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #334155 100%)',
+        borderRadius: 20,
+        padding: 24,
+        marginBottom: 16,
+        color: '#fff',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Motif décoratif */}
+        <div style={{
+          position: 'absolute',
+          top: -20,
+          right: -20,
+          width: 100,
+          height: 100,
+          background: 'rgba(255,255,255,0.05)',
+          borderRadius: '50%'
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: -30,
+          left: -30,
+          width: 80,
+          height: 80,
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '50%'
+        }} />
+
+        {/* Retour + Status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, position: 'relative' }}>
+          <Link href="/dashboard/matches" style={{ 
+            color: 'rgba(255,255,255,0.7)', 
+            textDecoration: 'none', 
+            fontSize: 14,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            ← Retour
+          </Link>
+          <span style={{
+            padding: '6px 12px',
+            background: match.status === 'cancelled' ? '#ef4444' : match.status === 'completed' ? '#22c55e' : 'rgba(255,255,255,0.15)',
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: 600
+          }}>
+            {match.status === 'cancelled' ? '❌ Annulée' : match.status === 'completed' ? '✅ Terminée' : '🔥 En cours'}
+          </span>
+        </div>
+
+        {/* Date et heure - Grand format */}
+        <div 
+          onClick={() => isOrganizer() && match.status === 'open' && setModal('edit')}
+          style={{ 
+            cursor: isOrganizer() && match.status === 'open' ? 'pointer' : 'default',
+            textAlign: 'center',
+            marginBottom: 20,
+            position: 'relative'
+          }}
+        >
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 4, fontWeight: 500 }}>
+            📅 {formatDate(match.match_date)}
+            {isOrganizer() && match.status === 'open' && (
+              <span style={{ marginLeft: 6, fontSize: 11 }}>✏️ modifier</span>
+            )}
+          </div>
+          <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1 }}>
+            {match.match_time?.slice(0, 5) || '??:??'}
+          </div>
+        </div>
+
+        {/* Lieu */}
+        <div style={{ 
+          background: 'rgba(255,255,255,0.1)', 
+          borderRadius: 12, 
+          padding: 14,
+          marginBottom: 16
+        }}>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
+            📍 {match.clubs?.name || match.city || 'Lieu à définir'}
+          </div>
+          {match.clubs?.address && (
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+              {match.clubs.address}
+            </div>
+          )}
+        </div>
+
+        {/* Badges en ligne */}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <span style={{ 
+            padding: '8px 14px', 
+            background: 'rgba(34, 197, 94, 0.2)', 
+            color: '#86efac',
+            borderRadius: 20,
+            fontSize: 13,
+            fontWeight: 600
+          }}>
+            ⭐ Niv. {match.level_min}-{match.level_max}
+          </span>
+          <span style={{ 
+            padding: '8px 14px', 
+            background: 'rgba(255,255,255,0.1)', 
+            borderRadius: 20,
+            fontSize: 13,
+            fontWeight: 600
+          }}>
+            {ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}
+          </span>
+          {pricePerPerson > 0 && (
+            <span style={{ 
+              padding: '8px 14px', 
+              background: 'rgba(251, 191, 36, 0.2)', 
+              color: '#fcd34d',
+              borderRadius: 20,
+              fontSize: 13,
+              fontWeight: 600
+            }}>
+              💰 {pricePerPerson}€/pers
+            </span>
+          )}
+          <span style={{
+            padding: '8px 14px',
+            background: getSpotsLeft() > 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+            color: getSpotsLeft() > 0 ? '#86efac' : '#fca5a5',
+            borderRadius: 20,
+            fontSize: 13,
+            fontWeight: 600
+          }}>
+            {getSpotsLeft() > 0 ? `🎾 ${getSpotsLeft()} place${getSpotsLeft() > 1 ? 's' : ''}` : '🔒 Complet'}
+          </span>
+        </div>
+      </div>
+
       {/* === ALERTE INFOS MANQUANTES === */}
       {isOrganizer() && missingInfos.length > 0 && match.status === 'open' && (
         <div style={{
@@ -780,83 +917,34 @@ export default function MatchPage() {
         </div>
       )}
 
-      {/* === HEADER INFOS === */}
-      <div style={{
-        background: '#fff',
-        border: '1px solid #e5e5e5',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16
-      }}>
-        {/* Date et heure - cliquable pour l'orga */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div 
-            onClick={() => isOrganizer() && match.status === 'open' && setModal('edit')}
-            style={{ cursor: isOrganizer() && match.status === 'open' ? 'pointer' : 'default' }}
-          >
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 6,
-              fontSize: 13, 
-              color: '#22c55e', 
-              fontWeight: '600', 
-              marginBottom: 4 
-            }}>
-              📅 {formatDate(match.match_date)}
-              {isOrganizer() && match.status === 'open' && (
-                <span style={{ fontSize: 10, color: '#94a3b8' }}>✏️</span>
-              )}
-            </div>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 6,
-              fontSize: 32, 
-              fontWeight: '800', 
-              color: '#1a1a2e' 
-            }}>
-              🕐 {match.match_time?.slice(0, 5) || '??:??'}
-            </div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 15, color: '#1a1a2e', fontWeight: '600', marginBottom: 4 }}>
-              📍 {match.clubs?.name || match.city || 'Lieu à définir'}
-            </div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>
-              {match.clubs?.address || (match.radius ? `${match.radius}km autour` : '')}
-            </div>
-          </div>
+      {/* Status completed info */}
+      {match.status === 'completed' && match.winner && (
+        <div style={{ 
+          background: '#dcfce7', 
+          color: '#166534', 
+          borderRadius: 12, 
+          padding: 14,
+          fontWeight: '600', 
+          textAlign: 'center', 
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8
+        }}>
+          🏆 Équipe {match.winner === 'team_a' ? 'A' : 'B'} gagnante !
         </div>
+      )}
 
-        {/* Badges */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-          <span style={{ ...badgeStyle, background: '#f0fdf4', color: '#166534' }}>⭐ Niv. {match.level_min}-{match.level_max}</span>
-          <span style={badgeStyle}>{ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}</span>
-          {pricePerPerson > 0 && <span style={{ ...badgeStyle, background: '#fef3c7', color: '#92400e' }}>💰 {pricePerPerson}€/pers</span>}
-          <span style={{
-            ...badgeStyle,
-            background: getSpotsLeft() > 0 ? '#dcfce7' : '#fee2e2',
-            color: getSpotsLeft() > 0 ? '#166534' : '#dc2626'
-          }}>
-            {getSpotsLeft() > 0 ? `${getSpotsLeft()} place${getSpotsLeft() > 1 ? 's' : ''}` : 'Complet'}
-          </span>
-        </div>
-
-        {/* Status */}
-        {match.status === 'cancelled' && (
-          <div style={{ padding: 12, background: '#fee2e2', color: '#dc2626', borderRadius: 10, fontWeight: '600', textAlign: 'center', marginBottom: 16 }}>
-            ❌ Partie annulée
-          </div>
-        )}
-        {match.status === 'completed' && (
-          <div style={{ padding: 12, background: '#dcfce7', color: '#166534', borderRadius: 10, fontWeight: '600', textAlign: 'center', marginBottom: 16 }}>
-            ✅ Terminée {match.winner && `• Équipe ${match.winner} 🏆`}
-          </div>
-        )}
-
-        {/* Boutons actions */}
-        {match.status === 'open' && (
+      {/* Boutons actions */}
+      {match.status === 'open' && (
+        <div style={{ 
+          background: '#fff',
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
+          border: '1px solid #e2e8f0'
+        }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               onClick={() => setModal('share')}
@@ -895,42 +983,41 @@ export default function MatchPage() {
               </button>
             )}
           </div>
-        )}
 
-        {/* Actions secondaires */}
-        {match.status === 'open' && (
+          {/* Actions secondaires */}
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button onClick={() => setModal('qrcode')} style={btnSmall}>📱 QR Code</button>
             <button onClick={addToCalendar} style={btnSmall}>📅 Calendrier</button>
             {isOrganizer() && <button onClick={duplicateMatch} style={btnSmall}>📋 Dupliquer</button>}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Bouton Annuler pour l'organisateur - bien visible */}
-        {isOrganizer() && match.status === 'open' && (
-          <button
-            onClick={() => setModal('cancel')}
-            style={{
-              width: '100%',
-              marginTop: 16,
-              padding: '12px',
-              background: '#fff',
-              color: '#dc2626',
-              border: '1px solid #fecaca',
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6
-            }}
-          >
-            ❌ Annuler la partie
-          </button>
-        )}
-      </div>
+      {/* Bouton Annuler pour l'organisateur - bien visible */}
+      {isOrganizer() && match.status === 'open' && (
+        <button
+          onClick={() => setModal('cancel')}
+          style={{
+            width: '100%',
+            marginTop: 16,
+            marginBottom: 16,
+            padding: '12px',
+            background: '#fff',
+            color: '#dc2626',
+            border: '1px solid #fecaca',
+            borderRadius: 10,
+            fontSize: 14,
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6
+          }}
+        >
+          ❌ Annuler la partie
+        </button>
+      )}
 
       {/* === DEMANDES EN ATTENTE === */}
       {isOrganizer() && pendingRequests.length > 0 && (

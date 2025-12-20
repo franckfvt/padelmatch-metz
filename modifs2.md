@@ -1,0 +1,10 @@
+- quand je présente le QR code présent sur "moi" et que quelqu'un le scanne avec son téléphone, ça dit "joueur introuvable"
+- dans la page "Moi" mes badges ne sont pas visibles, ça dit 0/24 badges alors que j'en ai quelques uns
+- la page Aide (settings/help/page.js) ne s'affiche toujours pas ni les CGU (settings/privacy/page.js)
+- si je suis sur le dashboard et que je clique sur ma boîte à idées puis que je veux revenir en arrière, ça m'amène sur ma page profil 
+- le chat n'est toujours pas en temps réel 
+- je trouve toujours que la page "match" est assez moche, tu pourrais faire bien mieux, en t'inspirant pourquoi pas de la carte match et de son design, je trouve que la page n'est pas ergonomique
+- si je fais "voir tout" dans les parties disponibles dans la page Explorer, ça ne m'amène pas sur une page avec toutes les parties et les filtres, ce qui sera problématique quand on aura beaucoup de parties
+- la barre de recherche dans Clubs ne propose pas de résultats comme une vraie barre
+- dans la page communauté, si je clique sur un joueur ça me dit toujours joueur introuvable
+- la page explorer reste pour moi trop brouillon, il y a beaucoup trop d'élements visibles, on devrait s'inspirer de la page accueil
