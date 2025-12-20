@@ -143,7 +143,7 @@ export default function HomePage() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}>
-                compléter ta partie
+                organiser ton padel
               </span>
             </h1>
             
@@ -281,11 +281,23 @@ export default function HomePage() {
       {/* ============================================ */}
       <section style={{
         padding: '100px 24px',
-        background: '#fff'
+        background: 'linear-gradient(180deg, #fff 0%, #fef2f2 100%)'
       }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{
+            display: 'inline-block',
+            background: '#fee2e2',
+            color: '#dc2626',
+            padding: '8px 16px',
+            borderRadius: 20,
+            fontSize: 14,
+            fontWeight: 600,
+            marginBottom: 20
+          }}>
+            😫 Le problème
+          </div>
           <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 700, color: '#1a1a2e', marginBottom: 16 }}>
-            Tu connais cette situation ?
+            Tu connais cette galère ?
           </h2>
           <p style={{ fontSize: 18, color: '#64748b', marginBottom: 48 }}>
             Organiser une partie de padel, c'est souvent ça...
@@ -297,20 +309,29 @@ export default function HomePage() {
             gap: 24
           }}>
             {[
-              { emoji: '📱', title: '47 messages WhatsApp', desc: '"T\'es dispo samedi ?" "Quel niveau ?" "Finalement non"...' },
-              { emoji: '🤷', title: 'Niveaux inconnus', desc: 'Tu invites quelqu\'un... et tu découvres son niveau sur le terrain.' },
-              { emoji: '🐰', title: 'Désistements de dernière minute', desc: '"Désolé je peux plus" à 2h du match. Et tu repars à zéro.' }
+              { emoji: '📱', number: '47', title: 'messages WhatsApp', desc: '"T\'es dispo samedi ?" "Quel niveau ?" "Finalement non désolé"...' },
+              { emoji: '🤷', number: '?', title: 'Niveaux inconnus', desc: 'Tu invites quelqu\'un... et tu découvres son niveau sur le terrain.' },
+              { emoji: '💨', number: '2h', title: 'avant le match', desc: '"Désolé je peux plus venir". Et tu repars à zéro.' }
             ].map((item, i) => (
               <div key={i} style={{
-                background: '#fafafa',
+                background: '#fff',
                 borderRadius: 20,
                 padding: 32,
-                textAlign: 'left',
-                border: '1px solid #f1f5f9'
+                textAlign: 'center',
+                border: '1px solid #fecaca',
+                boxShadow: '0 4px 20px rgba(239, 68, 68, 0.08)'
               }}>
-                <div style={{ fontSize: 40, marginBottom: 16 }}>{item.emoji}</div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1a1a2e', marginBottom: 8 }}>{item.title}</h3>
-                <p style={{ fontSize: 15, color: '#64748b', lineHeight: 1.6, margin: 0 }}>{item.desc}</p>
+                <div style={{ fontSize: 48, marginBottom: 8 }}>{item.emoji}</div>
+                <div style={{ 
+                  fontSize: 36, 
+                  fontWeight: 800, 
+                  color: '#dc2626',
+                  marginBottom: 4
+                }}>
+                  {item.number}
+                </div>
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a2e', marginBottom: 8 }}>{item.title}</h3>
+                <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.5, margin: 0 }}>{item.desc}</p>
               </div>
             ))}
           </div>

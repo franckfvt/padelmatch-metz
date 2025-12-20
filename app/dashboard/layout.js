@@ -39,6 +39,28 @@ export default function DashboardLayout({ children }) {
     checkAuth()
   }, [])
 
+  // Subscription realtime pour mettre à jour le profil (avatar, etc.)
+  useEffect(() => {
+    if (!user?.id) return
+    
+    const channel = supabase
+      .channel(`profile-${user.id}`)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'profiles',
+        filter: `id=eq.${user.id}`
+      }, (payload) => {
+        // Mettre à jour le profil quand il change
+        setProfile(payload.new)
+      })
+      .subscribe()
+    
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id])
+
   async function checkAuth() {
     const { data: { session } } = await supabase.auth.getSession()
     
@@ -238,7 +260,7 @@ export default function DashboardLayout({ children }) {
                 width: 36,
                 height: 36,
                 borderRadius: '50%',
-                background: '#1a1a2e',
+                background: profile?.avatar_url ? 'transparent' : '#1a1a2e',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -246,10 +268,19 @@ export default function DashboardLayout({ children }) {
                 fontWeight: 600,
                 fontSize: 14,
                 textDecoration: 'none',
-                border: pathname.startsWith('/dashboard/me') ? '2px solid #22c55e' : '2px solid transparent'
+                border: pathname.startsWith('/dashboard/me') ? '2px solid #22c55e' : '2px solid transparent',
+                overflow: 'hidden'
               }}
             >
-              {profile?.name?.[0]?.toUpperCase() || '?'}
+              {profile?.avatar_url ? (
+                <img 
+                  src={`${profile.avatar_url}?t=${profile.updated_at || Date.now()}`}
+                  alt={profile?.name || ''}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                profile?.name?.[0]?.toUpperCase() || '?'
+              )}
             </Link>
           </div>
         </div>

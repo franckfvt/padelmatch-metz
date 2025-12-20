@@ -442,7 +442,7 @@ export default function DashboardPage() {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-              🗓️ Prochaines parties
+              🗓️ Tes prochaines parties
             </h3>
             <Link 
               href="/dashboard/matches" 
@@ -1007,6 +1007,61 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Ma ville */}
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 24,
+            border: '1px solid #f1f5f9'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Ma ville</div>
+                <div style={{ fontWeight: 600, color: '#1a1a2e' }}>📍 {profile?.city || 'Non définie'}</div>
+              </div>
+              <Link href="/dashboard/profile/edit" style={{ textDecoration: 'none' }}>
+                <button style={{
+                  padding: '8px 12px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: '#64748b',
+                  cursor: 'pointer'
+                }}>
+                  Modifier
+                </button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Boîte à idées */}
+          <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
+              borderRadius: 16,
+              padding: 20,
+              border: '1px solid #bae6fd',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              cursor: 'pointer'
+            }}>
+              <div style={{ fontSize: 28 }}>💡</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#0369a1' }}>
+                  Boîte à idées
+                </div>
+                <div style={{ fontSize: 12, color: '#0c4a6e' }}>
+                  Propose et vote
+                </div>
+              </div>
+              <span style={{ color: '#0ea5e9' }}>→</span>
+            </div>
+          </Link>
         </aside>
       </div>
       {/* Fin de dashboard-desktop-layout */}

@@ -303,16 +303,128 @@ export default function MatchPage() {
         user_id: user.id,
         message: `✅ ${request.profiles?.name}${request.duo_profile ? ` + ${request.duo_profile.name}` : ''} a rejoint la partie`
       })
+
+      // Envoyer email de confirmation au joueur accepté
+      try {
+        const { data: playerData } = await supabase
+          .from('profiles')
+          .select('email, name')
+          .eq('id', request.user_id)
+          .single()
+
+        if (playerData?.email) {
+          await fetch('/api/emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'join_accepted',
+              data: {
+                playerEmail: playerData.email,
+                playerName: playerData.name,
+                organizerName: profile?.name,
+                matchId: matchId,
+                matchDate: formatDateEmail(match.match_date),
+                matchTime: match.match_time?.slice(0, 5) || '?h',
+                clubName: match.clubs?.name || match.city || 'Lieu à définir',
+                team: `Équipe ${request.team}`
+              }
+            })
+          })
+        }
+      } catch (emailError) {
+        console.error('Erreur envoi email acceptation:', emailError)
+      }
+
+      // Vérifier si la partie est maintenant complète
+      const { data: updatedParticipants } = await supabase
+        .from('match_participants')
+        .select('*, profiles(id, name, email)')
+        .eq('match_id', matchId)
+        .eq('status', 'confirmed')
+
+      if (updatedParticipants?.length >= 4) {
+        // Partie complète ! Notifier tout le monde
+        await supabase.from('matches').update({ status: 'full' }).eq('id', matchId)
+        
+        const teamAPlayers = updatedParticipants.filter(p => p.team === 'A').map(p => p.profiles?.name).filter(Boolean)
+        const teamBPlayers = updatedParticipants.filter(p => p.team === 'B').map(p => p.profiles?.name).filter(Boolean)
+
+        // Envoyer email à chaque joueur
+        for (const participant of updatedParticipants) {
+          if (participant.profiles?.email) {
+            try {
+              await fetch('/api/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'match_complete',
+                  data: {
+                    playerEmail: participant.profiles.email,
+                    matchId: matchId,
+                    matchDate: formatDateEmail(match.match_date),
+                    matchTime: match.match_time?.slice(0, 5) || '?h',
+                    clubName: match.clubs?.name || match.city || 'Lieu à définir',
+                    teamA: teamAPlayers,
+                    teamB: teamBPlayers
+                  }
+                })
+              })
+            } catch (e) {
+              console.error('Erreur email complet:', e)
+            }
+          }
+        }
+      }
+
       loadData()
     } catch (error) { console.error(error) }
   }
 
   async function refuseRequest(request) {
-    await supabase.from('match_participants').update({ status: 'refused' }).eq('id', request.id)
-    if (request.duo_with) {
-      await supabase.from('match_participants').update({ status: 'refused' }).eq('match_id', matchId).eq('user_id', request.duo_with)
-    }
-    loadData()
+    try {
+      await supabase.from('match_participants').update({ status: 'refused' }).eq('id', request.id)
+      if (request.duo_with) {
+        await supabase.from('match_participants').update({ status: 'refused' }).eq('match_id', matchId).eq('user_id', request.duo_with)
+      }
+
+      // Envoyer email de refus au joueur
+      try {
+        const { data: playerData } = await supabase
+          .from('profiles')
+          .select('email, name')
+          .eq('id', request.user_id)
+          .single()
+
+        if (playerData?.email) {
+          await fetch('/api/emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'join_rejected',
+              data: {
+                playerEmail: playerData.email,
+                organizerName: profile?.name,
+                matchId: matchId
+              }
+            })
+          })
+        }
+      } catch (emailError) {
+        console.error('Erreur envoi email refus:', emailError)
+      }
+
+      loadData()
+    } catch (error) { console.error(error) }
+  }
+
+  // Helper pour formater date email
+  function formatDateEmail(dateStr) {
+    if (!dateStr) return 'Date à définir'
+    return new Date(dateStr).toLocaleDateString('fr-FR', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long' 
+    })
   }
 
   async function assignTeam(participantId, team) {
@@ -431,8 +543,16 @@ export default function MatchPage() {
 
   async function saveResult() {
     if (!resultForm.winner) { alert('Sélectionne le gagnant'); return }
+    
+    // Feedback: indiquer que la sauvegarde est en cours
+    const btn = document.activeElement
+    if (btn) {
+      btn.disabled = true
+      btn.textContent = '⏳ Sauvegarde en cours...'
+    }
+    
     try {
-      await supabase.from('matches').update({
+      const { error: updateError } = await supabase.from('matches').update({
         winner: resultForm.winner,
         status: 'completed',
         score_set1_a: resultForm.scores.s1a || null,
@@ -442,6 +562,12 @@ export default function MatchPage() {
         score_set3_a: resultForm.scores.s3a || null,
         score_set3_b: resultForm.scores.s3b || null,
       }).eq('id', matchId)
+
+      if (updateError) {
+        console.error('Erreur update match:', updateError)
+        alert('Erreur lors de la sauvegarde du résultat. Vérifie que tu es bien l\'organisateur.')
+        return
+      }
 
       // Récupérer les IDs des équipes
       const teamAIds = [...teamA.filter(p => !p.isPendingInvite).map(p => p.user_id || p.profiles?.id)]
@@ -488,9 +614,21 @@ export default function MatchPage() {
         user_id: user.id, 
         message: `🏆 L'équipe ${resultForm.winner} a gagné !` 
       })
+      
+      // Succès !
+      alert('✅ Résultat enregistré ! Les stats ont été mises à jour.')
       setModal(null)
       loadData()
-    } catch (error) { console.error(error) }
+    } catch (error) { 
+      console.error('Erreur saveResult:', error) 
+      alert('Une erreur est survenue. Réessaie.')
+    } finally {
+      // Réactiver le bouton
+      if (btn) {
+        btn.disabled = false
+        btn.textContent = '✓ Enregistrer le résultat'
+      }
+    }
   }
 
   async function saveMatchInfos() {

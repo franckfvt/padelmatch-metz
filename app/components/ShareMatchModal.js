@@ -20,13 +20,13 @@ import MatchShareCard from './MatchShareCard'
 export default function ShareMatchModal({ match, players, onClose }) {
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [showTextEdit, setShowTextEdit] = useState(false)
   const cardRef = useRef(null)
 
+  // IMPORTANT: Utiliser /join/ pour le lien PUBLIC (pas /dashboard/match/)
   const matchUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/dashboard/match/${match?.id}` 
+    ? `${window.location.origin}/join/${match?.id}` 
     : ''
-
-  const shareText = `🎾 Partie de Padel\n📍 ${match?.clubs?.name || match?.city || 'Lieu à définir'}\n📅 ${formatDate(match?.match_date)} à ${formatTime(match?.match_time)}\n\n👉 ${matchUrl}`
 
   function formatDate(dateStr) {
     if (!dateStr) return 'Date à définir'
@@ -36,6 +36,15 @@ export default function ShareMatchModal({ match, players, onClose }) {
   function formatTime(timeStr) {
     if (!timeStr) return '?h'
     return timeStr.slice(0, 5)
+  }
+
+  // Texte par défaut
+  const defaultShareText = `🎾 Partie de Padel\n📍 ${match?.clubs?.name || match?.city || 'Lieu à définir'}\n📅 ${formatDate(match?.match_date)} à ${formatTime(match?.match_time)}\n\nRejoins-nous ! 👉 ${matchUrl}`
+  
+  const [shareText, setShareText] = useState(defaultShareText)
+
+  function resetText() {
+    setShareText(defaultShareText)
   }
 
   function copyLink() {
@@ -176,6 +185,68 @@ export default function ShareMatchModal({ match, players, onClose }) {
           }}
         >
           <MatchShareCard match={match} players={players} />
+        </div>
+
+        {/* Texte de partage modifiable */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: 8 
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>
+              Message de partage
+            </div>
+            <button
+              onClick={() => setShowTextEdit(!showTextEdit)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: 12,
+                color: '#3b82f6',
+                cursor: 'pointer',
+                fontWeight: 500
+              }}
+            >
+              {showTextEdit ? 'Masquer' : '✏️ Modifier'}
+            </button>
+          </div>
+          
+          {showTextEdit && (
+            <div style={{ marginBottom: 12 }}>
+              <textarea
+                value={shareText}
+                onChange={(e) => setShareText(e.target.value)}
+                style={{
+                  width: '100%',
+                  minHeight: 100,
+                  padding: 12,
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                  outline: 'none'
+                }}
+              />
+              <button
+                onClick={resetText}
+                style={{
+                  marginTop: 8,
+                  padding: '6px 12px',
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: '#64748b',
+                  cursor: 'pointer'
+                }}
+              >
+                ↺ Réinitialiser le texte
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Options de partage */}

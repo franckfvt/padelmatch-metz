@@ -197,6 +197,41 @@ export default function JoinMatchPage() {
 
         router.push(`/dashboard/match/${matchId}`)
       } else {
+        // Mode approval: Envoyer email à l'organisateur
+        try {
+          // Récupérer l'email de l'organisateur
+          const { data: organizerData } = await supabase
+            .from('profiles')
+            .select('email, name')
+            .eq('id', match.organizer_id)
+            .single()
+
+          if (organizerData?.email) {
+            await fetch('/api/emails', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'join_request',
+                data: {
+                  organizerEmail: organizerData.email,
+                  organizerName: organizerData.name,
+                  playerName: profile?.name,
+                  playerLevel: profile?.level,
+                  playerPosition: profile?.preferred_position || 'Non spécifiée',
+                  matchId: matchId,
+                  matchDate: formatFullDate(match.match_date),
+                  matchTime: match.match_time?.slice(0, 5) || '?h',
+                  clubName: match.clubs?.name || match.city || 'Lieu à définir',
+                  team: selectedTeam
+                }
+              })
+            })
+          }
+        } catch (emailError) {
+          console.error('Erreur envoi email:', emailError)
+          // Ne pas bloquer si l'email échoue
+        }
+
         // Message demande
         await supabase.from('match_messages').insert({
           match_id: parseInt(matchId),
@@ -214,6 +249,16 @@ export default function JoinMatchPage() {
       alert('Erreur lors de l\'inscription')
       setJoining(false)
     }
+  }
+
+  // Formater date complète
+  function formatFullDate(dateStr) {
+    if (!dateStr) return 'Date flexible'
+    return new Date(dateStr).toLocaleDateString('fr-FR', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long' 
+    })
   }
 
   // Recherche de partenaire dans l'app
@@ -244,14 +289,17 @@ export default function JoinMatchPage() {
 
       // Chercher le partenaire par email s'il est déjà inscrit
       let duoUserId = null
+      let duoPartnerName = duoName
+      
       if (duoEmail) {
         const { data: duoProfile } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, name')
           .eq('email', duoEmail)
           .single()
         
         duoUserId = duoProfile?.id
+        if (duoProfile?.name) duoPartnerName = duoProfile.name
       }
 
       // Créer ma participation avec référence au duo
@@ -261,6 +309,7 @@ export default function JoinMatchPage() {
           match_id: parseInt(matchId),
           user_id: user.id,
           status,
+          team: selectedTeam,
           duo_with: duoUserId
         })
 
@@ -274,12 +323,49 @@ export default function JoinMatchPage() {
             match_id: parseInt(matchId),
             user_id: duoUserId,
             status,
+            team: selectedTeam,
             duo_with: user.id
           })
 
         // Ignorer l'erreur si déjà inscrit
         if (error2 && !error2.message.includes('duplicate')) {
           console.error('Duo partner error:', error2)
+        }
+      } else if (duoEmail) {
+        // Le partenaire n'est pas inscrit mais on a son email
+        // Envoyer un email d'invitation
+        try {
+          await fetch('/api/emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'duo_invite',
+              data: {
+                partnerEmail: duoEmail,
+                partnerName: duoName || 'Joueur',
+                inviterName: profile?.name,
+                inviterId: user.id,
+                matchId: matchId,
+                matchDate: formatFullDate(match.match_date),
+                matchTime: match.match_time?.slice(0, 5) || '?h',
+                clubName: match.clubs?.name || match.city || 'Lieu à définir',
+                team: `Équipe ${selectedTeam}`
+              }
+            })
+          })
+
+          // Créer une pending_invite pour le partenaire
+          await supabase.from('pending_invites').insert({
+            match_id: parseInt(matchId),
+            email: duoEmail,
+            name: duoName || 'Partenaire de ' + profile?.name,
+            team: selectedTeam,
+            invited_by: user.id,
+            status: 'pending'
+          })
+        } catch (emailError) {
+          console.error('Erreur envoi email duo:', emailError)
+          // Ne pas bloquer si l'email échoue
         }
       }
 
@@ -297,11 +383,48 @@ export default function JoinMatchPage() {
         await supabase.from('match_messages').insert({
           match_id: parseInt(matchId),
           user_id: user.id,
-          message: `👥 ${profile?.name} a rejoint avec ${duoName || 'son partenaire'}`
+          message: duoUserId 
+            ? `👥 ${profile?.name} + ${duoPartnerName} ont rejoint`
+            : `👥 ${profile?.name} a rejoint (partenaire invité: ${duoName || duoEmail})`
         })
 
         router.push(`/dashboard/match/${matchId}`)
       } else {
+        // Mode approval
+        if (match.join_mode === 'approval' && duoEmail && !duoUserId) {
+          // Notifier aussi l'organisateur de l'invitation duo
+          try {
+            const { data: organizerData } = await supabase
+              .from('profiles')
+              .select('email, name')
+              .eq('id', match.organizer_id)
+              .single()
+
+            if (organizerData?.email) {
+              await fetch('/api/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'join_request',
+                  data: {
+                    organizerEmail: organizerData.email,
+                    playerName: `${profile?.name} + ${duoName || 'partenaire invité'}`,
+                    playerLevel: profile?.level,
+                    playerPosition: profile?.preferred_position || 'Non spécifiée',
+                    matchId: matchId,
+                    matchDate: formatFullDate(match.match_date),
+                    matchTime: match.match_time?.slice(0, 5) || '?h',
+                    clubName: match.clubs?.name || match.city || 'Lieu à définir',
+                    team: selectedTeam
+                  }
+                })
+              })
+            }
+          } catch (e) {
+            console.error('Erreur email orga:', e)
+          }
+        }
+        
         setIsPending(true)
         setShowDuoModal(false)
         setSendingDuoInvite(false)

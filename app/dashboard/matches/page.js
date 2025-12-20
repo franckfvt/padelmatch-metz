@@ -1073,7 +1073,9 @@ export default function MesPartiesPage() {
       {/* MODAL INVITER                               */}
       {/* ============================================ */}
       {showInviteModal && selectedMatch && (
-        <div style={{
+        <div 
+          key={`invite-modal-${selectedMatch.id}`}
+          style={{
           position: 'fixed',
           top: 0,
           left: 0,

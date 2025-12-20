@@ -48,8 +48,8 @@ export default function MatchShareCard({ match, players = [] }) {
     return map[position] || ''
   }
 
-  // Avatar compact
-  const PlayerAvatar = ({ player, size = 40 }) => {
+  // Avatar compact - TAILLE AUGMENTÉE
+  const PlayerAvatar = ({ player, size = 48 }) => {
     const playerProfile = player?.profiles || player
     const name = playerProfile?.name || 'Joueur'
     const avatarUrl = playerProfile?.avatar_url
@@ -58,7 +58,7 @@ export default function MatchShareCard({ match, players = [] }) {
     const color = getColorForName(name)
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 55 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 60 }}>
         <div style={{
           width: size, height: size, borderRadius: '50%',
           border: '2px solid rgba(255,255,255,0.4)',
@@ -71,19 +71,19 @@ export default function MatchShareCard({ match, players = [] }) {
             <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : name[0]?.toUpperCase() || '?'}
         </div>
-        <div style={{ fontSize: 9, fontWeight: 600, color: '#fff', textAlign: 'center', maxWidth: 55, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#fff', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {name}
         </div>
         <div style={{ display: 'flex', gap: 2 }}>
-          {level && <span style={{ background: 'rgba(255,255,255,0.2)', padding: '1px 4px', borderRadius: 3, fontSize: 8, color: '#fff', fontWeight: 600 }}>{level}</span>}
-          {position && getPositionShort(position) && <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: 3, fontSize: 8, color: 'rgba(255,255,255,0.8)' }}>{getPositionShort(position)}</span>}
+          {level && <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 5px', borderRadius: 4, fontSize: 9, color: '#fff', fontWeight: 600 }}>{level}</span>}
+          {position && getPositionShort(position) && <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: 4, fontSize: 9, color: 'rgba(255,255,255,0.8)' }}>{getPositionShort(position)}</span>}
         </div>
       </div>
     )
   }
 
-  const EmptySlot = ({ size = 40 }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 55 }}>
+  const EmptySlot = ({ size = 48 }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 60 }}>
       <div style={{
         width: size, height: size, borderRadius: '50%',
         border: '2px dashed rgba(255,255,255,0.3)',
@@ -91,8 +91,8 @@ export default function MatchShareCard({ match, players = [] }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: size * 0.4, color: 'rgba(255,255,255,0.4)'
       }}>+</div>
-      <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)' }}>Dispo</div>
-      <div style={{ height: 12 }} />
+      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Dispo</div>
+      <div style={{ height: 14 }} />
     </div>
   )
 
@@ -166,7 +166,7 @@ export default function MatchShareCard({ match, players = [] }) {
             Équipe A
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
-            {teamADisplay.map((player, i) => player ? <PlayerAvatar key={i} player={player} size={38} /> : <EmptySlot key={i} size={38} />)}
+            {teamADisplay.map((player, i) => player ? <PlayerAvatar key={i} player={player} size={46} /> : <EmptySlot key={i} size={46} />)}
           </div>
         </div>
 
@@ -184,8 +184,8 @@ export default function MatchShareCard({ match, players = [] }) {
           <div style={{ fontSize: 9, fontWeight: 700, color: '#fb923c', textTransform: 'uppercase', letterSpacing: 1, background: 'rgba(251, 146, 60, 0.15)', padding: '2px 8px', borderRadius: 4 }}>
             Équipe B
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {teamBDisplay.map((player, i) => player ? <PlayerAvatar key={i} player={player} size={38} /> : <EmptySlot key={i} size={38} />)}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {teamBDisplay.map((player, i) => player ? <PlayerAvatar key={i} player={player} size={46} /> : <EmptySlot key={i} size={46} />)}
           </div>
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function MatchShareCard({ match, players = [] }) {
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>PadelMatch</div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>Organise tes parties</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>Organise tes parties et trouve des joueurs !</div>
           </div>
         </div>
         <div style={{
