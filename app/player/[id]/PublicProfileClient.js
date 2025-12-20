@@ -7,51 +7,25 @@ import PlayerCard from '@/app/components/PlayerCard'
 
 export default function PublicProfileClient({ playerId }) {
   const [profile, setProfile] = useState(null)
-  const [currentUser, setCurrentUser] = useState(null)
   const [recentMatches, setRecentMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    checkSessionAndLoad()
+    loadData()
   }, [playerId])
 
-  async function checkSessionAndLoad() {
-    // Vérifier si l'utilisateur est connecté
-    const { data: { session } } = await supabase.auth.getSession()
-    setCurrentUser(session?.user || null)
-    
-    await loadData(session?.user)
-  }
-
-  async function loadData(sessionUser) {
+  async function loadData() {
     try {
-      console.log('Loading player:', playerId, 'Session:', !!sessionUser)
-      
+      // Charger le profil (doit être accessible publiquement via RLS)
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', playerId)
         .single()
 
-      console.log('Profile result:', { profileData, profileError })
-
-      if (profileError) {
+      if (profileError || !profileData) {
         console.error('Profile error:', profileError)
-        
-        // Si pas connecté et erreur, proposer de se connecter
-        if (!sessionUser) {
-          setError('Connecte-toi pour voir ce profil')
-        } else if (profileError.code === 'PGRST116') {
-          setError('Joueur introuvable')
-        } else {
-          setError('Joueur introuvable')
-        }
-        setLoading(false)
-        return
-      }
-
-      if (!profileData) {
         setError('Joueur introuvable')
         setLoading(false)
         return
@@ -108,13 +82,6 @@ export default function PublicProfileClient({ playerId }) {
   }
 
   if (error) {
-    const handleLogin = () => {
-      // Sauvegarder l'URL pour revenir après connexion
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('redirectAfterLogin', `/player/${playerId}`)
-      }
-    }
-
     return (
       <div style={{
         minHeight: '100vh',
@@ -135,46 +102,23 @@ export default function PublicProfileClient({ playerId }) {
         }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
           <h1 style={{ fontSize: 22, fontWeight: '700', marginBottom: 8, color: '#1a1a2e' }}>
-            {error}
+            Joueur introuvable
           </h1>
           <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>
-            {!currentUser 
-              ? 'Connecte-toi à PadelMatch pour voir ce profil joueur'
-              : 'Ce profil n\'existe pas ou n\'est plus disponible'
-            }
+            Ce profil n'existe pas ou n'est plus disponible.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {!currentUser && (
-              <Link 
-                href="/auth" 
-                onClick={handleLogin}
-                style={{
-                  display: 'block',
-                  padding: '16px 28px',
-                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                  color: '#fff',
-                  borderRadius: 12,
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: 15
-                }}
-              >
-                Se connecter →
-              </Link>
-            )}
-            <Link href="/" style={{
-              display: 'block',
-              padding: '14px 28px',
-              background: currentUser ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#f1f5f9',
-              color: currentUser ? '#fff' : '#64748b',
-              borderRadius: 12,
-              textDecoration: 'none',
-              fontWeight: '600',
-              fontSize: 14
-            }}>
-              {currentUser ? 'Retour à l\'accueil' : 'Découvrir PadelMatch'}
-            </Link>
-          </div>
+          <Link href="/" style={{
+            display: 'block',
+            padding: '16px 28px',
+            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+            color: '#fff',
+            borderRadius: 12,
+            textDecoration: 'none',
+            fontWeight: '600',
+            fontSize: 15
+          }}>
+            Découvrir PadelMatch →
+          </Link>
         </div>
       </div>
     )
