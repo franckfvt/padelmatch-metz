@@ -357,11 +357,33 @@ export default function MatchShareCard({ match, players = [] }) {
         alignItems: 'center',
         flex: '0 0 auto'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 16 }}>🎾</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
-            PadelMatch
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Logo PadelMatch */}
+          <div style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 6px rgba(34, 197, 94, 0.3)'
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="2"/>
+              <path d="M12 2C12 2 12 8 12 12C12 16 12 22 12 22" stroke="#fff" strokeWidth="1.5"/>
+              <path d="M2 12C2 12 8 12 12 12C16 12 22 12 22 12" stroke="#fff" strokeWidth="1.5"/>
+              <ellipse cx="12" cy="12" rx="4" ry="10" stroke="#fff" strokeWidth="1.5"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: 0.3 }}>
+              PadelMatch
+            </div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>
+              Organise tes parties
+            </div>
+          </div>
         </div>
         <div style={{
           background: 'linear-gradient(135deg, #22c55e, #16a34a)',
