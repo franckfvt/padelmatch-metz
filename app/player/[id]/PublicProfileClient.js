@@ -275,13 +275,13 @@ export default function PublicProfileClient() {
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)',
-      padding: '24px 16px',
+      padding: '20px 16px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      <div style={{ maxWidth: 420, margin: '0 auto' }}>
+      <div style={{ maxWidth: 380, margin: '0 auto' }}>
         
-        {/* Carte joueur - Version verticale mobile */}
-        <div style={{ marginBottom: 20 }}>
+        {/* Carte joueur - Version verticale mobile compacte */}
+        <div style={{ marginBottom: 16 }}>
           <PlayerCard 
             player={{
               name: profile.name,
@@ -299,63 +299,34 @@ export default function PublicProfileClient() {
           />
         </div>
 
-        {/* Stats rapides */}
-        <div style={{
-          background: 'rgba(255,255,255,0.06)',
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 20,
-          display: 'flex',
-          justifyContent: 'space-around'
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: '800', color: '#fff' }}>
-              {profile.matches_played || 0}
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Parties</div>
-          </div>
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: '800', color: '#22c55e' }}>
-              {profile.matches_won || 0}
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Victoires</div>
-          </div>
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: '800', color: '#3b82f6' }}>
-              {getWinRate()}%
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Win rate</div>
-          </div>
-        </div>
-
-        {/* Historique récent */}
+        {/* Historique récent - Compact */}
         {recentMatches.length > 0 && (
           <div style={{
             background: 'rgba(255,255,255,0.06)',
-            borderRadius: 16,
-            padding: 16,
-            marginBottom: 20
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12
           }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12, textAlign: 'center' }}>
-              Dernières parties
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Dernières :</span>
+            <div style={{ display: 'flex', gap: 6 }}>
               {recentMatches.slice(0, 5).map((match, i) => {
                 const won = didWin(match)
                 return (
                   <div
                     key={i}
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 10,
-                      background: won === true ? 'rgba(34, 197, 94, 0.2)' : won === false ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.1)',
+                      width: 28,
+                      height: 28,
+                      borderRadius: 6,
+                      background: won === true ? 'rgba(34, 197, 94, 0.25)' : won === false ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.1)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 16
+                      fontSize: 12
                     }}
                   >
                     {won === true ? '✅' : won === false ? '❌' : '➖'}
@@ -363,6 +334,9 @@ export default function PublicProfileClient() {
                 )
               })}
             </div>
+            <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
+              {getWinRate()}%
+            </span>
           </div>
         )}
 

@@ -82,193 +82,186 @@ export default function PlayerCard({ player, standalone = false, variant = 'shar
   const region = player.region || player.city || ''
 
   // ============================================
-  // VARIANT: PROFILE (Vertical, Mobile-first)
+  // VARIANT: PROFILE (Vertical, Mobile-first, Compact)
   // ============================================
   if (variant === 'profile') {
     return (
       <div style={{
         width: '100%',
-        maxWidth: 400,
+        maxWidth: 360,
         margin: '0 auto',
         background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
-        borderRadius: 24,
+        borderRadius: 20,
         overflow: 'hidden',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+        boxShadow: '0 12px 32px rgba(0,0,0,0.25)'
       }}>
-        {/* Header avec photo et niveau */}
+        {/* Header compact avec photo + nom + niveau */}
         <div style={{
-          padding: '32px 24px 24px',
-          textAlign: 'center',
+          padding: '20px 20px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
           position: 'relative'
         }}>
           {/* Cercle décoratif */}
           <div style={{
             position: 'absolute',
-            top: -60,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 200,
-            height: 200,
-            background: `radial-gradient(circle, ${accentColor}30 0%, transparent 70%)`,
+            top: -40,
+            right: -40,
+            width: 120,
+            height: 120,
+            background: `radial-gradient(circle, ${accentColor}20 0%, transparent 70%)`,
             borderRadius: '50%'
           }} />
 
           {/* Photo */}
           <div style={{
-            width: 100,
-            height: 100,
-            borderRadius: 24,
+            width: 70,
+            height: 70,
+            borderRadius: 16,
             background: player.avatar_url 
               ? `url(${player.avatar_url}) center/cover`
               : `linear-gradient(135deg, ${accentColor}, ${accentColor}aa)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 40,
-            border: '4px solid rgba(255,255,255,0.2)',
-            boxShadow: `0 8px 24px ${accentColor}40`,
-            margin: '0 auto 16px',
-            position: 'relative',
+            fontSize: 28,
+            border: '3px solid rgba(255,255,255,0.15)',
+            boxShadow: `0 4px 16px ${accentColor}30`,
+            flexShrink: 0,
             overflow: 'hidden',
             color: '#fff',
-            fontWeight: 700
+            fontWeight: 700,
+            position: 'relative'
           }}>
             {!player.avatar_url && (player.name?.[0]?.toUpperCase() || '?')}
           </div>
 
-          {/* Nom */}
-          <h1 style={{
-            fontSize: 28,
-            fontWeight: 800,
-            color: '#fff',
-            margin: '0 0 8px',
-            lineHeight: 1.1
-          }}>
-            {player.name || 'Joueur'}
-          </h1>
+          {/* Nom + Style */}
+          <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+            <h1 style={{
+              fontSize: 22,
+              fontWeight: 800,
+              color: '#fff',
+              margin: '0 0 6px',
+              lineHeight: 1.1,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {player.name || 'Joueur'}
+            </h1>
 
-          {/* Badge style */}
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: `${style.color}25`,
-            padding: '6px 14px',
-            borderRadius: 20,
-            fontSize: 14,
-            fontWeight: 600,
-            color: style.color
-          }}>
-            {style.icon} {style.text}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{
+                background: `${style.color}25`,
+                padding: '4px 10px',
+                borderRadius: 12,
+                fontSize: 11,
+                fontWeight: 600,
+                color: style.color
+              }}>
+                {style.icon} {style.text}
+              </span>
+              {region && (
+                <span style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  fontSize: 11,
+                  color: 'rgba(255,255,255,0.7)'
+                }}>
+                  📍 {region.length > 12 ? region.substring(0, 11) + '.' : region}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Niveau - Grand */}
+        {/* Niveau + Position - ligne horizontale */}
         <div style={{
           display: 'flex',
-          justifyContent: 'center',
-          gap: 32,
-          padding: '20px 24px',
-          background: 'rgba(0,0,0,0.2)'
+          background: 'rgba(0,0,0,0.2)',
+          padding: '14px 20px'
         }}>
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ flex: 1, textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{
-              fontSize: 56,
+              fontSize: 36,
               fontWeight: 900,
               color: '#fff',
               lineHeight: 1,
-              textShadow: `0 0 40px ${accentColor}60`
+              textShadow: `0 0 24px ${accentColor}50`
             }}>
               {player.level || '5'}
             </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 1 }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 1, marginTop: 2 }}>
               NIVEAU
             </div>
           </div>
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, marginBottom: 4 }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: 20, marginBottom: 2 }}>
               {position === 'Droite' ? '👉' : position === 'Gauche' ? '👈' : '↔️'}
             </div>
-            <div style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>{position}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Position</div>
+            <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{position}</div>
           </div>
         </div>
 
-        {/* Infos */}
-        <div style={{ padding: 24 }}>
+        {/* Stats compactes 2x2 */}
+        <div style={{ padding: 16 }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: 12
+            gap: 8
           }}>
             {[
-              { icon: '📍', label: 'Région', value: region || 'Non renseigné' },
               { icon: '📅', label: 'Fréquence', value: frequency },
               { icon: '⏱️', label: 'Expérience', value: experience },
-              { icon: '🎾', label: 'Parties jouées', value: player.matches_played ?? '0' }
+              { icon: '🎾', label: 'Parties', value: player.matches_played ?? '0' },
+              { icon: '✅', label: 'Fiabilité', value: `${player.reliability_score ?? 100}%` }
             ].map((item, i) => (
               <div key={i} style={{
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: 12,
-                padding: 14,
-                textAlign: 'center'
+                background: 'rgba(255,255,255,0.06)',
+                borderRadius: 10,
+                padding: '10px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
               }}>
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{item.icon}</div>
-                <div style={{ fontSize: 15, color: '#fff', fontWeight: 700 }}>{item.value}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{item.label}</div>
+                <span style={{ fontSize: 14 }}>{item.icon}</span>
+                <div>
+                  <div style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{item.value}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>{item.label}</div>
+                </div>
               </div>
             ))}
-          </div>
-
-          {/* Fiabilité */}
-          <div style={{
-            marginTop: 16,
-            background: 'rgba(34, 197, 94, 0.15)',
-            borderRadius: 12,
-            padding: 14,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10
-          }}>
-            <span style={{ fontSize: 20 }}>✅</span>
-            <div>
-              <span style={{ fontSize: 18, fontWeight: 800, color: '#22c55e' }}>
-                {player.reliability_score ?? 100}%
-              </span>
-              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginLeft: 6 }}>
-                de fiabilité
-              </span>
-            </div>
           </div>
         </div>
 
         {/* Footer minimaliste */}
         <div style={{
-          padding: '12px 20px',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
+          padding: '10px 16px',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
           display: 'flex',
           alignItems: 'center',
-          gap: 8
+          gap: 6
         }}>
           <div style={{
-            width: 24,
-            height: 24,
-            borderRadius: 6,
+            width: 20,
+            height: 20,
+            borderRadius: 5,
             background: 'linear-gradient(135deg, #22c55e, #16a34a)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="2"/>
               <ellipse cx="12" cy="12" rx="4" ry="10" stroke="#fff" strokeWidth="1.5"/>
             </svg>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>PadelMatch</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>PadelMatch</span>
         </div>
       </div>
     )
