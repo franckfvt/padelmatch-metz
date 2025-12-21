@@ -274,13 +274,28 @@ export default function MatchPage() {
   async function sendMessage(e) {
     e.preventDefault()
     if (!newMessage.trim()) return
+    
+    const messageText = newMessage.trim()
+    
+    // Optimistic update - afficher immédiatement
+    const tempMessage = {
+      id: Date.now(), // ID temporaire
+      match_id: parseInt(matchId),
+      user_id: user.id,
+      message: messageText,
+      created_at: new Date().toISOString(),
+      profiles: { id: user.id, name: profile?.name }
+    }
+    setMessages(prev => [...prev, tempMessage])
+    setNewMessage('')
+    setShowMentions(false)
+    
+    // Envoyer à la DB
     await supabase.from('match_messages').insert({
       match_id: parseInt(matchId),
       user_id: user.id,
-      message: newMessage.trim()
+      message: messageText
     })
-    setNewMessage('')
-    setShowMentions(false)
   }
 
   async function copyLink() {
