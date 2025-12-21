@@ -66,17 +66,6 @@ export default function PublicProfileClient() {
     }
   }
 
-  function getWinRate() {
-    if (!profile?.matches_played || profile.matches_played === 0) return 0
-    return Math.round((profile.matches_won || 0) / profile.matches_played * 100)
-  }
-
-  function didWin(match) {
-    if (!match.winner) return null
-    const winningTeam = match.winner === 'team_a' ? match.team_a : match.team_b
-    return winningTeam?.includes(playerId)
-  }
-
   if (loading) {
     return (
       <div style={{
@@ -138,6 +127,23 @@ export default function PublicProfileClient() {
     )
   }
 
+  // Objet player complet avec ID pour le QR code
+  const playerData = {
+    id: playerId, // IMPORTANT pour le QR code
+    name: profile.name,
+    level: profile.level,
+    position: profile.position,
+    ambiance: profile.ambiance,
+    frequency: profile.frequency,
+    experience: profile.experience,
+    city: profile.region || profile.city,
+    region: profile.region || profile.city,
+    avatar_url: profile.avatar_url,
+    badge: profile.badge,
+    matches_played: profile.matches_played,
+    reliability_score: profile.reliability_score
+  }
+
   // === SI C'EST SA PROPRE CARTE (connecté) ===
   if (isOwnProfile) {
     return (
@@ -180,19 +186,9 @@ export default function PublicProfileClient() {
           {/* Carte format partage */}
           <div ref={cardRef} style={{ marginBottom: 20 }}>
             <PlayerCard 
-              player={{
-                name: profile.name,
-                level: profile.level,
-                position: profile.position,
-                ambiance: profile.ambiance,
-                frequency: profile.frequency,
-                experience: profile.experience,
-                region: profile.region || profile.city,
-                avatar_url: profile.avatar_url,
-                matches_played: profile.matches_played,
-                reliability_score: profile.reliability_score
-              }} 
+              player={playerData}
               variant="share"
+              showQR={true}
             />
           </div>
 
@@ -231,23 +227,6 @@ export default function PublicProfileClient() {
               📤 Partager ma carte
             </button>
 
-            {/* QR Code */}
-            <div style={{
-              background: 'rgba(255,255,255,0.06)',
-              borderRadius: 16,
-              padding: 20,
-              textAlign: 'center'
-            }}>
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
-                alt="QR Code"
-                style={{ width: 150, height: 150, margin: '0 auto 12px', borderRadius: 8 }}
-              />
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>
-                Scanne ce QR code pour voir ma carte
-              </p>
-            </div>
-
             {/* Modifier mon profil */}
             <Link href="/dashboard/me" style={{ textDecoration: 'none' }}>
               <button
@@ -277,82 +256,32 @@ export default function PublicProfileClient() {
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
-      padding: '20px 16px',
+      padding: '24px 16px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      <div style={{ maxWidth: 420, margin: '0 auto' }}>
+      <div style={{ 
+        maxWidth: 340, 
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
+      }}>
         
-        {/* Carte joueur */}
-        <div style={{ marginBottom: 20 }}>
+        {/* Carte joueur - format mobile AGRANDI */}
+        <div style={{ 
+          marginBottom: 24,
+          transform: 'scale(1.1)',
+          transformOrigin: 'top center'
+        }}>
           <PlayerCard 
-            player={{
-              name: profile.name,
-              level: profile.level,
-              position: profile.position,
-              ambiance: profile.ambiance,
-              frequency: profile.frequency,
-              experience: profile.experience,
-              region: profile.region || profile.city,
-              avatar_url: profile.avatar_url,
-              matches_played: profile.matches_played,
-              reliability_score: profile.reliability_score
-            }} 
-            variant="profile"
+            player={playerData}
+            variant="mobile"
+            showQR={false}
           />
         </div>
 
-        {/* Stats rapides si matchs joués */}
-        {(profile.matches_played > 0 || recentMatches.length > 0) && (
-          <div style={{
-            background: 'rgba(255,255,255,0.06)',
-            borderRadius: 14,
-            padding: '14px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 16
-          }}>
-            {recentMatches.length > 0 && (
-              <>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Récent</span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {recentMatches.slice(0, 5).map((match, i) => {
-                    const won = didWin(match)
-                    return (
-                      <div
-                        key={i}
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: 6,
-                          background: won === true ? 'rgba(34, 197, 94, 0.3)' : won === false ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 10
-                        }}
-                      >
-                        {won === true ? '✓' : won === false ? '✗' : '-'}
-                      </div>
-                    )
-                  })}
-                </div>
-              </>
-            )}
-            <div style={{ 
-              fontSize: 14, 
-              color: '#22c55e', 
-              fontWeight: 700,
-              marginLeft: 'auto'
-            }}>
-              {getWinRate()}% wins
-            </div>
-          </div>
-        )}
-
         {/* CTA */}
-        <Link href="/" style={{ textDecoration: 'none', display: 'block' }}>
+        <Link href="/" style={{ textDecoration: 'none', display: 'block', width: '100%' }}>
           <div style={{
             background: 'linear-gradient(135deg, #22c55e, #16a34a)',
             borderRadius: 14,

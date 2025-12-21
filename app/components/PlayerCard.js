@@ -22,10 +22,21 @@ export default function PlayerCard({
   size = 'default' // 'small', 'default', 'large'
 }) {
   
-  // URL du profil pour le QR code
-  const profileUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/player/${player?.id}` 
-    : `https://padelmatch.fr/player/${player?.id}`
+  // URL du profil pour le QR code - fallback sur l'URL actuelle si pas d'ID
+  const getProfileUrl = () => {
+    if (typeof window === 'undefined') {
+      return player?.id ? `https://padelmatch.fr/player/${player.id}` : 'https://padelmatch.fr'
+    }
+    if (player?.id) {
+      return `${window.location.origin}/player/${player.id}`
+    }
+    // Fallback: si on est déjà sur /player/xxx, utiliser cette URL
+    if (window.location.pathname.startsWith('/player/')) {
+      return window.location.href
+    }
+    return window.location.origin
+  }
+  const profileUrl = getProfileUrl()
 
   // Config position
   const positionConfig = {

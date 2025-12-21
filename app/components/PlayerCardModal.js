@@ -103,7 +103,12 @@ export default function PlayerCardModal({
     { id: 'intense', label: '4+/sem' }
   ]
 
-  const displayProfile = isEditing ? { ...profile, ...editData } : profile
+  // Toujours inclure l'ID dans le profil affiché
+  const displayProfile = {
+    ...profile,
+    ...(isEditing ? editData : {}),
+    id: profile?.id // Toujours garder l'ID
+  }
 
   return (
     <div 
