@@ -466,8 +466,10 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
         }
       }
 
-      setMatchCreated(match)
-      setStep(6)
+      // Rediriger directement vers la page match
+      onSuccess?.(match)
+      onClose()
+      router.push(`/dashboard/match/${match.id}`)
     } catch (error) {
       console.error('Error creating match:', error)
       alert(`Erreur: ${error.message || 'Erreur lors de la création'}`)
@@ -1854,7 +1856,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                   <button
                     onClick={() => {
-                      const text = `🎾 Partie de padel !\n📅 ${formData.date || formData.flexibleDays.join(', ') || 'Date flexible'}\n📍 ${selectedClub?.name || formData.city}\n\nRejoins-nous : ${window.location.origin}/join/${matchCreated.id}`
+                      const text = `🎾 Partie de padel !\n📅 ${formData.date || formData.flexibleDays.join(', ') || 'Date flexible'}\n📍 ${formData.club_name || formData.city}\n\nRejoins-nous : ${window.location.origin}/join/${matchCreated.id}`
                       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
                     }}
                     style={{
