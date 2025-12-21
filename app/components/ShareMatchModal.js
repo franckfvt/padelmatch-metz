@@ -8,11 +8,9 @@ import MatchShareCard from './MatchShareCard'
  * MODAL PARTAGE MATCH
  * ============================================
  * 
- * Affiche la carte match + options:
- * - Copier le lien
- * - Partager WhatsApp
- * - Partager SMS
- * - Télécharger l'image
+ * CORRECTION: L'organisateur n'était pas inclus dans players
+ * car il n'est pas dans match_participants.
+ * On l'ajoute manuellement depuis match.profiles.
  * 
  * ============================================
  */
@@ -72,13 +70,12 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
     setDownloading(true)
     
     try {
-      // Utiliser html2canvas si disponible, sinon fallback
       if (typeof window !== 'undefined') {
         const html2canvas = (await import('html2canvas')).default
         
         const canvas = await html2canvas(cardRef.current, {
           backgroundColor: '#1a1a2e',
-          scale: 2, // 2x pour haute résolution (1200x630 approx)
+          scale: 2,
           useCORS: true,
           allowTaint: true,
           width: cardRef.current.offsetWidth,
@@ -92,7 +89,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
       }
     } catch (error) {
       console.error('Error downloading image:', error)
-      // Fallback: copier le lien
       copyLink()
       alert('Téléchargement non disponible. Le lien a été copié à la place.')
     } finally {
@@ -100,7 +96,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
     }
   }
 
-  // Partage natif (mobile)
   async function shareNative() {
     if (navigator.share) {
       try {
@@ -118,25 +113,31 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
   }
 
   // ============================================
-  // TRANSFORMER LES DONNÉES POUR MatchShareCard
+  // CORRECTION: Ajouter l'organisateur aux players
   // ============================================
+  // L'organisateur est dans match.profiles (jointure)
+  // mais PAS dans match_participants, donc pas dans players
+  // On le crée manuellement et on l'ajoute
   
-  // L'organisateur vient de match.profiles (jointure)
-  const organizer = match?.profiles ? {
-    name: match.profiles.name,
-    avatar_url: match.profiles.avatar_url,
-    level: match.profiles.level
+  const organizerAsPlayer = match?.profiles ? {
+    id: 'organizer',
+    user_id: match.organizer_id,
+    team: match.organizer_team || 'A',
+    status: 'confirmed',
+    profiles: {
+      id: match.organizer_id,
+      name: match.profiles.name,
+      avatar_url: match.profiles.avatar_url,
+      level: match.profiles.level,
+      position: match.profiles.position
+    }
   } : null
 
-  // Les partenaires sont les autres joueurs confirmés (pas l'organisateur)
-  const partners = players
-    .filter(p => p.user_id !== match?.organizer_id)
-    .map(p => ({
-      name: p.profiles?.name || p.name,
-      avatar_url: p.profiles?.avatar_url || p.avatar_url,
-      team: p.team,
-      isManual: false
-    }))
+  // Combiner: organisateur + autres joueurs (sans doublon)
+  const allPlayers = [
+    ...(organizerAsPlayer ? [organizerAsPlayer] : []),
+    ...players.filter(p => p.user_id !== match?.organizer_id)
+  ]
 
   return (
     <div 
@@ -196,7 +197,7 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
           </button>
         </div>
 
-        {/* Carte de preview - AVEC LES BONNES PROPS */}
+        {/* Carte de preview - AVEC TOUS LES JOUEURS */}
         <div 
           ref={cardRef}
           style={{ 
@@ -205,11 +206,7 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
             overflow: 'hidden'
           }}
         >
-          <MatchShareCard 
-            match={match} 
-            organizer={organizer}
-            partners={partners}
-          />
+          <MatchShareCard match={match} players={allPlayers} />
         </div>
 
         {/* Texte de partage modifiable */}
@@ -286,7 +283,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
           </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-            {/* WhatsApp */}
             <button
               onClick={shareWhatsApp}
               style={{
@@ -305,7 +301,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
               <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>WhatsApp</span>
             </button>
 
-            {/* SMS */}
             <button
               onClick={shareSMS}
               style={{
@@ -324,7 +319,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
               <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>SMS</span>
             </button>
 
-            {/* Email */}
             <button
               onClick={shareEmail}
               style={{
@@ -343,7 +337,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
               <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>Email</span>
             </button>
 
-            {/* Partage natif (mobile) */}
             <button
               onClick={shareNative}
               style={{
@@ -363,7 +356,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
             </button>
           </div>
           
-          {/* Info technique */}
           <p style={{ 
             fontSize: 11, 
             color: '#94a3b8', 
@@ -377,7 +369,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 10 }}>
-          {/* Copier le lien */}
           <button
             onClick={copyLink}
             style={{
@@ -399,7 +390,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
             {copied ? '✓ Lien copié !' : '🔗 Copier le lien'}
           </button>
 
-          {/* Télécharger */}
           <button
             onClick={downloadImage}
             disabled={downloading}
@@ -423,7 +413,6 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
           </button>
         </div>
 
-        {/* Info */}
         <div style={{
           marginTop: 16,
           padding: 12,
