@@ -1840,7 +1840,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                     level_max: formData.level_max,
                     ambiance: formData.ambiance,
                     spots_available: getSpotsNeeded(),
-                    club_name: selectedClub?.name || formData.city
+                    club_name: formData.club_name || formData.city
                   }}
                   organizer={profile}
                 />
