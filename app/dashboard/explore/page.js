@@ -2,13 +2,15 @@
 
 /**
  * ============================================
- * PAGE EXPLORER - VERSION 3
+ * PAGE EXPLORER - VERSION 4 (RESTRUCTURÉE)
  * ============================================
  * 
- * Améliorations:
- * - Parties en scroll horizontal (5-6 visibles)
- * - Bouton "Voir toutes les parties"
- * - Meilleure visibilité des clubs et groupes
+ * Structure en cards comme le dashboard:
+ * 1. Card recherche (header + recherche + ville)
+ * 2. Card parties (filtres intégrés + grid)
+ * 3. Card clubs + Card groupes (côte à côte)
+ * 
+ * Objectif: "Trouve une partie à rejoindre"
  * 
  * ============================================
  */
@@ -31,7 +33,6 @@ export default function ExplorePage() {
   const [filterAmbiance, setFilterAmbiance] = useState('all')
   const [filterDate, setFilterDate] = useState('all')
   const [filterCity, setFilterCity] = useState('all')
-  const [showAllMatches, setShowAllMatches] = useState(false)
   
   // Suggestions de recherche
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -127,7 +128,7 @@ export default function ExplorePage() {
       if (g.city) citiesSet.add(g.city)
     })
 
-    // Charger les villes depuis les profils utilisateurs (points 47-48)
+    // Charger les villes depuis les profils utilisateurs
     const { data: profileCities } = await supabase
       .from('profiles')
       .select('city')
@@ -292,7 +293,27 @@ export default function ExplorePage() {
     return suggestions.slice(0, 8)
   }
 
-  // === AVATAR COMPONENT ===
+  function handleSuggestionClick(suggestion) {
+    if (suggestion.type === 'city') {
+      setFilterCity(suggestion.data)
+    } else if (suggestion.type === 'club') {
+      setSelectedClub(suggestion.data)
+    }
+    setSearchQuery('')
+    setShowSuggestions(false)
+  }
+
+  function resetFilters() {
+    setFilterDate('all')
+    setFilterLevel('all')
+    setFilterAmbiance('all')
+    setFilterCity(profile?.city || 'all')
+    setSearchQuery('')
+  }
+
+  const hasActiveFilters = filterDate !== 'all' || filterLevel !== 'all' || filterAmbiance !== 'all' || searchQuery.trim()
+
+  // === COMPOSANTS ===
 
   function PlayerAvatar({ player, index, size = 28 }) {
     if (!player) {
@@ -354,67 +375,78 @@ export default function ExplorePage() {
     )
   }
 
-  // === MATCH CARD COMPACT (pour scroll horizontal) ===
-
-  function MatchCardCompact({ match }) {
+  // Carte de match (pour la grille)
+  function MatchCard({ match }) {
     const players = getMatchPlayers(match)
     const emptySpots = players.filter(p => !p).length
     const ambiance = ambianceConfig[match.ambiance] || ambianceConfig.mix
 
     return (
-      <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
-        <div style={{
-          width: 280,
-          background: '#fff',
-          borderRadius: 16,
-          padding: 16,
-          border: '1px solid #e2e8f0'
-        }}>
-          {/* Header: Date + Heure */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{
-              background: '#1a1a2e',
-              borderRadius: 8,
-              padding: '6px 12px',
-              color: '#fff'
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 600 }}>
-                {formatDate(match.match_date)} · {formatTime(match.match_time) || '?'}
-              </span>
+      <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
+        <div 
+          className="match-card-item"
+          style={{
+            background: '#f8fafc',
+            borderRadius: 12,
+            padding: 16,
+            border: '1px solid #f1f5f9',
+            cursor: 'pointer',
+            transition: 'border-color 0.2s, transform 0.2s',
+            height: '100%'
+          }}
+          onMouseOver={e => {
+            e.currentTarget.style.borderColor = '#22c55e'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+          }}
+          onMouseOut={e => {
+            e.currentTarget.style.borderColor = '#f1f5f9'
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}
+        >
+          {/* Header: Date/Heure + Ambiance */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e' }}>
+                {formatDate(match.match_date)}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a2e' }}>
+                {formatTime(match.match_time) || 'Flexible'}
+              </div>
             </div>
             <span style={{
               background: ambiance.color + '15',
               color: ambiance.color,
               padding: '4px 10px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 600
+              borderRadius: 8,
+              fontSize: 14
             }}>
               {ambiance.emoji}
             </span>
           </div>
 
-          {/* Club */}
-          <div style={{
-            fontWeight: 600,
-            fontSize: 15,
-            color: '#1a1a2e',
-            marginBottom: 4,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}>
-            {match.clubs?.name || match.city || 'Lieu flexible'}
-          </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
-            Par {match.profiles?.name || 'Inconnu'} · ⭐ {match.level_min}-{match.level_max}
+          {/* Club + Niveau */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{
+              fontWeight: 600,
+              fontSize: 14,
+              color: '#1a1a2e',
+              marginBottom: 2,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              📍 {match.clubs?.name || match.city || 'Lieu flexible'}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              Par {match.profiles?.name || 'Inconnu'} · ⭐ {match.level_min}-{match.level_max}
+            </div>
           </div>
 
-          {/* Joueurs */}
+          {/* Joueurs + Places */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex' }}>
               {players.map((player, i) => (
-                <PlayerAvatar key={i} player={player} index={i} size={32} />
+                <PlayerAvatar key={i} player={player} index={i} size={30} />
               ))}
             </div>
             <span style={{
@@ -442,457 +474,459 @@ export default function ExplorePage() {
   }
 
   const filteredMatches = getFilteredMatches()
-  const displayedMatches = showAllMatches ? filteredMatches : filteredMatches.slice(0, 6)
+  const filteredClubs = getFilteredClubs()
+  const filteredGroups = getFilteredGroups()
 
   return (
     <div>
       {/* ============================================ */}
-      {/* HEADER                                      */}
-      {/* ============================================ */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-          Explorer
-        </h1>
-        <p style={{ color: '#64748b', margin: '4px 0 0', fontSize: 14 }}>
-          Trouve des parties, clubs et joueurs
-        </p>
-      </div>
-
-      {/* ============================================ */}
-      {/* BARRE DE RECHERCHE                          */}
-      {/* ============================================ */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{
-              position: 'absolute',
-              left: 14,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              fontSize: 18,
-              zIndex: 1
-            }}>
-              🔍
-            </span>
-            <input
-              type="text"
-              placeholder="Rechercher un club, une ville..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value)
-                setShowSuggestions(e.target.value.length >= 2)
-              }}
-              onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              style={{
-                width: '100%',
-                padding: '14px 14px 14px 44px',
-                border: '1px solid #e2e8f0',
-                borderRadius: 12,
-                fontSize: 15,
-                outline: 'none',
-                background: '#fff'
-              }}
-            />
-            
-            {/* Suggestions dropdown */}
-            {showSuggestions && getSearchSuggestions().length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                background: '#fff',
-                borderRadius: 12,
-                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                marginTop: 4,
-                zIndex: 100,
-                maxHeight: 300,
-                overflowY: 'auto',
-                border: '1px solid #e2e8f0'
-              }}>
-                {getSearchSuggestions().map((suggestion, i) => (
-                  <div
-                    key={i}
-                    onClick={() => {
-                      if (suggestion.type === 'city') {
-                        setFilterCity(suggestion.data)
-                        setSearchQuery('')
-                      } else if (suggestion.type === 'club') {
-                        setSelectedClub(suggestion.data)
-                      }
-                      setShowSuggestions(false)
-                    }}
-                    style={{
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      borderBottom: i < getSearchSuggestions().length - 1 ? '1px solid #f1f5f9' : 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      transition: 'background 0.15s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                  >
-                    <span style={{ fontSize: 20 }}>
-                      {suggestion.type === 'club' ? '🏟️' : '📍'}
-                    </span>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>{suggestion.label}</div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>{suggestion.sublabel}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            style={{
-              padding: '14px 18px',
-              background: showFilters ? '#1a1a2e' : '#fff',
-              color: showFilters ? '#fff' : '#64748b',
-              border: '1px solid #e2e8f0',
-              borderRadius: 12,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            ⚙️
-          </button>
-        </div>
-      </div>
-
-      {/* ============================================ */}
-      {/* FILTRES                                     */}
-      {/* ============================================ */}
-      {showFilters && (
-        <div style={{
-          background: '#fff',
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 16,
-          border: '1px solid #e2e8f0'
-        }}>
-          {/* Ville */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
-              📍 Ville
-            </label>
-            <select
-              value={filterCity}
-              onChange={(e) => setFilterCity(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                fontSize: 14,
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="all">Toutes les villes</option>
-              {cities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Niveau */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
-              ⭐ Niveau
-            </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {[
-                { id: 'all', label: 'Tous', desc: '' },
-                { id: '1-3', label: '1-3', desc: 'Débutant' },
-                { id: '4-6', label: '4-6', desc: 'Intermédiaire' },
-                { id: '7-10', label: '7+', desc: 'Avancé' }
-              ].map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => setFilterLevel(n.id)}
-                  style={{
-                    flex: 1,
-                    minWidth: 70,
-                    padding: '8px 6px',
-                    border: filterLevel === n.id ? '2px solid #22c55e' : '1px solid #e2e8f0',
-                    borderRadius: 10,
-                    background: filterLevel === n.id ? '#f0fdf4' : '#fff',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    color: filterLevel === n.id ? '#166534' : '#374151',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 2
-                  }}
-                >
-                  <span>{n.label}</span>
-                  {n.desc && <span style={{ fontSize: 10, fontWeight: 400, color: '#64748b' }}>{n.desc}</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Ambiance */}
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
-              🎯 Ambiance
-            </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[
-                { id: 'all', label: 'Toutes', emoji: '' },
-                { id: 'loisir', label: 'Détente', emoji: '😎' },
-                { id: 'mix', label: 'Équilibré', emoji: '⚡' },
-                { id: 'compet', label: 'Compétitif', emoji: '🏆' }
-              ].map(a => (
-                <button
-                  key={a.id}
-                  onClick={() => setFilterAmbiance(a.id)}
-                  style={{
-                    flex: 1,
-                    padding: '10px 6px',
-                    border: filterAmbiance === a.id ? '2px solid #22c55e' : '1px solid #e2e8f0',
-                    borderRadius: 10,
-                    background: filterAmbiance === a.id ? '#f0fdf4' : '#fff',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    color: filterAmbiance === a.id ? '#166534' : '#374151',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 2
-                  }}
-                >
-                  {a.emoji && <span style={{ fontSize: 16 }}>{a.emoji}</span>}
-                  <span style={{ fontSize: 10 }}>{a.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================ */}
-      {/* FILTRE VILLE RAPIDE (pills)                 */}
+      {/* CARD 1: HEADER RECHERCHE                    */}
       {/* ============================================ */}
       <div style={{
-        display: 'flex',
-        gap: 8,
-        marginBottom: 12,
-        overflowX: 'auto',
-        paddingBottom: 4
-      }}>
-        <button
-          onClick={() => setFilterCity('all')}
-          style={{
-            padding: '8px 16px',
-            background: filterCity === 'all' ? '#1a1a2e' : '#fff',
-            color: filterCity === 'all' ? '#fff' : '#64748b',
-            border: '1px solid #e2e8f0',
-            borderRadius: 20,
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          📍 Toutes
-        </button>
-        {cities.slice(0, 5).map(city => (
-          <button
-            key={city}
-            onClick={() => setFilterCity(city)}
-            style={{
-              padding: '8px 16px',
-              background: filterCity === city ? '#1a1a2e' : '#fff',
-              color: filterCity === city ? '#fff' : '#64748b',
-              border: '1px solid #e2e8f0',
-              borderRadius: 20,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {city}
-          </button>
-        ))}
-      </div>
-
-      {/* ============================================ */}
-      {/* FILTRES DATES RAPIDES                       */}
-      {/* ============================================ */}
-      <div style={{
-        display: 'flex',
-        gap: 8,
+        background: '#fff',
+        borderRadius: 16,
+        padding: 24,
         marginBottom: 24,
-        overflowX: 'auto',
-        paddingBottom: 4
+        border: '1px solid #f1f5f9'
       }}>
-        {[
-          { id: 'all', label: 'Toutes' },
-          { id: 'today', label: "Auj." },
-          { id: 'tomorrow', label: 'Dem.' },
-          { id: 'week', label: 'Semaine' },
-          { id: 'weekend', label: 'Week-end' }
-        ].map(f => (
-          <button
-            key={f.id}
-            onClick={() => setFilterDate(f.id)}
-            style={{
-              padding: '8px 16px',
-              background: filterDate === f.id ? '#1a1a2e' : '#fff',
-              color: filterDate === f.id ? '#fff' : '#64748b',
-              border: '1px solid #e2e8f0',
-              borderRadius: 20,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
+        <div className="search-header-layout">
+          {/* Titre + description */}
+          <div className="search-header-text">
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#1a1a2e' }}>
+              🔍 Trouve ta prochaine partie
+            </h1>
+            <p style={{ color: '#64748b', margin: 0, fontSize: 14 }}>
+              Explore les parties disponibles près de chez toi
+            </p>
+          </div>
+
+          {/* Recherche + Ville */}
+          <div className="search-header-controls">
+            {/* Sélecteur ville */}
+            <div style={{ position: 'relative', minWidth: 160 }}>
+              <select
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  paddingLeft: 36,
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: '#fff',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  color: '#1a1a2e'
+                }}
+              >
+                <option value="all">Toutes les villes</option>
+                {cities.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+              <span style={{
+                position: 'absolute',
+                left: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 16,
+                pointerEvents: 'none'
+              }}>📍</span>
+            </div>
+
+            {/* Barre de recherche */}
+            <div style={{ flex: 1, position: 'relative', minWidth: 200 }}>
+              <span style={{
+                position: 'absolute',
+                left: 14,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 16,
+                opacity: 0.5,
+                zIndex: 1
+              }}>
+                🔍
+              </span>
+              <input
+                type="text"
+                placeholder="Rechercher un club, une ville..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setShowSuggestions(e.target.value.length >= 2)
+                }}
+                onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px 12px 42px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  outline: 'none',
+                  background: '#fff'
+                }}
+              />
+              
+              {/* Suggestions dropdown */}
+              {showSuggestions && getSearchSuggestions().length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: 4,
+                  background: '#fff',
+                  borderRadius: 12,
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                  border: '1px solid #e2e8f0',
+                  zIndex: 100,
+                  overflow: 'hidden'
+                }}>
+                  {getSearchSuggestions().map((suggestion, i) => (
+                    <div
+                      key={i}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      style={{
+                        padding: '12px 16px',
+                        cursor: 'pointer',
+                        borderBottom: i < getSearchSuggestions().length - 1 ? '1px solid #f1f5f9' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                    >
+                      <span style={{ fontSize: 18 }}>
+                        {suggestion.type === 'club' ? '🏟️' : '📍'}
+                      </span>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>
+                          {suggestion.label}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>
+                          {suggestion.sublabel}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ============================================ */}
-      {/* PARTIES DISPONIBLES (SCROLL HORIZONTAL)     */}
+      {/* CARD 2: PARTIES DISPONIBLES                 */}
       {/* ============================================ */}
-      <section style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-            🎾 Parties disponibles
+      <div style={{
+        background: '#fff',
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 24,
+        border: '1px solid #f1f5f9'
+      }}>
+        {/* Header */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: 16 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+              🎾 Parties disponibles
+            </h2>
             <span style={{
-              marginLeft: 8,
-              background: '#f1f5f9',
-              padding: '2px 10px',
-              borderRadius: 10,
+              background: '#dcfce7',
+              color: '#166534',
+              padding: '4px 12px',
+              borderRadius: 12,
               fontSize: 13,
-              fontWeight: 600,
-              color: '#64748b'
+              fontWeight: 600
             }}>
               {filteredMatches.length}
             </span>
-          </h2>
-          {filteredMatches.length > 0 && (
-            <Link
-              href="/dashboard/explore/matches"
+          </div>
+          <Link 
+            href="/dashboard/explore/matches" 
+            style={{ fontSize: 13, color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}
+          >
+            Voir toutes →
+          </Link>
+        </div>
+
+        {/* Filtres intégrés */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 8, 
+          marginBottom: 20,
+          flexWrap: 'wrap'
+        }}>
+          {/* Filtres date */}
+          <div className="filters-date" style={{ display: 'flex', gap: 6 }}>
+            {[
+              { id: 'all', label: 'Toutes' },
+              { id: 'today', label: "Auj." },
+              { id: 'tomorrow', label: 'Dem.' },
+              { id: 'week', label: 'Semaine' },
+              { id: 'weekend', label: 'Week-end' }
+            ].map(f => (
+              <button
+                key={f.id}
+                onClick={() => setFilterDate(f.id)}
+                style={{
+                  padding: '8px 14px',
+                  background: filterDate === f.id ? '#1a1a2e' : '#f8fafc',
+                  color: filterDate === f.id ? '#fff' : '#64748b',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Séparateur */}
+          <div className="filters-separator" style={{ width: 1, height: 24, background: '#e2e8f0', margin: '0 4px' }} />
+
+          {/* Filtres ambiance */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[
+              { id: 'all', emoji: '', label: 'Toutes' },
+              { id: 'loisir', emoji: '😎', label: '' },
+              { id: 'mix', emoji: '⚡', label: '' },
+              { id: 'compet', emoji: '🏆', label: '' }
+            ].map(a => (
+              <button
+                key={a.id}
+                onClick={() => setFilterAmbiance(a.id)}
+                style={{
+                  padding: '8px 12px',
+                  background: filterAmbiance === a.id ? (a.id === 'all' ? '#1a1a2e' : ambianceConfig[a.id]?.color + '15') : '#f8fafc',
+                  color: filterAmbiance === a.id ? (a.id === 'all' ? '#fff' : ambianceConfig[a.id]?.color) : '#64748b',
+                  border: filterAmbiance === a.id && a.id !== 'all' ? `2px solid ${ambianceConfig[a.id]?.color}` : '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  fontSize: a.emoji ? 16 : 13,
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+              >
+                {a.emoji || a.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Bouton filtres avancés */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            style={{
+              padding: '8px 14px',
+              background: showFilters ? '#f0fdf4' : '#f8fafc',
+              color: showFilters ? '#166534' : '#64748b',
+              border: showFilters ? '2px solid #22c55e' : '1px solid #e2e8f0',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            ⚙️ Filtres
+          </button>
+
+          {/* Reset si filtres actifs */}
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
               style={{
-                background: 'none',
+                padding: '8px 14px',
+                background: 'transparent',
+                color: '#64748b',
                 border: 'none',
-                color: '#3b82f6',
                 fontSize: 13,
-                fontWeight: 500,
-                textDecoration: 'none'
+                cursor: 'pointer'
               }}
             >
-              Voir tout →
-            </Link>
+              🔄 Reset
+            </button>
           )}
         </div>
 
+        {/* Filtres avancés (niveau) */}
+        {showFilters && (
+          <div style={{
+            background: '#f8fafc',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 20,
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
+                ⭐ Niveau
+              </label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { id: 'all', label: 'Tous', desc: '' },
+                  { id: '1-3', label: '1-3', desc: 'Débutant' },
+                  { id: '4-6', label: '4-6', desc: 'Inter.' },
+                  { id: '7-10', label: '7+', desc: 'Avancé' }
+                ].map(n => (
+                  <button
+                    key={n.id}
+                    onClick={() => setFilterLevel(n.id)}
+                    style={{
+                      flex: '1 1 70px',
+                      minWidth: 70,
+                      padding: '10px 8px',
+                      border: filterLevel === n.id ? '2px solid #22c55e' : '1px solid #e2e8f0',
+                      borderRadius: 10,
+                      background: filterLevel === n.id ? '#f0fdf4' : '#fff',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      color: filterLevel === n.id ? '#166534' : '#374151',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 2
+                    }}
+                  >
+                    <span>{n.label}</span>
+                    {n.desc && <span style={{ fontSize: 10, fontWeight: 400, color: '#64748b' }}>{n.desc}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Grille de parties */}
         {filteredMatches.length === 0 ? (
           <div style={{
-            background: '#fff',
-            borderRadius: 16,
-            padding: 48,
-            textAlign: 'center',
-            border: '1px solid #e2e8f0'
+            background: '#f8fafc',
+            borderRadius: 12,
+            padding: 40,
+            textAlign: 'center'
           }}>
             <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🔍</div>
             <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: '#1a1a2e' }}>
               Aucune partie trouvée
             </h3>
-            <p style={{ color: '#64748b', fontSize: 14 }}>
+            <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>
               Essaie d'élargir tes filtres ou crée ta propre partie
             </p>
           </div>
         ) : (
-          // Mode scroll horizontal
-          <div style={{
-            display: 'flex',
-            gap: 12,
-            overflowX: 'auto',
-            paddingBottom: 8,
-            marginRight: -16,
-            paddingRight: 16
-          }}>
-            {filteredMatches.slice(0, 6).map(match => (
-              <MatchCardCompact key={match.id} match={match} />
+          <div className="explore-matches-grid">
+            {filteredMatches.slice(0, 8).map(match => (
+              <MatchCard key={match.id} match={match} />
             ))}
           </div>
         )}
-      </section>
+
+        {/* Voir plus */}
+        {filteredMatches.length > 8 && (
+          <div style={{ textAlign: 'center', marginTop: 20 }}>
+            <Link
+              href="/dashboard/explore/matches"
+              style={{
+                display: 'inline-block',
+                padding: '12px 24px',
+                background: '#f8fafc',
+                color: '#1a1a2e',
+                border: '1px solid #e2e8f0',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 600,
+                textDecoration: 'none'
+              }}
+            >
+              Voir les {filteredMatches.length - 8} autres parties →
+            </Link>
+          </div>
+        )}
+      </div>
 
       {/* ============================================ */}
-      {/* CLUBS À PROXIMITÉ                           */}
+      {/* CARDS 3 & 4: CLUBS + GROUPES (côte à côte)  */}
       {/* ============================================ */}
-      <section style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-            🏟️ Clubs {filterCity !== 'all' ? `à ${filterCity}` : 'près de toi'}
-          </h2>
-          <Link href="/dashboard/clubs" style={{ fontSize: 13, color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>
-            Tous les clubs →
-          </Link>
-        </div>
-
+      <div className="clubs-groups-layout">
+        {/* CARD 3: CLUBS */}
         <div style={{
-          display: 'flex',
-          gap: 12,
-          overflowX: 'auto',
-          paddingBottom: 8
+          background: '#fff',
+          borderRadius: 16,
+          padding: 24,
+          border: '1px solid #f1f5f9'
         }}>
-          {getFilteredClubs().length === 0 ? (
-            <div style={{
-              background: '#fff',
-              borderRadius: 12,
-              padding: 24,
-              textAlign: 'center',
-              border: '1px solid #e2e8f0',
-              width: '100%'
-            }}>
-              <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>
-                Aucun club trouvé {filterCity !== 'all' && `à ${filterCity}`}
-              </p>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: 16 
+          }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+              🏟️ Clubs {filterCity !== 'all' ? `à ${filterCity}` : 'à proximité'}
+            </h2>
+            <Link 
+              href="/dashboard/clubs" 
+              style={{ fontSize: 13, color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}
+            >
+              Tous →
+            </Link>
+          </div>
+
+          {filteredClubs.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+              Aucun club trouvé {filterCity !== 'all' && `à ${filterCity}`}
             </div>
           ) : (
-            getFilteredClubs().slice(0, 5).map(club => (
-              <div
-                key={club.id}
-                onClick={() => setSelectedClub(club)}
-                style={{ textDecoration: 'none', flexShrink: 0, cursor: 'pointer' }}
-              >
-                <div style={{
-                  width: 200,
-                  background: '#fff',
-                  borderRadius: 12,
-                  padding: 16,
-                  border: '1px solid #e2e8f0',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#22c55e'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'translateY(0)' }}
+            <div className="clubs-grid">
+              {filteredClubs.slice(0, 4).map(club => (
+                <div
+                  key={club.id}
+                  onClick={() => setSelectedClub(club)}
+                  style={{
+                    background: '#f8fafc',
+                    borderRadius: 12,
+                    padding: 14,
+                    cursor: 'pointer',
+                    border: '1px solid #f1f5f9',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => { 
+                    e.currentTarget.style.borderColor = '#22c55e'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                  }}
+                  onMouseLeave={e => { 
+                    e.currentTarget.style.borderColor = '#f1f5f9'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                  }}
                 >
                   <div style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    background: '#f1f5f9',
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    background: '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 24,
-                    marginBottom: 12
+                    fontSize: 22,
+                    marginBottom: 10,
+                    border: '1px solid #e2e8f0'
                   }}>
                     🏟️
                   </div>
@@ -903,127 +937,144 @@ export default function ExplorePage() {
                     📍 {club.city || club.address || 'Adresse inconnue'}
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
-      </section>
 
-      {/* ============================================ */}
-      {/* GROUPES & COMMUNAUTÉS                       */}
-      {/* ============================================ */}
-      <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-            👥 Groupes {filterCity !== 'all' ? `à ${filterCity}` : '& Communautés'}
-          </h2>
-          <Link href="/dashboard/groups" style={{ fontSize: 13, color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>
-            Tous les groupes →
-          </Link>
-        </div>
-
+        {/* CARD 4: GROUPES */}
         <div style={{
           background: '#fff',
           borderRadius: 16,
-          border: '1px solid #e2e8f0',
-          overflow: 'hidden'
+          padding: 24,
+          border: '1px solid #f1f5f9'
         }}>
-          {getFilteredGroups().length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center' }}>
-              <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>
-                Aucun groupe trouvé {filterCity !== 'all' && `à ${filterCity}`}
-              </p>
-            </div>
-          ) : (
-            getFilteredGroups().slice(0, 4).map((group, i, arr) => {
-              const typeConfig = {
-                whatsapp: { icon: '💬', color: '#dcfce7' },
-                facebook: { icon: '👥', color: '#dbeafe' },
-                telegram: { icon: '✈️', color: '#e0e7ff' },
-                discord: { icon: '🎮', color: '#fae8ff' },
-                other: { icon: '🔗', color: '#f1f5f9' }
-              }
-              const config = typeConfig[group.type] || typeConfig.other
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: 16 
+          }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
+              👥 Communautés {filterCity !== 'all' ? `à ${filterCity}` : ''}
+            </h2>
+            <Link 
+              href="/dashboard/groups" 
+              style={{ fontSize: 13, color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}
+            >
+              Tous →
+            </Link>
+          </div>
 
-              return (
-                <a
-                  key={group.id}
-                  href={group.invite_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <div style={{
-                    padding: '14px 20px',
-                    borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    cursor: 'pointer'
-                  }}>
+          <div style={{
+            background: '#f8fafc',
+            borderRadius: 12,
+            overflow: 'hidden',
+            border: '1px solid #f1f5f9'
+          }}>
+            {filteredGroups.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+                Aucun groupe trouvé {filterCity !== 'all' && `à ${filterCity}`}
+              </div>
+            ) : (
+              filteredGroups.slice(0, 4).map((group, i, arr) => {
+                const typeConfig = {
+                  whatsapp: { icon: '💬', color: '#dcfce7' },
+                  facebook: { icon: '👥', color: '#dbeafe' },
+                  telegram: { icon: '✈️', color: '#e0e7ff' },
+                  discord: { icon: '🎮', color: '#fae8ff' },
+                  other: { icon: '🔗', color: '#f1f5f9' }
+                }
+                const config = typeConfig[group.type] || typeConfig.other
+
+                return (
+                  <a
+                    key={group.id}
+                    href={group.invite_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ textDecoration: 'none' }}
+                  >
                     <div style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 10,
-                      background: config.color,
+                      padding: '14px 16px',
+                      borderBottom: i < arr.length - 1 ? '1px solid #e2e8f0' : 'none',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 18
-                    }}>
-                      {config.icon}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>
-                          {group.name}
-                        </span>
-                        {group.is_verified && (
-                          <span style={{ fontSize: 12, color: '#3b82f6' }}>✓</span>
-                        )}
+                      gap: 12,
+                      cursor: 'pointer',
+                      background: '#fff'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                    >
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: config.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 18
+                      }}>
+                        {config.icon}
                       </div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>
-                        {group.city && `${group.city} · `}{group.member_count} membres
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>
+                            {group.name}
+                          </span>
+                          {group.is_verified && (
+                            <span style={{ fontSize: 12, color: '#3b82f6' }}>✓</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>
+                          {group.city && `${group.city} · `}{group.member_count} membres
+                        </div>
                       </div>
+                      <span style={{ color: '#cbd5e1', fontSize: 16 }}>›</span>
                     </div>
-                    <span style={{ color: '#cbd5e1', fontSize: 16 }}>›</span>
-                  </div>
-                </a>
-              )
-            })
-          )}
+                  </a>
+                )
+              })
+            )}
 
-          <Link href="/dashboard/groups/add" style={{ textDecoration: 'none' }}>
-            <div style={{
-              padding: '14px 20px',
-              borderTop: '1px solid #f1f5f9',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              cursor: 'pointer',
-              background: '#f8fafc'
-            }}>
+            {/* Ajouter un groupe */}
+            <Link href="/dashboard/groups/add" style={{ textDecoration: 'none' }}>
               <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: '#fff',
-                border: '2px dashed #cbd5e1',
+                padding: '14px 16px',
+                borderTop: '1px solid #e2e8f0',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18,
-                color: '#94a3b8'
-              }}>
-                +
+                gap: 12,
+                cursor: 'pointer',
+                background: '#fff'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+              onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+              >
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: '#f1f5f9',
+                  border: '2px dashed #cbd5e1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
+                  color: '#94a3b8'
+                }}>
+                  +
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#3b82f6' }}>
+                  Ajouter un groupe
+                </div>
               </div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: '#64748b' }}>
-                Ajouter un groupe
-              </div>
-            </div>
-          </Link>
+            </Link>
+          </div>
         </div>
-      </section>
+      </div>
 
       {/* ============================================ */}
       {/* MODAL CLUB                                  */}
@@ -1157,16 +1208,88 @@ export default function ExplorePage() {
       {/* STYLES RESPONSIVE                           */}
       {/* ============================================ */}
       <style jsx global>{`
+        /* Layout recherche */
+        .search-header-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        
+        .search-header-controls {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        
+        /* Grille parties */
         .explore-matches-grid {
           display: grid;
           grid-template-columns: 1fr;
           gap: 12px;
         }
         
-        /* Tablet - 768px */
-        @media (min-width: 768px) {
+        /* Grille clubs */
+        .clubs-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        
+        /* Layout clubs + groupes */
+        .clubs-groups-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+        
+        /* Mobile: masquer séparateur et adapter filtres */
+        .filters-separator {
+          display: none;
+        }
+        
+        .filters-date {
+          flex-wrap: wrap;
+        }
+        
+        /* Tablet - 640px */
+        @media (min-width: 640px) {
+          .search-header-controls {
+            flex-direction: row;
+          }
+          
           .explore-matches-grid {
             grid-template-columns: repeat(2, 1fr);
+          }
+          
+          .filters-separator {
+            display: block;
+          }
+        }
+        
+        /* Tablet - 768px */
+        @media (min-width: 768px) {
+          .search-header-layout {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+          }
+          
+          .search-header-text {
+            flex-shrink: 0;
+          }
+          
+          .search-header-controls {
+            flex: 1;
+            max-width: 500px;
+            justify-content: flex-end;
+          }
+          
+          .clubs-groups-layout {
+            flex-direction: row;
+          }
+          
+          .clubs-groups-layout > div {
+            flex: 1;
           }
         }
         
@@ -1174,6 +1297,13 @@ export default function ExplorePage() {
         @media (min-width: 1024px) {
           .explore-matches-grid {
             grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        
+        /* Large desktop - 1280px */
+        @media (min-width: 1280px) {
+          .explore-matches-grid {
+            grid-template-columns: repeat(4, 1fr);
           }
         }
       `}</style>
