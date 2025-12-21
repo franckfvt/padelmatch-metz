@@ -18,7 +18,6 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import CreateMatchModal from '@/app/components/CreateMatchModal'
-import PlayerCard from '@/app/components/PlayerCard'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -28,7 +27,6 @@ export default function DashboardPage() {
   const [myMatches, setMyMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showPlayerCardModal, setShowPlayerCardModal] = useState(false)
   
   // Données pour sidebar desktop
   const [stats, setStats] = useState(null)
@@ -433,26 +431,27 @@ export default function DashboardPage() {
             + Créer une partie
           </button>
           
-          <button
-            onClick={() => setShowPlayerCardModal(true)}
-            style={{
-              padding: '16px 20px',
-              background: 'linear-gradient(135deg, #334155, #1e293b)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 12,
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              whiteSpace: 'nowrap'
-            }}
-          >
-            🎴 Ma carte
-          </button>
+          <Link
+              href="/dashboard/community"
+              style={{
+                padding: '16px 20px',
+                background: 'linear-gradient(135deg, #334155, #1e293b)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                whiteSpace: 'nowrap',
+                textDecoration: 'none'
+              }}
+            >
+              🎴 Ma carte
+            </Link>
         </div>
       </div>
 
@@ -1106,172 +1105,6 @@ export default function DashboardPage() {
         profile={profile}
         userId={user?.id}
       />
-
-      {/* ============================================ */}
-      {/* MODAL CARTE JOUEUR                          */}
-      {/* ============================================ */}
-      {showPlayerCardModal && (
-        <div 
-          onClick={() => setShowPlayerCardModal(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.8)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20
-          }}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)',
-              borderRadius: 20,
-              padding: 24,
-              maxWidth: 480,
-              width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              position: 'relative'
-            }}
-          >
-            {/* Bouton fermer */}
-            <button
-              onClick={() => setShowPlayerCardModal(false)}
-              style={{
-                position: 'absolute',
-                top: 16,
-                right: 16,
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.1)',
-                border: 'none',
-                color: '#fff',
-                fontSize: 18,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              ×
-            </button>
-
-            {/* Titre */}
-            <h2 style={{ 
-              color: '#fff', 
-              fontSize: 20, 
-              fontWeight: 700, 
-              margin: '0 0 20px',
-              textAlign: 'center'
-            }}>
-              🎴 Ma carte joueur
-            </h2>
-
-            {/* Carte */}
-            <div style={{ marginBottom: 20 }}>
-              <PlayerCard 
-                player={{
-                  name: profile?.name,
-                  level: profile?.level,
-                  position: profile?.position,
-                  ambiance: profile?.ambiance,
-                  frequency: profile?.frequency,
-                  experience: profile?.experience,
-                  region: profile?.region || profile?.city,
-                  avatar_url: profile?.avatar_url,
-                  matches_played: profile?.matches_played,
-                  reliability_score: profile?.reliability_score
-                }} 
-                variant="share"
-              />
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {/* Partager */}
-              <button
-                onClick={() => {
-                  const url = `${window.location.origin}/player/${user?.id}`
-                  if (navigator.share) {
-                    navigator.share({
-                      title: `${profile?.name} - Joueur PadelMatch`,
-                      text: `Découvre mon profil de joueur de padel !`,
-                      url: url
-                    })
-                  } else {
-                    navigator.clipboard.writeText(url)
-                    alert('Lien copié !')
-                  }
-                }}
-                style={{
-                  padding: 14,
-                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8
-                }}
-              >
-                📤 Partager ma carte
-              </button>
-
-              {/* QR Code mini */}
-              <div style={{
-                background: 'rgba(255,255,255,0.06)',
-                borderRadius: 12,
-                padding: 16,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16
-              }}>
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/player/${user?.id}`)}`}
-                  alt="QR Code"
-                  style={{ width: 80, height: 80, borderRadius: 8 }}
-                />
-                <div>
-                  <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-                    Mon QR Code
-                  </div>
-                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
-                    Scanne pour voir ma carte
-                  </div>
-                </div>
-              </div>
-
-              {/* Modifier profil */}
-              <Link href="/dashboard/me" style={{ textDecoration: 'none' }}>
-                <button
-                  style={{
-                    width: '100%',
-                    padding: 12,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.8)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 10,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  ✏️ Modifier mon profil
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ============================================ */}
       {/* STYLES RESPONSIVE                           */}

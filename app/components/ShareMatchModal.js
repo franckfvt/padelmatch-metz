@@ -1,102 +1,76 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import MatchShareCard from './MatchShareCard'
-
 /**
  * ============================================
- * MODAL PARTAGE MATCH
+ * MODAL PARTAGE MATCH - VERSION SIMPLIFIÉE
  * ============================================
  * 
- * CORRECTION: L'organisateur n'était pas inclus dans players
- * car il n'est pas dans match_participants.
- * On l'ajoute manuellement depuis match.profiles.
+ * Même logique que le partage profil :
+ * - 1 bouton principal "Partager" (intelligent)
+ * - Actions secondaires : Télécharger, Copier lien
+ * - Pas d'édition de texte
+ * - Pas de choix WhatsApp/SMS/Email séparés
  * 
  * ============================================
  */
 
+import { useState, useRef } from 'react'
+import MatchShareCard from './MatchShareCard'
+
+// Tokens de design
+const COLORS = {
+  card: '#ffffff',
+  text: '#1a1a2e',
+  textMuted: '#64748b',
+  border: '#e2e8f0',
+  accent: '#22c55e',
+  bg: '#f8fafc'
+}
+
+const RADIUS = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24
+}
+
 export default function ShareMatchModal({ match, players = [], onClose }) {
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
-  const [showTextEdit, setShowTextEdit] = useState(false)
   const cardRef = useRef(null)
 
-  // IMPORTANT: Utiliser /join/ pour le lien PUBLIC (pas /dashboard/match/)
+  // Lien public pour rejoindre
   const matchUrl = typeof window !== 'undefined' 
     ? `${window.location.origin}/join/${match?.id}` 
     : ''
 
+  // Formatage date/heure
   function formatDate(dateStr) {
     if (!dateStr) return 'Date à définir'
-    return new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+    return new Date(dateStr).toLocaleDateString('fr-FR', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long' 
+    })
   }
 
   function formatTime(timeStr) {
-    if (!timeStr) return '?h'
+    if (!timeStr) return ''
     return timeStr.slice(0, 5)
   }
 
-  // Texte par défaut
-  const defaultShareText = `🎾 Partie de Padel\n📍 ${match?.clubs?.name || match?.city || 'Lieu à définir'}\n📅 ${formatDate(match?.match_date)} à ${formatTime(match?.match_time)}\n\nRejoins-nous ! 👉 ${matchUrl}`
-  
-  const [shareText, setShareText] = useState(defaultShareText)
+  // Texte de partage (non modifiable - simplifié)
+  const shareText = `🎾 Partie de Padel
+📍 ${match?.clubs?.name || match?.city || 'Lieu à définir'}
+📅 ${formatDate(match?.match_date)}${match?.match_time ? ` à ${formatTime(match?.match_time)}` : ''}
 
-  function resetText() {
-    setShareText(defaultShareText)
-  }
+Rejoins-nous ! 👉 ${matchUrl}`
 
-  function copyLink() {
-    navigator.clipboard.writeText(matchUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  function shareWhatsApp() {
-    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')
-  }
-
-  function shareSMS() {
-    window.open(`sms:?body=${encodeURIComponent(shareText)}`, '_blank')
-  }
-
-  function shareEmail() {
-    const subject = `🎾 Partie de Padel - ${match?.clubs?.name || match?.city || ''}`
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shareText)}`, '_blank')
-  }
-
-  async function downloadImage() {
-    if (!cardRef.current) return
-    
-    setDownloading(true)
-    
-    try {
-      if (typeof window !== 'undefined') {
-        const html2canvas = (await import('html2canvas')).default
-        
-        const canvas = await html2canvas(cardRef.current, {
-          backgroundColor: '#1a1a2e',
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          width: cardRef.current.offsetWidth,
-          height: cardRef.current.offsetHeight
-        })
-        
-        const link = document.createElement('a')
-        link.download = `padelmatch-${match?.id || 'partie'}.png`
-        link.href = canvas.toDataURL('image/png')
-        link.click()
-      }
-    } catch (error) {
-      console.error('Error downloading image:', error)
-      copyLink()
-      alert('Téléchargement non disponible. Le lien a été copié à la place.')
-    } finally {
-      setDownloading(false)
-    }
-  }
-
-  async function shareNative() {
+  // ============================================
+  // PARTAGE INTELLIGENT
+  // ============================================
+  async function handleShare() {
+    // Sur mobile avec navigator.share
     if (navigator.share) {
       try {
         await navigator.share({
@@ -104,20 +78,75 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
           text: shareText,
           url: matchUrl
         })
+        return
       } catch (err) {
-        console.log('Share cancelled')
+        // Annulé ou erreur, on continue avec WhatsApp
       }
-    } else {
-      copyLink()
+    }
+    
+    // Fallback: WhatsApp (le plus utilisé)
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')
+  }
+
+  // ============================================
+  // COPIER LE LIEN
+  // ============================================
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(matchUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      alert('Impossible de copier le lien')
     }
   }
 
   // ============================================
-  // CORRECTION: Ajouter l'organisateur aux players
+  // TÉLÉCHARGER L'IMAGE
   // ============================================
-  // L'organisateur est dans match.profiles (jointure)
-  // mais PAS dans match_participants, donc pas dans players
-  // On le crée manuellement et on l'ajoute
+  async function downloadImage() {
+    if (!cardRef.current) return
+    setDownloading(true)
+    
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      
+      // Timeout de sécurité (10s)
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 10000)
+      )
+      
+      const capture = html2canvas(cardRef.current, {
+        backgroundColor: '#1a1a2e',
+        scale: 2,
+        useCORS: true,
+        logging: false
+      })
+      
+      const canvas = await Promise.race([capture, timeout])
+      
+      const link = document.createElement('a')
+      link.download = `padelmatch-${match?.id || 'partie'}.png`
+      link.href = canvas.toDataURL('image/png')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+    } catch (error) {
+      console.error('Erreur téléchargement:', error)
+      // Fallback: copier le lien
+      await copyLink()
+      alert('Téléchargement impossible. Le lien a été copié !')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  // ============================================
+  // CONSTRUIRE LA LISTE DES JOUEURS
+  // ============================================
+  // L'organisateur n'est pas dans match_participants
+  // On l'ajoute manuellement depuis match.profiles
   
   const organizerAsPlayer = match?.profiles ? {
     id: 'organizer',
@@ -133,11 +162,14 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
     }
   } : null
 
-  // Combiner: organisateur + autres joueurs (sans doublon)
   const allPlayers = [
     ...(organizerAsPlayer ? [organizerAsPlayer] : []),
     ...players.filter(p => p.user_id !== match?.organizer_id)
   ]
+
+  // Nombre de places restantes
+  const confirmedPlayers = allPlayers.filter(p => p.status === 'confirmed')
+  const spotsLeft = 4 - confirmedPlayers.length
 
   return (
     <div 
@@ -150,18 +182,17 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 16,
-        overflow: 'auto',
-        backdropFilter: 'blur(4px)'
+        overflow: 'auto'
       }}
       onClick={onClose}
     >
       <div 
         style={{
-          background: '#fff',
-          borderRadius: 24,
+          background: COLORS.card,
+          borderRadius: RADIUS.xl,
           padding: 20,
           width: '100%',
-          maxWidth: 500,
+          maxWidth: 440,
           maxHeight: '90vh',
           overflow: 'auto'
         }}
@@ -172,9 +203,14 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          marginBottom: 20 
+          marginBottom: 16 
         }}>
-          <h2 style={{ color: '#1a1a2e', fontSize: 20, fontWeight: 700, margin: 0 }}>
+          <h2 style={{ 
+            color: COLORS.text, 
+            fontSize: 18, 
+            fontWeight: 700, 
+            margin: 0 
+          }}>
             📤 Partager la partie
           </h2>
           <button
@@ -184,8 +220,8 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
               height: 36,
               borderRadius: '50%',
               border: 'none',
-              background: '#f1f5f9',
-              color: '#64748b',
+              background: COLORS.bg,
+              color: COLORS.textMuted,
               fontSize: 18,
               cursor: 'pointer',
               display: 'flex',
@@ -197,232 +233,118 @@ export default function ShareMatchModal({ match, players = [], onClose }) {
           </button>
         </div>
 
-        {/* Carte de preview - AVEC TOUS LES JOUEURS */}
+        {/* Carte de preview */}
         <div 
           ref={cardRef}
           style={{ 
             marginBottom: 20,
-            borderRadius: 16,
+            borderRadius: RADIUS.lg,
             overflow: 'hidden'
           }}
         >
           <MatchShareCard match={match} players={allPlayers} />
         </div>
 
-        {/* Texte de partage modifiable */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+        {/* Info places restantes */}
+        {spotsLeft > 0 && (
+          <div style={{
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: RADIUS.md,
+            padding: '12px 16px',
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            <span style={{ fontSize: 14, color: '#166534', fontWeight: 600 }}>
+              🎾 {spotsLeft} place{spotsLeft > 1 ? 's' : ''} disponible{spotsLeft > 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
+        {/* Bouton principal : PARTAGER */}
+        <button
+          onClick={handleShare}
+          style={{
+            width: '100%',
+            padding: 16,
+            background: `linear-gradient(135deg, ${COLORS.accent}, #16a34a)`,
+            border: 'none',
+            borderRadius: RADIUS.md,
+            fontSize: 16,
+            fontWeight: 700,
+            color: '#fff',
+            cursor: 'pointer',
+            marginBottom: 12,
+            display: 'flex',
             alignItems: 'center',
-            marginBottom: 8 
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>
-              Message de partage
-            </div>
-            <button
-              onClick={() => setShowTextEdit(!showTextEdit)}
-              style={{
-                background: showTextEdit ? '#e2e8f0' : '#f0fdf4',
-                border: '1px solid ' + (showTextEdit ? '#cbd5e1' : '#bbf7d0'),
-                borderRadius: 8,
-                padding: '8px 14px',
-                fontSize: 13,
-                color: showTextEdit ? '#64748b' : '#166534',
-                cursor: 'pointer',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              {showTextEdit ? '✕ Fermer' : '✏️ Modifier le texte'}
-            </button>
-          </div>
-          
-          {showTextEdit && (
-            <div style={{ marginBottom: 12 }}>
-              <textarea
-                value={shareText}
-                onChange={(e) => setShareText(e.target.value)}
-                style={{
-                  width: '100%',
-                  minHeight: 100,
-                  padding: 12,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 10,
-                  fontSize: 13,
-                  fontFamily: 'inherit',
-                  resize: 'vertical',
-                  outline: 'none'
-                }}
-              />
-              <button
-                onClick={resetText}
-                style={{
-                  marginTop: 8,
-                  padding: '6px 12px',
-                  background: '#f1f5f9',
-                  border: 'none',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  color: '#64748b',
-                  cursor: 'pointer'
-                }}
-              >
-                ↺ Réinitialiser le texte
-              </button>
-            </div>
-          )}
-        </div>
+            justifyContent: 'center',
+            gap: 8
+          }}
+        >
+          📤 Partager
+        </button>
 
-        {/* Options de partage */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 12 }}>
-            Partager via
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-            <button
-              onClick={shareWhatsApp}
-              style={{
-                padding: '14px 8px',
-                background: '#25D366',
-                border: 'none',
-                borderRadius: 12,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <span style={{ fontSize: 24 }}>📲</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>WhatsApp</span>
-            </button>
-
-            <button
-              onClick={shareSMS}
-              style={{
-                padding: '14px 8px',
-                background: '#34C759',
-                border: 'none',
-                borderRadius: 12,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <span style={{ fontSize: 24 }}>💬</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>SMS</span>
-            </button>
-
-            <button
-              onClick={shareEmail}
-              style={{
-                padding: '14px 8px',
-                background: '#64748b',
-                border: 'none',
-                borderRadius: 12,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <span style={{ fontSize: 24 }}>✉️</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>Email</span>
-            </button>
-
-            <button
-              onClick={shareNative}
-              style={{
-                padding: '14px 8px',
-                background: '#475569',
-                border: 'none',
-                borderRadius: 12,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <span style={{ fontSize: 24 }}>📤</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>Plus</span>
-            </button>
-          </div>
-          
-          <p style={{ 
-            fontSize: 11, 
-            color: '#94a3b8', 
-            textAlign: 'center', 
-            marginTop: 12,
-            marginBottom: 0
-          }}>
-            💡 L'image n'est pas incluse par Email/SMS. Utilisez "Télécharger" pour la joindre manuellement.
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={copyLink}
-            style={{
-              flex: 1,
-              padding: 14,
-              background: copied ? '#dcfce7' : '#f1f5f9',
-              border: 'none',
-              borderRadius: 12,
-              fontSize: 14,
-              fontWeight: 600,
-              color: copied ? '#16a34a' : '#1a1a2e',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8
-            }}
-          >
-            {copied ? '✓ Lien copié !' : '🔗 Copier le lien'}
-          </button>
-
+        {/* Actions secondaires */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <button
             onClick={downloadImage}
             disabled={downloading}
             style={{
               flex: 1,
               padding: 14,
-              background: downloading ? '#e2e8f0' : 'linear-gradient(135deg, #22c55e, #16a34a)',
-              border: 'none',
-              borderRadius: 12,
+              background: downloading ? '#e5e5e5' : COLORS.bg,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: RADIUS.md,
               fontSize: 14,
               fontWeight: 600,
-              color: downloading ? '#94a3b8' : '#fff',
-              cursor: downloading ? 'not-allowed' : 'pointer',
+              color: downloading ? '#94a3b8' : '#475569',
+              cursor: downloading ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8
+              gap: 6
             }}
           >
-            {downloading ? '⏳ Création...' : '📥 Télécharger'}
+            {downloading ? '⏳' : '📥'} Télécharger
+          </button>
+
+          <button
+            onClick={copyLink}
+            style={{
+              flex: 1,
+              padding: 14,
+              background: copied ? '#dcfce7' : COLORS.bg,
+              border: `1px solid ${copied ? '#bbf7d0' : COLORS.border}`,
+              borderRadius: RADIUS.md,
+              fontSize: 14,
+              fontWeight: 600,
+              color: copied ? '#16a34a' : '#475569',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            {copied ? '✓ Copié !' : '🔗 Copier lien'}
           </button>
         </div>
 
+        {/* Message d'aide */}
         <div style={{
-          marginTop: 16,
+          background: COLORS.bg,
+          borderRadius: RADIUS.sm,
           padding: 12,
-          background: '#f8fafc',
-          borderRadius: 10,
-          fontSize: 12,
-          color: '#64748b',
           textAlign: 'center'
         }}>
-          💡 Partage cette carte sur tes réseaux pour inviter des joueurs !
+          <p style={{ 
+            fontSize: 12, 
+            color: COLORS.textMuted, 
+            margin: 0,
+            lineHeight: 1.5
+          }}>
+            💡 Partage sur WhatsApp, Instagram, ou télécharge l'image pour tes stories !
+          </p>
         </div>
       </div>
     </div>

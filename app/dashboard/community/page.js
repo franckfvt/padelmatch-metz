@@ -2,21 +2,50 @@
 
 /**
  * ============================================
- * PAGE COMMUNAUTÉ - VERSION 3
+ * PAGE COMMUNAUTÉ - AVEC MA CARTE INTÉGRÉE
  * ============================================
  * 
- * Améliorations:
- * - Input de recherche ville (autocomplete)
- * - Meilleur UX favoris
- * - Boutons action plus visibles
+ * Structure:
+ * 1. MA CARTE en haut (visible immédiatement)
+ *    - Carte compacte
+ *    - Bouton Partager (intelligent)
+ *    - Bouton Mode Tournoi (plein écran)
+ * 
+ * 2. JOUEURS en dessous
+ *    - Recherche
+ *    - Tabs: Près de toi / Favoris / Récents
+ *    - Liste des joueurs
  * 
  * ============================================
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { getBadgeById } from '@/app/lib/badges'
+
+// ============================================
+// TOKENS DE DESIGN (cohérence avec page match)
+// ============================================
+const COLORS = {
+  bg: '#f8fafc',
+  card: '#ffffff',
+  cardDark: '#1e293b',
+  text: '#1a1a2e',
+  textMuted: '#64748b',
+  textLight: 'rgba(255,255,255,0.7)',
+  border: '#e2e8f0',
+  accent: '#22c55e',
+  accentLight: '#dcfce7'
+}
+
+const RADIUS = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20
+}
 
 export default function CommunityPage() {
   const router = useRouter()
@@ -24,28 +53,23 @@ export default function CommunityPage() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   
+  // Ma Carte
+  const [showTournamentMode, setShowTournamentMode] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const cardRef = useRef(null)
+  
   // Tabs et recherche
   const [activeTab, setActiveTab] = useState('nearby')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   
-  // Filtre ville
-  const [citySearch, setCitySearch] = useState('')
-  const [filterCity, setFilterCity] = useState('all')
-  const [cities, setCities] = useState([])
-  const [showCitySuggestions, setShowCitySuggestions] = useState(false)
-  
-  // Données
+  // Données joueurs
   const [nearbyPlayers, setNearbyPlayers] = useState([])
   const [favoritePlayers, setFavoritePlayers] = useState([])
   const [favoriteIds, setFavoriteIds] = useState(new Set())
   const [recentPlayers, setRecentPlayers] = useState([])
-  
-  // Modal inviter
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [inviteLink, setInviteLink] = useState('')
-  const [copied, setCopied] = useState(false)
 
   const playerColors = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6']
 
@@ -73,16 +97,9 @@ export default function CommunityPage() {
     // Charger les joueurs
     const { data: nearby } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, level, city, region')
+      .select('id, name, avatar_url, level, city, region, position')
       .neq('id', session.user.id)
-      .limit(100)
-
-    // Extraire les villes uniques
-    const citiesSet = new Set()
-    ;(nearby || []).forEach(p => {
-      if (p.city) citiesSet.add(p.city)
-    })
-    setCities(Array.from(citiesSet).sort())
+      .limit(50)
 
     // Trier par ville de l'utilisateur d'abord
     let sortedNearby = nearby || []
@@ -94,8 +111,6 @@ export default function CommunityPage() {
         p.city?.toLowerCase() !== profileData.city?.toLowerCase()
       )
       sortedNearby = [...sameCity, ...otherPlayers]
-      setFilterCity(profileData.city)
-      setCitySearch(profileData.city)
     }
     setNearbyPlayers(sortedNearby)
 
@@ -104,7 +119,7 @@ export default function CommunityPage() {
       .from('player_favorites')
       .select(`
         favorite_user_id,
-        profiles!player_favorites_favorite_user_id_fkey (id, name, avatar_url, level, city)
+        profiles!player_favorites_favorite_user_id_fkey (id, name, avatar_url, level, city, position)
       `)
       .eq('user_id', session.user.id)
 
@@ -121,39 +136,112 @@ export default function CommunityPage() {
           id, match_date,
           match_participants (
             user_id,
-            profiles!match_participants_user_id_fkey (id, name, avatar_url, level, city)
+            profiles!match_participants_user_id_fkey (id, name, avatar_url, level, city, position)
           )
         )
       `)
       .eq('user_id', session.user.id)
       .eq('status', 'confirmed')
       .order('matches(match_date)', { ascending: false })
-      .limit(20)
+      .limit(10)
 
     const recentPlayersMap = new Map()
     ;(recentMatches || []).forEach(mp => {
       const match = mp.matches
       if (!match) return
-      
       ;(match.match_participants || []).forEach(p => {
         if (p.user_id !== session.user.id && p.profiles && !recentPlayersMap.has(p.user_id)) {
-          recentPlayersMap.set(p.user_id, {
-            ...p.profiles,
-            lastPlayedDate: match.match_date
-          })
+          recentPlayersMap.set(p.user_id, p.profiles)
         }
       })
     })
     setRecentPlayers(Array.from(recentPlayersMap.values()))
 
-    if (typeof window !== 'undefined') {
-      setInviteLink(`${window.location.origin}/join?ref=${profileData?.referral_code || session.user.id}`)
-    }
-
     setLoading(false)
   }
 
-  // Recherche de joueurs
+  // ============================================
+  // FONCTIONS PARTAGE MA CARTE
+  // ============================================
+
+  const profileUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}/player/${user?.id}` 
+    : ''
+
+  // Partage intelligent
+  async function handleShare() {
+    const shareText = `🎾 Mon profil PadelMatch
+⭐ Niveau ${profile?.level || '?'}
+📍 ${profile?.city || 'France'}
+
+👉 ${profileUrl}`
+    
+    // Mobile avec navigator.share
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${profile?.name} - PadelMatch`,
+          text: shareText,
+          url: profileUrl
+        })
+        return
+      } catch (err) {
+        // Annulé ou erreur, on continue
+      }
+    }
+    
+    // Fallback: WhatsApp (le plus utilisé)
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')
+  }
+
+  // Copier le lien
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(profileUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      alert('Impossible de copier le lien')
+    }
+  }
+
+  // Télécharger PNG
+  async function downloadCard() {
+    if (!cardRef.current) return
+    setDownloading(true)
+    
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 10000)
+      )
+      
+      const capture = html2canvas(cardRef.current, {
+        backgroundColor: '#1e293b',
+        scale: 2,
+        useCORS: true,
+        logging: false
+      })
+      
+      const canvas = await Promise.race([capture, timeout])
+      
+      const link = document.createElement('a')
+      link.download = `carte-${profile?.name || 'joueur'}.png`
+      link.href = canvas.toDataURL('image/png')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (err) {
+      console.error('Erreur téléchargement:', err)
+      await copyLink()
+      alert('Le lien de ton profil a été copié !')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  // Recherche joueurs
   async function searchPlayers(query) {
     setSearchQuery(query)
     
@@ -164,10 +252,9 @@ export default function CommunityPage() {
     }
 
     setIsSearching(true)
-
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, level, city')
+      .select('id, name, avatar_url, level, city, position')
       .neq('id', user?.id)
       .ilike('name', `%${query}%`)
       .limit(10)
@@ -176,28 +263,7 @@ export default function CommunityPage() {
     setIsSearching(false)
   }
 
-  // Sélectionner une ville
-  function selectCity(city) {
-    setFilterCity(city)
-    setCitySearch(city)
-    setShowCitySuggestions(false)
-  }
-
-  // Réinitialiser le filtre ville
-  function clearCityFilter() {
-    setFilterCity('all')
-    setCitySearch('')
-  }
-
-  // Filtrer les suggestions de ville
-  function getCitySuggestions() {
-    if (!citySearch.trim()) return cities.slice(0, 8)
-    return cities.filter(c => 
-      c.toLowerCase().includes(citySearch.toLowerCase())
-    ).slice(0, 8)
-  }
-
-  // Ajouter/Retirer des favoris
+  // Toggle favori
   async function toggleFavorite(playerId) {
     if (favoriteIds.has(playerId)) {
       await supabase
@@ -215,10 +281,7 @@ export default function CommunityPage() {
     } else {
       await supabase
         .from('player_favorites')
-        .insert({
-          user_id: user.id,
-          favorite_user_id: playerId
-        })
+        .insert({ user_id: user.id, favorite_user_id: playerId })
 
       setFavoriteIds(prev => new Set([...prev, playerId]))
       
@@ -231,746 +294,645 @@ export default function CommunityPage() {
     }
   }
 
-  // Copier le lien d'invitation
-  async function copyInviteLink() {
-    await navigator.clipboard.writeText(inviteLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  // ============================================
+  // CONFIG
+  // ============================================
+  
+  const positionLabel = {
+    right: '➡️ Droite',
+    left: '⬅️ Gauche',
+    both: '↔️ Polyvalent'
   }
 
-  function shareWhatsApp() {
-    const text = `🎾 Rejoins-moi sur PadelMatch pour organiser des parties de padel !\n\n${inviteLink}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-  }
+  // ============================================
+  // COMPOSANT CARTE COMPACTE
+  // ============================================
 
-  function shareSMS() {
-    const text = `Rejoins-moi sur PadelMatch ! ${inviteLink}`
-    window.open(`sms:?body=${encodeURIComponent(text)}`, '_blank')
-  }
-
-  // Filtrer les joueurs par ville
-  function getFilteredPlayers(players) {
-    if (filterCity === 'all') return players
-    return players.filter(p => p.city?.toLowerCase() === filterCity.toLowerCase())
-  }
-
-  // === AVATAR COMPONENT ===
-  function PlayerAvatar({ player, index, size = 48 }) {
-    if (player?.avatar_url) {
-      return (
-        <img
-          src={player.avatar_url}
-          alt={player.name}
-          style={{
-            width: size,
-            height: size,
-            borderRadius: '50%',
-            objectFit: 'cover',
-            border: '2px solid #fff',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}
-        />
-      )
-    }
-
+  function MyCardCompact() {
+    const badge = profile?.badge ? getBadgeById(profile.badge) : null
+    const avatarColor = playerColors[(profile?.name?.[0]?.charCodeAt(0) || 0) % playerColors.length]
+    
     return (
-      <div style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: playerColors[index % playerColors.length],
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: size * 0.4,
-        fontWeight: 600,
-        color: '#fff',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-      }}>
-        {player?.name?.[0]?.toUpperCase() || '?'}
+      <div 
+        ref={cardRef}
+        style={{
+          background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
+          borderRadius: RADIUS.lg,
+          padding: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14
+        }}
+      >
+        {/* Avatar */}
+        <div style={{
+          width: 64,
+          height: 64,
+          borderRadius: RADIUS.lg,
+          background: profile?.avatar_url 
+            ? 'transparent'
+            : `linear-gradient(135deg, ${avatarColor}, ${avatarColor}cc)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 26,
+          fontWeight: 700,
+          color: '#fff',
+          border: '2px solid rgba(255,255,255,0.2)',
+          flexShrink: 0,
+          overflow: 'hidden'
+        }}>
+          {profile?.avatar_url ? (
+            <img 
+              src={profile.avatar_url} 
+              alt={profile.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            profile?.name?.[0]?.toUpperCase() || '?'
+          )}
+        </div>
+
+        {/* Infos */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 8, 
+            marginBottom: 6 
+          }}>
+            <span style={{ 
+              fontSize: 18, 
+              fontWeight: 700, 
+              color: '#fff',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {profile?.name || 'Joueur'}
+            </span>
+            {badge && (
+              <span style={{ fontSize: 14 }}>{badge.emoji}</span>
+            )}
+          </div>
+          
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap',
+            gap: 6,
+            fontSize: 12 
+          }}>
+            <span style={{
+              background: 'rgba(34, 197, 94, 0.2)',
+              color: '#4ade80',
+              padding: '4px 10px',
+              borderRadius: 6,
+              fontWeight: 700
+            }}>
+              ⭐ {profile?.level || '?'}
+            </span>
+            {(profile?.city || profile?.region) && (
+              <span style={{
+                background: 'rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.8)',
+                padding: '4px 10px',
+                borderRadius: 6
+              }}>
+                📍 {profile?.city || profile?.region}
+              </span>
+            )}
+            <span style={{
+              background: 'rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.8)',
+              padding: '4px 10px',
+              borderRadius: 6
+            }}>
+              {positionLabel[profile?.position] || '↔️ Polyvalent'}
+            </span>
+          </div>
+        </div>
+
+        {/* Logo PadelMatch petit */}
+        <div style={{
+          fontSize: 10,
+          color: 'rgba(255,255,255,0.4)',
+          writingMode: 'vertical-rl',
+          textOrientation: 'mixed'
+        }}>
+          🎾
+        </div>
       </div>
     )
   }
 
-  // === PLAYER CARD COMPONENT ===
-  function PlayerCard({ player, index, showLastPlayed = false }) {
-    const isFavorite = favoriteIds.has(player.id)
+  // ============================================
+  // COMPOSANT JOUEUR
+  // ============================================
 
+  function PlayerCard({ player }) {
+    const isFav = favoriteIds.has(player.id)
+    const color = playerColors[(player.name?.[0]?.charCodeAt(0) || 0) % playerColors.length]
+    
     return (
       <div style={{
-        background: '#fff',
-        borderRadius: 12,
-        padding: '14px 16px',
-        border: '1px solid #e2e8f0',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12
+        background: COLORS.card,
+        borderRadius: RADIUS.lg,
+        padding: 14,
+        border: `1px solid ${COLORS.border}`,
+        position: 'relative'
       }}>
-        <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-          <PlayerAvatar player={player} index={index} size={44} />
-          
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e', marginBottom: 2 }}>
-              {player.name}
-            </div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>
-              {player.city && <span>📍 {player.city}</span>}
-              {player.city && player.level && <span> · </span>}
-              {player.level && <span>⭐ {player.level}</span>}
-            </div>
-            {showLastPlayed && player.lastPlayedDate && (
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                Dernière partie : {new Date(player.lastPlayedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-              </div>
-            )}
-          </div>
-        </Link>
-
+        {/* Bouton favori */}
         <button
-          onClick={() => toggleFavorite(player.id)}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(player.id) }}
           style={{
-            width: 36,
-            height: 36,
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            width: 28,
+            height: 28,
             borderRadius: '50%',
             border: 'none',
-            background: isFavorite ? '#fef3c7' : '#f1f5f9',
+            background: isFav ? '#fef3c7' : COLORS.bg,
             cursor: 'pointer',
-            fontSize: 16,
+            fontSize: 14,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}
-          title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
-          {isFavorite ? '⭐' : '☆'}
+          {isFav ? '⭐' : '☆'}
         </button>
+
+        <Link href={`/player/${player.id}`} style={{ textDecoration: 'none' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            {/* Avatar */}
+            <div style={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              background: player.avatar_url 
+                ? 'transparent'
+                : `linear-gradient(135deg, ${color}, ${color}cc)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 22,
+              fontWeight: 700,
+              color: '#fff',
+              marginBottom: 10,
+              overflow: 'hidden'
+            }}>
+              {player.avatar_url ? (
+                <img 
+                  src={player.avatar_url} 
+                  alt={player.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                player.name?.[0]?.toUpperCase() || '?'
+              )}
+            </div>
+
+            {/* Nom */}
+            <div style={{ 
+              fontSize: 14, 
+              fontWeight: 600, 
+              color: COLORS.text,
+              marginBottom: 6,
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {player.name}
+            </div>
+
+            {/* Infos */}
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span style={{
+                background: COLORS.accentLight,
+                color: '#16a34a',
+                padding: '3px 8px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 600
+              }}>
+                ⭐ {player.level || '?'}
+              </span>
+              {player.city && (
+                <span style={{
+                  background: COLORS.bg,
+                  color: COLORS.textMuted,
+                  padding: '3px 8px',
+                  borderRadius: 6,
+                  fontSize: 11
+                }}>
+                  📍 {player.city}
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
       </div>
     )
   }
 
-  // === LOADING ===
+  // ============================================
+  // RENDER
+  // ============================================
+
   if (loading) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
-        <div style={{ color: '#64748b' }}>Chargement...</div>
+        <div style={{ color: COLORS.textMuted }}>Chargement...</div>
       </div>
     )
   }
 
-  // Données selon tab actif
-  let currentPlayers = []
-  let emptyMessage = ''
-  let emptyIcon = '👥'
-
-  switch (activeTab) {
-    case 'nearby':
-      currentPlayers = getFilteredPlayers(nearbyPlayers)
-      emptyMessage = filterCity !== 'all' ? `Aucun joueur trouvé à ${filterCity}` : 'Aucun joueur trouvé'
-      emptyIcon = '📍'
-      break
-    case 'favorites':
-      currentPlayers = getFilteredPlayers(favoritePlayers)
-      emptyMessage = 'Tu n\'as pas encore de joueurs favoris'
-      emptyIcon = '⭐'
-      break
-    case 'recent':
-      currentPlayers = getFilteredPlayers(recentPlayers)
-      emptyMessage = 'Tu n\'as pas encore joué avec d\'autres joueurs'
-      emptyIcon = '🕐'
-      break
+  // Liste de joueurs à afficher selon l'onglet
+  let playersToShow = []
+  if (searchQuery.length >= 2) {
+    playersToShow = searchResults
+  } else if (activeTab === 'nearby') {
+    playersToShow = nearbyPlayers
+  } else if (activeTab === 'favorites') {
+    playersToShow = favoritePlayers
+  } else if (activeTab === 'recent') {
+    playersToShow = recentPlayers
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      
       {/* ============================================ */}
-      {/* HEADER                                      */}
-      {/* ============================================ */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-              👥 Mon réseau
-            </h1>
-            <p style={{ color: '#64748b', margin: '4px 0 0', fontSize: 14 }}>
-              Joueurs favoris et partenaires de jeu
-            </p>
-          </div>
-          <button
-            onClick={() => setShowInviteModal(true)}
-            style={{
-              padding: '10px 16px',
-              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}
-          >
-            📱 Ma carte
-          </button>
-        </div>
-      </div>
-
-      {/* ============================================ */}
-      {/* BARRE DE RECHERCHE JOUEURS                  */}
-      {/* ============================================ */}
-      <div style={{ marginBottom: 16, position: 'relative' }}>
-        <div style={{ position: 'relative' }}>
-          <span style={{
-            position: 'absolute',
-            left: 14,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: 18
-          }}>
-            🔍
-          </span>
-          <input
-            type="text"
-            placeholder="Rechercher un joueur..."
-            value={searchQuery}
-            onChange={(e) => searchPlayers(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '14px 14px 14px 44px',
-              border: '1px solid #e2e8f0',
-              borderRadius: 12,
-              fontSize: 15,
-              outline: 'none',
-              background: '#fff'
-            }}
-          />
-        </div>
-
-        {/* Résultats de recherche */}
-        {searchQuery.length >= 2 && (
-          <div style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            background: '#fff',
-            borderRadius: 12,
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-            zIndex: 50,
-            marginTop: 8,
-            maxHeight: 300,
-            overflow: 'auto'
-          }}>
-            {isSearching ? (
-              <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>
-                Recherche...
-              </div>
-            ) : searchResults.length === 0 ? (
-              <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>
-                Aucun joueur trouvé
-              </div>
-            ) : (
-              searchResults.map((player, i) => (
-                <div
-                  key={player.id}
-                  style={{
-                    padding: '12px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    borderBottom: i < searchResults.length - 1 ? '1px solid #f1f5f9' : 'none'
-                  }}
-                >
-                  <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <PlayerAvatar player={player} index={i} size={36} />
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a2e' }}>
-                        {player.name}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>
-                        {player.city && `📍 ${player.city} · `}Niveau {player.level}
-                      </div>
-                    </div>
-                  </Link>
-                  <button
-                    onClick={() => toggleFavorite(player.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: 18,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {favoriteIds.has(player.id) ? '⭐' : '☆'}
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ============================================ */}
-      {/* BOUTON INVITER                              */}
-      {/* ============================================ */}
-      <button
-        onClick={() => setShowInviteModal(true)}
-        style={{
-          width: '100%',
-          padding: 14,
-          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 12,
-          fontSize: 15,
-          fontWeight: 700,
-          cursor: 'pointer',
-          marginBottom: 16,
-          boxShadow: '0 4px 20px rgba(34, 197, 94, 0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8
-        }}
-      >
-        📧 Inviter des amis
-      </button>
-
-      {/* ============================================ */}
-      {/* FILTRE VILLE (INPUT + SUGGESTIONS)          */}
-      {/* ============================================ */}
-      <div style={{ marginBottom: 16, position: 'relative' }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>
-          📍 Filtrer par ville
-        </label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Tape une ville..."
-              value={citySearch}
-              onChange={(e) => {
-                setCitySearch(e.target.value)
-                setShowCitySuggestions(true)
-                if (!e.target.value.trim()) {
-                  setFilterCity('all')
-                }
-              }}
-              onFocus={() => setShowCitySuggestions(true)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '1px solid #e2e8f0',
-                borderRadius: 10,
-                fontSize: 14,
-                outline: 'none',
-                background: '#fff'
-              }}
-            />
-
-            {/* Suggestions */}
-            {showCitySuggestions && getCitySuggestions().length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                background: '#fff',
-                borderRadius: 10,
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                zIndex: 40,
-                marginTop: 4,
-                maxHeight: 200,
-                overflow: 'auto'
-              }}>
-                {getCitySuggestions().map((city, i) => (
-                  <button
-                    key={city}
-                    onClick={() => selectCity(city)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 16px',
-                      border: 'none',
-                      background: filterCity === city ? '#f1f5f9' : 'transparent',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      color: '#1a1a2e',
-                      borderBottom: i < getCitySuggestions().length - 1 ? '1px solid #f1f5f9' : 'none'
-                    }}
-                  >
-                    📍 {city}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {filterCity !== 'all' && (
-            <button
-              onClick={clearCityFilter}
-              style={{
-                padding: '12px 16px',
-                background: '#f1f5f9',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                cursor: 'pointer',
-                color: '#64748b'
-              }}
-            >
-              ✕
-            </button>
-          )}
-        </div>
-
-        {filterCity !== 'all' && (
-          <div style={{ marginTop: 8 }}>
-            <span style={{
-              display: 'inline-block',
-              background: '#1a1a2e',
-              color: '#fff',
-              padding: '6px 12px',
-              borderRadius: 20,
-              fontSize: 12,
-              fontWeight: 600
-            }}>
-              📍 {filterCity}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Overlay pour fermer les suggestions */}
-      {showCitySuggestions && (
-        <div 
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 }}
-          onClick={() => setShowCitySuggestions(false)}
-        />
-      )}
-
-      {/* ============================================ */}
-      {/* TABS                                        */}
+      {/* SECTION MA CARTE                            */}
       {/* ============================================ */}
       <div style={{
-        display: 'flex',
-        gap: 4,
-        marginBottom: 16,
-        borderBottom: '1px solid #e2e8f0'
+        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+        borderRadius: RADIUS.xl,
+        padding: 20,
+        marginBottom: 24
       }}>
-        {[
-          { id: 'nearby', label: 'Joueurs', count: getFilteredPlayers(nearbyPlayers).length },
-          { id: 'favorites', label: 'Favoris', count: getFilteredPlayers(favoritePlayers).length },
-          { id: 'recent', label: 'Récents', count: getFilteredPlayers(recentPlayers).length }
-        ].map(tab => (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: 16
+        }}>
+          <h2 style={{ 
+            fontSize: 16, 
+            fontWeight: 700, 
+            color: '#fff', 
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}>
+            🎴 Ma carte
+          </h2>
+          <Link href="/dashboard/profile/edit" style={{ 
+            fontSize: 13, 
+            color: 'rgba(255,255,255,0.6)', 
+            textDecoration: 'none' 
+          }}>
+            ✏️ Modifier
+          </Link>
+        </div>
+
+        {/* Carte compacte */}
+        <MyCardCompact />
+
+        {/* Boutons d'action */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr', 
+          gap: 10, 
+          marginTop: 16 
+        }}>
+          {/* Bouton Partager - Principal */}
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={handleShare}
             style={{
-              padding: '12px 14px',
+              padding: 14,
+              background: `linear-gradient(135deg, ${COLORS.accent}, #16a34a)`,
               border: 'none',
-              background: 'transparent',
-              color: activeTab === tab.id ? '#1a1a2e' : '#94a3b8',
+              borderRadius: RADIUS.md,
               fontSize: 14,
-              fontWeight: 600,
+              fontWeight: 700,
+              color: '#fff',
               cursor: 'pointer',
-              borderBottom: activeTab === tab.id ? '2px solid #1a1a2e' : '2px solid transparent',
-              marginBottom: -1,
               display: 'flex',
               alignItems: 'center',
-              gap: 6
+              justifyContent: 'center',
+              gap: 8
             }}
           >
-            {tab.label}
-            <span style={{
-              background: activeTab === tab.id ? '#1a1a2e' : '#f1f5f9',
-              color: activeTab === tab.id ? '#fff' : '#64748b',
-              padding: '2px 8px',
-              borderRadius: 10,
-              fontSize: 11
-            }}>
-              {tab.count}
-            </span>
+            📤 Partager
           </button>
-        ))}
+
+          {/* Bouton Mode Tournoi */}
+          <button
+            onClick={() => setShowTournamentMode(true)}
+            style={{
+              padding: 14,
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: RADIUS.md,
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#fff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8
+            }}
+          >
+            🏆 Tournoi
+          </button>
+        </div>
+
+        {/* Actions secondaires */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          gap: 20, 
+          marginTop: 14 
+        }}>
+          <button
+            onClick={downloadCard}
+            disabled={downloading}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: 12,
+              cursor: downloading ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            {downloading ? '⏳' : '📥'} Télécharger PNG
+          </button>
+          <button
+            onClick={copyLink}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: copied ? COLORS.accent : 'rgba(255,255,255,0.6)',
+              fontSize: 12,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            {copied ? '✓ Copié !' : '🔗 Copier le lien'}
+          </button>
+        </div>
       </div>
 
       {/* ============================================ */}
-      {/* LISTE DES JOUEURS                           */}
+      {/* SECTION JOUEURS                             */}
       {/* ============================================ */}
-      {currentPlayers.length === 0 ? (
-        <div style={{
-          background: '#fff',
-          borderRadius: 16,
-          padding: 48,
-          textAlign: 'center',
-          border: '1px solid #e2e8f0'
+      
+      {/* Recherche */}
+      <div style={{ marginBottom: 16 }}>
+        <input
+          type="text"
+          placeholder="🔍 Rechercher un joueur..."
+          value={searchQuery}
+          onChange={(e) => searchPlayers(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '14px 16px',
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: RADIUS.md,
+            fontSize: 15,
+            outline: 'none',
+            boxSizing: 'border-box',
+            background: COLORS.card
+          }}
+        />
+      </div>
+
+      {/* Tabs */}
+      {searchQuery.length < 2 && (
+        <div style={{ 
+          display: 'flex', 
+          gap: 8, 
+          marginBottom: 20,
+          overflowX: 'auto',
+          paddingBottom: 4
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>{emptyIcon}</div>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: '#1a1a2e' }}>
-            {emptyMessage}
-          </h3>
-          {activeTab === 'favorites' && (
-            <p style={{ color: '#64748b', fontSize: 14 }}>
-              Ajoute des joueurs en favoris avec ⭐
-            </p>
-          )}
-          {activeTab === 'recent' && (
-            <p style={{ color: '#64748b', fontSize: 14 }}>
-              Joue des parties pour voir tes partenaires ici
-            </p>
-          )}
+          {[
+            { id: 'nearby', label: '📍 Près de toi', count: nearbyPlayers.length },
+            { id: 'favorites', label: '⭐ Favoris', count: favoritePlayers.length },
+            { id: 'recent', label: '🕐 Récents', count: recentPlayers.length }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: '10px 16px',
+                background: activeTab === tab.id ? COLORS.text : COLORS.bg,
+                color: activeTab === tab.id ? '#fff' : COLORS.textMuted,
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              {tab.label}
+              <span style={{
+                background: activeTab === tab.id ? 'rgba(255,255,255,0.2)' : COLORS.border,
+                padding: '2px 6px',
+                borderRadius: 6,
+                fontSize: 11
+              }}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Liste des joueurs */}
+      {isSearching ? (
+        <div style={{ textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+          Recherche...
+        </div>
+      ) : playersToShow.length === 0 ? (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: 40, 
+          background: COLORS.bg, 
+          borderRadius: RADIUS.lg 
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>
+            {activeTab === 'favorites' ? '⭐' : activeTab === 'recent' ? '🕐' : '👥'}
+          </div>
+          <div style={{ color: COLORS.textMuted, fontSize: 14 }}>
+            {activeTab === 'favorites' 
+              ? 'Aucun favori pour l\'instant'
+              : activeTab === 'recent'
+                ? 'Aucune partie récente'
+                : searchQuery.length >= 2
+                  ? 'Aucun joueur trouvé'
+                  : 'Aucun joueur dans ta région'
+            }
+          </div>
         </div>
       ) : (
         <div className="players-grid">
-          {currentPlayers.slice(0, 20).map((player, i) => (
-            <PlayerCard 
-              key={player.id} 
-              player={player} 
-              index={i} 
-              showLastPlayed={activeTab === 'recent'}
-            />
+          {playersToShow.map(player => (
+            <PlayerCard key={player.id} player={player} />
           ))}
-          {currentPlayers.length > 20 && (
-            <div style={{ textAlign: 'center', padding: 16, color: '#64748b', fontSize: 13 }}>
-              Et {currentPlayers.length - 20} autres joueurs...
-            </div>
-          )}
         </div>
       )}
 
       {/* ============================================ */}
-      {/* MODAL INVITER DES AMIS                      */}
+      {/* MODE TOURNOI - PLEIN ÉCRAN                  */}
       {/* ============================================ */}
-      {showInviteModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: 16
-        }}
-        onClick={() => setShowInviteModal(false)}
+      {showTournamentMode && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#000',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24
+          }}
+          onClick={() => setShowTournamentMode(false)}
         >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 20,
-              width: '100%',
-              maxWidth: 400,
-              overflow: 'hidden'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
+          {/* Carte géante */}
+          <div style={{
+            background: 'linear-gradient(135deg, #334155, #1e293b)',
+            borderRadius: 24,
+            padding: 32,
+            textAlign: 'center',
+            maxWidth: 320,
+            width: '100%'
+          }}>
+            {/* Avatar */}
             <div style={{
-              padding: '20px 20px 0',
+              width: 100,
+              height: 100,
+              borderRadius: 24,
+              background: profile?.avatar_url 
+                ? 'transparent'
+                : `linear-gradient(135deg, ${playerColors[(profile?.name?.[0]?.charCodeAt(0) || 0) % playerColors.length]}, ${playerColors[(profile?.name?.[0]?.charCodeAt(0) || 0) % playerColors.length]}cc)`,
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 42,
+              fontWeight: 700,
+              color: '#fff',
+              margin: '0 auto 20px',
+              border: '3px solid rgba(255,255,255,0.3)',
+              overflow: 'hidden'
             }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
-                📱 Ma carte de joueur
-              </h3>
-              <button
-                onClick={() => setShowInviteModal(false)}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: '#f1f5f9',
-                  cursor: 'pointer',
-                  fontSize: 16
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div style={{ padding: 20 }}>
-              {/* QR Code */}
-              <div style={{
-                background: '#f8fafc',
-                borderRadius: 16,
-                padding: 20,
-                textAlign: 'center',
-                marginBottom: 20
-              }}>
+              {profile?.avatar_url ? (
                 <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/player/${user?.id}` : '')}`}
-                  alt="QR Code"
-                  style={{ width: 180, height: 180, margin: '0 auto 12px' }}
+                  src={profile.avatar_url} 
+                  alt={profile.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-                  Scanne ce QR code pour voir ma carte
-                </p>
-              </div>
-
-              {/* Mini carte joueur */}
-              <div style={{
-                background: 'linear-gradient(135deg, #1a1a2e, #334155)',
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 20,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14
-              }}>
-                <div style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: '50%',
-                  background: playerColors[0],
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: 20
-                }}>
-                  {profile?.name?.[0] || '?'}
-                </div>
-                <div>
-                  <div style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>{profile?.name || 'Joueur'}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
-                    Niveau {profile?.level || '?'} • {profile?.city || 'France'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Lien */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
-                  Ou partage ton lien
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <div style={{
-                    flex: 1,
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 8,
-                    padding: '12px 14px',
-                    fontSize: 12,
-                    color: '#64748b',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {inviteLink}
-                  </div>
-                  <button
-                    onClick={copyInviteLink}
-                    style={{
-                      padding: '12px 16px',
-                      background: copied ? '#22c55e' : '#1a1a2e',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 8,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {copied ? '✓' : 'Copier'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Boutons partage */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                <button
-                  onClick={shareWhatsApp}
-                  style={{
-                    padding: '14px 8px',
-                    background: '#25D366',
-                    border: 'none',
-                    borderRadius: 10,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4
-                  }}
-                >
-                  <span style={{ fontSize: 22 }}>💬</span>
-                  <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>WhatsApp</span>
-                </button>
-                <button
-                  onClick={shareSMS}
-                  style={{
-                    padding: '14px 8px',
-                    background: '#f1f5f9',
-                    border: 'none',
-                    borderRadius: 10,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4
-                  }}
-                >
-                  <span style={{ fontSize: 22 }}>✉️</span>
-                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>SMS</span>
-                </button>
-                <button
-                  onClick={() => {
-                    const subject = 'Ma carte de joueur PadelMatch'
-                    const body = `Salut !\n\nVoici ma carte de joueur PadelMatch. Ajoute-moi pour qu'on organise des parties ensemble !\n\n${inviteLink}`
-                    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
-                  }}
-                  style={{
-                    padding: '14px 8px',
-                    background: '#f1f5f9',
-                    border: 'none',
-                    borderRadius: 10,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4
-                  }}
-                >
-                  <span style={{ fontSize: 22 }}>📧</span>
-                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Email</span>
-                </button>
-              </div>
+              ) : (
+                profile?.name?.[0]?.toUpperCase() || '?'
+              )}
             </div>
 
-            <div style={{
-              padding: 16,
-              background: '#f0fdf4',
-              borderTop: '1px solid #dcfce7'
+            {/* Nom */}
+            <div style={{ 
+              fontSize: 28, 
+              fontWeight: 800, 
+              color: '#fff',
+              marginBottom: 24 
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ fontSize: 28 }}>🎁</div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: '#166534' }}>
-                    Invite tes amis et gagne des badges !
-                  </div>
-                  <div style={{ fontSize: 12, color: '#15803d' }}>
-                    {profile?.referral_count || 0} invité{(profile?.referral_count || 0) > 1 ? 's' : ''} jusqu'ici
-                  </div>
-                </div>
+              {profile?.name}
+            </div>
+
+            {/* NIVEAU GÉANT */}
+            <div style={{
+              background: 'rgba(34, 197, 94, 0.15)',
+              border: '3px solid #22c55e',
+              borderRadius: 20,
+              padding: '24px 40px',
+              marginBottom: 24
+            }}>
+              <div style={{ 
+                fontSize: 72, 
+                fontWeight: 900, 
+                color: '#4ade80', 
+                lineHeight: 1 
+              }}>
+                {profile?.level || '?'}
+              </div>
+              <div style={{ 
+                fontSize: 14, 
+                color: '#4ade80', 
+                marginTop: 8,
+                fontWeight: 600,
+                letterSpacing: 2
+              }}>
+                NIVEAU
               </div>
             </div>
+
+            {/* Position */}
+            <div style={{
+              fontSize: 18,
+              color: 'rgba(255,255,255,0.8)',
+              marginBottom: 20
+            }}>
+              {positionLabel[profile?.position] || '↔️ Polyvalent'}
+            </div>
+
+            {/* Lien court */}
+            <div style={{
+              background: 'rgba(255,255,255,0.1)',
+              padding: '10px 20px',
+              borderRadius: 10,
+              fontSize: 14,
+              color: 'rgba(255,255,255,0.6)'
+            }}>
+              padelmatch.fr/p/{profile?.name?.toLowerCase().replace(/\s+/g, '').slice(0, 10)}
+            </div>
+          </div>
+
+          {/* Logo */}
+          <div style={{
+            marginTop: 32,
+            fontSize: 14,
+            color: 'rgba(255,255,255,0.4)'
+          }}>
+            🎾 PadelMatch
+          </div>
+
+          {/* Instruction */}
+          <div style={{
+            marginTop: 20,
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.3)'
+          }}>
+            Tap pour fermer
           </div>
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* STYLES RESPONSIVE                           */}
-      {/* ============================================ */}
+      {/* Styles */}
       <style jsx global>{`
         .players-grid {
           display: grid;
@@ -978,24 +940,15 @@ export default function CommunityPage() {
           gap: 12px;
         }
         
-        /* Tablet - 768px */
-        @media (min-width: 768px) {
+        @media (min-width: 640px) {
           .players-grid {
             grid-template-columns: repeat(3, 1fr);
           }
         }
         
-        /* Desktop - 1024px */
         @media (min-width: 1024px) {
           .players-grid {
             grid-template-columns: repeat(4, 1fr);
-          }
-        }
-        
-        /* Large desktop - 1280px */
-        @media (min-width: 1280px) {
-          .players-grid {
-            grid-template-columns: repeat(5, 1fr);
           }
         }
       `}</style>

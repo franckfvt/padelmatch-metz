@@ -21,7 +21,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import PlayerCardModal from '@/app/components/PlayerCardModal'
 import WelcomeModal from '@/app/components/WelcomeModal'
 
 export default function DashboardLayout({ children }) {
@@ -30,7 +29,6 @@ export default function DashboardLayout({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showCardModal, setShowCardModal] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [showWelcome, setShowWelcome] = useState(false)
@@ -409,16 +407,6 @@ export default function DashboardLayout({ children }) {
             </div>
           </div>
         </>
-      )}
-
-      {/* ============================================ */}
-      {/* MODAL CARTE JOUEUR                          */}
-      {/* ============================================ */}
-      {showCardModal && (
-        <PlayerCardModal 
-          profile={profile} 
-          onClose={() => setShowCardModal(false)} 
-        />
       )}
 
       {/* ============================================ */}
