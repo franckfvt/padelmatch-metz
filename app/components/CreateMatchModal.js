@@ -981,10 +981,10 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                 📅 Quand veux-tu jouer ?
               </h2>
               <p style={{ textAlign: 'center', color: '#666', fontSize: 14, marginBottom: 24 }}>
-                {formData.hasBooked ? "Indique la date et l'heure" : "Choisis une date ou reste flexible"}
+                {formData.hasBooked ? "Indique la date et l'heure de ta réservation" : "Choisis une date ou reste flexible"}
               </p>
 
-              {/* Toggle Précis / Flexible - Design amélioré */}
+              {/* Toggle Précis / Flexible */}
               {!formData.hasBooked && (
                 <div style={{
                   display: 'grid',
@@ -995,130 +995,170 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                   <button
                     onClick={() => setFormData({ ...formData, dateType: 'precise' })}
                     style={{
-                      padding: 20,
+                      padding: '18px 12px',
                       border: formData.dateType === 'precise' ? '2px solid #22c55e' : '2px solid #e5e5e5',
-                      borderRadius: 16,
+                      borderRadius: 14,
                       background: formData.dateType === 'precise' ? '#f0fdf4' : '#fff',
                       cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.2s'
+                      textAlign: 'center'
                     }}
                   >
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>📅</div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a2e' }}>Date précise</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Je connais le jour</div>
+                    <div style={{ fontSize: 24, marginBottom: 6 }}>📅</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a2e' }}>Date précise</div>
                   </button>
                   <button
                     onClick={() => setFormData({ ...formData, dateType: 'flexible' })}
                     style={{
-                      padding: 20,
+                      padding: '18px 12px',
                       border: formData.dateType === 'flexible' ? '2px solid #22c55e' : '2px solid #e5e5e5',
-                      borderRadius: 16,
+                      borderRadius: 14,
                       background: formData.dateType === 'flexible' ? '#f0fdf4' : '#fff',
                       cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.2s'
+                      textAlign: 'center'
                     }}
                   >
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>🤷</div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a2e' }}>Flexible</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Plusieurs jours possibles</div>
+                    <div style={{ fontSize: 24, marginBottom: 6 }}>🤷</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a2e' }}>Flexible</div>
                   </button>
                 </div>
               )}
 
-              {/* Date précise - Design amélioré */}
+              {/* === DATE PRÉCISE === */}
               {(formData.hasBooked || formData.dateType === 'precise') && (
-                <div style={{
-                  background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-                  borderRadius: 20,
-                  padding: 24,
-                  border: '1px solid #bbf7d0'
-                }}>
-                  <div style={{ marginBottom: 20 }}>
-                    <label style={{ 
-                      fontSize: 14, 
-                      fontWeight: 700, 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: 8, 
-                      marginBottom: 12,
-                      color: '#166534'
-                    }}>
-                      📅 Quel jour ?
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.date}
-                      onChange={e => setFormData({ ...formData, date: e.target.value })}
-                      min={new Date().toISOString().split('T')[0]}
-                      style={{
-                        width: '100%',
-                        padding: 16,
-                        border: '2px solid #22c55e',
-                        borderRadius: 12,
-                        fontSize: 16,
-                        fontWeight: 600,
-                        background: '#fff',
-                        boxSizing: 'border-box'
-                      }}
-                    />
+                <div style={{ marginBottom: 20 }}>
+                  {/* Sélection de la date - Tuiles scrollables */}
+                  <label style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#374151' }}>
+                    📅 Quel jour ?
+                  </label>
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: 8, 
+                    overflowX: 'auto', 
+                    paddingBottom: 8,
+                    marginBottom: 20,
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none'
+                  }}>
+                    {(() => {
+                      const days = []
+                      const today = new Date()
+                      for (let i = 0; i < 14; i++) {
+                        const d = new Date(today)
+                        d.setDate(today.getDate() + i)
+                        const dateStr = d.toISOString().split('T')[0]
+                        const dayName = d.toLocaleDateString('fr-FR', { weekday: 'short' })
+                        const dayNum = d.getDate()
+                        const month = d.toLocaleDateString('fr-FR', { month: 'short' })
+                        const isSelected = formData.date === dateStr
+                        const isWeekend = d.getDay() === 0 || d.getDay() === 6
+                        
+                        days.push(
+                          <button
+                            key={dateStr}
+                            onClick={() => setFormData({ ...formData, date: dateStr })}
+                            style={{
+                              minWidth: 70,
+                              padding: '12px 8px',
+                              border: isSelected ? '2px solid #22c55e' : '2px solid #e5e5e5',
+                              borderRadius: 12,
+                              background: isSelected ? '#22c55e' : isWeekend ? '#f8fafc' : '#fff',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              flexShrink: 0
+                            }}
+                          >
+                            <div style={{ 
+                              fontSize: 11, 
+                              color: isSelected ? '#fff' : '#64748b',
+                              fontWeight: 600,
+                              textTransform: 'capitalize'
+                            }}>
+                              {i === 0 ? "Auj." : i === 1 ? "Dem." : dayName}
+                            </div>
+                            <div style={{ 
+                              fontSize: 22, 
+                              fontWeight: 800, 
+                              color: isSelected ? '#fff' : '#1a1a2e',
+                              lineHeight: 1.2
+                            }}>
+                              {dayNum}
+                            </div>
+                            <div style={{ 
+                              fontSize: 10, 
+                              color: isSelected ? 'rgba(255,255,255,0.8)' : '#94a3b8'
+                            }}>
+                              {month}
+                            </div>
+                          </button>
+                        )
+                      }
+                      return days
+                    })()}
                   </div>
-                  <div>
-                    <label style={{ 
-                      fontSize: 14, 
-                      fontWeight: 700, 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: 8, 
-                      marginBottom: 12,
-                      color: '#166534'
-                    }}>
-                      🕐 À quelle heure ?
-                    </label>
-                    <input
-                      type="time"
-                      value={formData.time}
-                      onChange={e => setFormData({ ...formData, time: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: 16,
-                        border: '2px solid #22c55e',
-                        borderRadius: 12,
-                        fontSize: 16,
-                        fontWeight: 600,
-                        background: '#fff',
-                        boxSizing: 'border-box'
-                      }}
-                    />
+
+                  {/* Sélection de l'heure - Boutons */}
+                  <label style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#374151' }}>
+                    🕐 À quelle heure ?
+                  </label>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(5, 1fr)', 
+                    gap: 8 
+                  }}>
+                    {['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map(time => {
+                      const isSelected = formData.time === time
+                      return (
+                        <button
+                          key={time}
+                          onClick={() => setFormData({ ...formData, time })}
+                          style={{
+                            padding: '12px 6px',
+                            border: isSelected ? '2px solid #22c55e' : '2px solid #e5e5e5',
+                            borderRadius: 10,
+                            background: isSelected ? '#22c55e' : '#fff',
+                            color: isSelected ? '#fff' : '#374151',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {time.replace(':00', 'h')}
+                        </button>
+                      )
+                    })}
                   </div>
+
+                  {/* Résumé de la sélection */}
+                  {formData.date && formData.time && (
+                    <div style={{
+                      marginTop: 16,
+                      padding: '12px 16px',
+                      background: '#f0fdf4',
+                      borderRadius: 10,
+                      border: '1px solid #bbf7d0',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: '#166534',
+                      textAlign: 'center'
+                    }}>
+                      ✓ {new Date(formData.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {formData.time.replace(':00', 'h')}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Date flexible - Design amélioré */}
+              {/* === DATE FLEXIBLE === */}
               {!formData.hasBooked && formData.dateType === 'flexible' && (
-                <div style={{
-                  background: '#f8fafc',
-                  borderRadius: 20,
-                  padding: 24,
-                  border: '1px solid #e2e8f0'
-                }}>
-                  <label style={{ 
-                    fontSize: 14, 
-                    fontWeight: 700, 
-                    display: 'block', 
-                    marginBottom: 16,
-                    color: '#334155'
-                  }}>
+                <div style={{ marginBottom: 20 }}>
+                  {/* Jours de la semaine */}
+                  <label style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#374151' }}>
                     📆 Quels jours te conviennent ?
                   </label>
-                  
-                  {/* Grille des jours */}
                   <div style={{ 
                     display: 'grid', 
                     gridTemplateColumns: 'repeat(4, 1fr)', 
                     gap: 8,
-                    marginBottom: 20
+                    marginBottom: 16
                   }}>
                     {[
                       { day: 'Lundi', short: 'Lun' },
@@ -1127,55 +1167,66 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                       { day: 'Jeudi', short: 'Jeu' },
                       { day: 'Vendredi', short: 'Ven' },
                       { day: 'Samedi', short: 'Sam' },
-                      { day: 'Dimanche', short: 'Dim' },
-                      { day: 'all', short: 'Tous', emoji: '✓' }
-                    ].map(({ day, short, emoji }) => {
-                      const isAll = day === 'all'
-                      const allSelected = formData.flexibleDays.length === 7
-                      const isSelected = isAll ? allSelected : formData.flexibleDays.includes(day)
-                      
+                      { day: 'Dimanche', short: 'Dim' }
+                    ].map(({ day, short }) => {
+                      const isSelected = formData.flexibleDays.includes(day)
                       return (
                         <button
                           key={day}
                           onClick={() => {
-                            if (isAll) {
-                              if (allSelected) {
-                                setFormData({ ...formData, flexibleDays: [] })
-                              } else {
-                                setFormData({ ...formData, flexibleDays: ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] })
-                              }
+                            if (isSelected) {
+                              setFormData({ ...formData, flexibleDays: formData.flexibleDays.filter(d => d !== day) })
                             } else {
-                              if (isSelected) {
-                                setFormData({ ...formData, flexibleDays: formData.flexibleDays.filter(d => d !== day) })
-                              } else {
-                                setFormData({ ...formData, flexibleDays: [...formData.flexibleDays, day] })
-                              }
+                              setFormData({ ...formData, flexibleDays: [...formData.flexibleDays, day] })
                             }
                           }}
                           style={{
-                            padding: '12px 8px',
+                            padding: '14px 8px',
                             border: `2px solid ${isSelected ? '#22c55e' : '#e5e5e5'}`,
                             borderRadius: 10,
                             background: isSelected ? '#22c55e' : '#fff',
                             color: isSelected ? '#fff' : '#374151',
                             fontSize: 13,
                             fontWeight: 600,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s'
+                            cursor: 'pointer'
                           }}
                         >
-                          {emoji || short}
+                          {short}
                         </button>
                       )
                     })}
+                    {/* Bouton Tous */}
+                    <button
+                      onClick={() => {
+                        const allDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+                        if (formData.flexibleDays.length === 7) {
+                          setFormData({ ...formData, flexibleDays: [] })
+                        } else {
+                          setFormData({ ...formData, flexibleDays: allDays })
+                        }
+                      }}
+                      style={{
+                        padding: '14px 8px',
+                        border: `2px solid ${formData.flexibleDays.length === 7 ? '#22c55e' : '#e5e5e5'}`,
+                        borderRadius: 10,
+                        background: formData.flexibleDays.length === 7 ? '#22c55e' : '#fff',
+                        color: formData.flexibleDays.length === 7 ? '#fff' : '#374151',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Tous ✓
+                    </button>
                   </div>
 
                   {formData.flexibleDays.length > 0 && (
-                    <div style={{ 
-                      background: '#dcfce7', 
-                      padding: '10px 14px', 
-                      borderRadius: 10,
-                      fontSize: 13, 
+                    <div style={{
+                      padding: '10px 14px',
+                      background: '#f0fdf4',
+                      borderRadius: 8,
+                      border: '1px solid #bbf7d0',
+                      fontSize: 13,
                       color: '#166534',
                       fontWeight: 600,
                       marginBottom: 20
@@ -1185,43 +1236,43 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                   )}
 
                   {/* Moment de la journée */}
-                  <label style={{ 
-                    fontSize: 14, 
-                    fontWeight: 700, 
-                    display: 'block', 
-                    marginBottom: 12,
-                    color: '#334155'
-                  }}>
+                  <label style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#374151' }}>
                     🌤️ Quel moment ? (optionnel)
                   </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                     {[
-                      { id: 'matin', emoji: '🌅', label: 'Matin' },
-                      { id: 'aprem', emoji: '☀️', label: 'Après-midi' },
-                      { id: 'soir', emoji: '🌙', label: 'Soir' }
-                    ].map(period => (
-                      <button
-                        key={period.id}
-                        onClick={() => setFormData({
-                          ...formData,
-                          flexiblePeriod: formData.flexiblePeriod === period.id ? '' : period.id
-                        })}
-                        style={{
-                          padding: 14,
-                          border: `2px solid ${formData.flexiblePeriod === period.id ? '#22c55e' : '#e5e5e5'}`,
-                          borderRadius: 12,
-                          background: formData.flexiblePeriod === period.id ? '#f0fdf4' : '#fff',
-                          cursor: 'pointer',
-                          textAlign: 'center'
-                        }}
-                      >
-                        <div style={{ fontSize: 20, marginBottom: 4 }}>{period.emoji}</div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>{period.label}</div>
-                      </button>
-                    ))}
+                      { id: 'matin', emoji: '🌅', label: 'Matin', time: '8h-12h' },
+                      { id: 'aprem', emoji: '☀️', label: 'Après-midi', time: '12h-18h' },
+                      { id: 'soir', emoji: '🌙', label: 'Soir', time: '18h-22h' }
+                    ].map(period => {
+                      const isSelected = formData.flexiblePeriod === period.id
+                      return (
+                        <button
+                          key={period.id}
+                          onClick={() => setFormData({
+                            ...formData,
+                            flexiblePeriod: isSelected ? '' : period.id
+                          })}
+                          style={{
+                            padding: '16px 10px',
+                            border: `2px solid ${isSelected ? '#22c55e' : '#e5e5e5'}`,
+                            borderRadius: 12,
+                            background: isSelected ? '#f0fdf4' : '#fff',
+                            cursor: 'pointer',
+                            textAlign: 'center'
+                          }}
+                        >
+                          <div style={{ fontSize: 22, marginBottom: 4 }}>{period.emoji}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e' }}>{period.label}</div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{period.time}</div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )}
+
+              <ContinueButton onClick={() => setStep(4)} disabled={!canProceed()} />
             </>
           )}
 
@@ -1764,98 +1815,124 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                   alignItems: 'center',
                   justifyContent: 'center',
                   margin: '0 auto 16px',
-                  fontSize: 40
+                  fontSize: 40,
+                  color: '#fff'
                 }}>
                   ✓
                 </div>
-                <h2 style={{ fontSize: 24, fontWeight: '700', marginBottom: 8, color: '#1a1a2e' }}>Partie créée ! 🎉</h2>
-                <p style={{ color: '#64748b', fontSize: 15 }}>Partage-la maintenant pour trouver des joueurs</p>
+                <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8, color: '#1a1a2e' }}>
+                  Partie créée ! 🎉
+                </h2>
+                <p style={{ color: '#64748b', fontSize: 15 }}>
+                  Invite des joueurs pour compléter ton équipe
+                </p>
               </div>
 
-              {/* Carte de match style FIFA */}
-              <div style={{ marginBottom: 24 }}>
+              {/* Carte de match - Nouvelle version */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
                 <MatchShareCard 
-  match={{
-    match_date: formData.date || null,
-    match_time: formData.time || null,
-    flexible_day: formData.flexibleDays.join(', '),
-    flexible_period: formData.flexiblePeriod,
-    level_min: formData.level_min,
-    level_max: formData.level_max,
-    ambiance: formData.ambiance,
-    spots_available: getSpotsNeeded(),
-    club_name: selectedClub?.name || formData.city
-  }}
-  organizer={profile}
-/>
+                  match={{
+                    match_date: formData.date || null,
+                    match_time: formData.time || null,
+                    flexible_day: formData.flexibleDays.join(', '),
+                    flexible_period: formData.flexiblePeriod,
+                    level_min: formData.level_min,
+                    level_max: formData.level_max,
+                    ambiance: formData.ambiance,
+                    spots_available: getSpotsNeeded(),
+                    club_name: selectedClub?.name || formData.city
+                  }}
+                  organizer={profile}
+                />
               </div>
 
-              {/* Boutons de partage rapide */}
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 10, textAlign: 'center' }}>
-                  Partager via
+              {/* Actions rapides */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 12 }}>
+                  📤 Inviter des joueurs
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                   <button
                     onClick={() => {
-                      const text = `🎾 Partie de padel !\n📅 ${formData.date || 'Date flexible'}\n📍 ${selectedClub?.name || formData.city}\n\nRejoins-nous : ${window.location.origin}/join/${matchCreated.id}`
+                      const text = `🎾 Partie de padel !\n📅 ${formData.date || formData.flexibleDays.join(', ') || 'Date flexible'}\n📍 ${selectedClub?.name || formData.city}\n\nRejoins-nous : ${window.location.origin}/join/${matchCreated.id}`
                       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
                     }}
                     style={{
-                      padding: '14px 8px',
+                      padding: 16,
                       background: '#25D366',
                       border: 'none',
-                      borderRadius: 10,
+                      borderRadius: 12,
                       cursor: 'pointer',
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 4
+                      justifyContent: 'center',
+                      gap: 8
                     }}
                   >
-                    <span style={{ fontSize: 22 }}>💬</span>
-                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>WhatsApp</span>
+                    <span style={{ fontSize: 20 }}>💬</span>
+                    <span style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>WhatsApp</span>
                   </button>
                   <button
-                    onClick={() => {
-                      const text = `🎾 Partie de padel ! Rejoins-nous : ${window.location.origin}/join/${matchCreated.id}`
-                      window.open(`sms:?body=${encodeURIComponent(text)}`, '_blank')
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(`${window.location.origin}/join/${matchCreated.id}`)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 2000)
                     }}
                     style={{
-                      padding: '14px 8px',
-                      background: '#f1f5f9',
-                      border: 'none',
-                      borderRadius: 10,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
-                  >
-                    <span style={{ fontSize: 22 }}>✉️</span>
-                    <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>SMS</span>
-                  </button>
-                  <button
-                    onClick={copyLink}
-                    style={{
-                      padding: '14px 8px',
+                      padding: 16,
                       background: copied ? '#dcfce7' : '#f1f5f9',
                       border: 'none',
-                      borderRadius: 10,
+                      borderRadius: 12,
                       cursor: 'pointer',
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 4
+                      justifyContent: 'center',
+                      gap: 8
                     }}
                   >
-                    <span style={{ fontSize: 22 }}>{copied ? '✓' : '🔗'}</span>
-                    <span style={{ fontSize: 11, color: copied ? '#166534' : '#64748b', fontWeight: 600 }}>{copied ? 'Copié !' : 'Copier'}</span>
+                    <span style={{ fontSize: 20 }}>{copied ? '✓' : '🔗'}</span>
+                    <span style={{ fontSize: 14, color: copied ? '#166534' : '#374151', fontWeight: 600 }}>
+                      {copied ? 'Copié !' : 'Copier lien'}
+                    </span>
                   </button>
                 </div>
               </div>
 
+              {/* Télécharger image */}
+              <button
+                onClick={async () => {
+                  // Télécharger la carte en PNG
+                  const cardElement = document.querySelector('[data-match-card]')
+                  if (cardElement) {
+                    const html2canvas = (await import('html2canvas')).default
+                    const canvas = await html2canvas(cardElement, { scale: 2, backgroundColor: null })
+                    const link = document.createElement('a')
+                    link.download = 'partie-padel.png'
+                    link.href = canvas.toDataURL('image/png')
+                    link.click()
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: 14,
+                  background: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}
+              >
+                📥 Télécharger l'image
+              </button>
+
+              {/* Bouton principal */}
               <button
                 onClick={() => {
                   onSuccess?.(matchCreated)
@@ -1870,12 +1947,8 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                   border: 'none',
                   borderRadius: 12,
                   fontSize: 16,
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8
+                  fontWeight: 600,
+                  cursor: 'pointer'
                 }}
               >
                 Voir ma partie →
