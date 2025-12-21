@@ -17,7 +17,7 @@ import MatchShareCard from './MatchShareCard'
  * ============================================
  */
 
-export default function ShareMatchModal({ match, players, onClose }) {
+export default function ShareMatchModal({ match, players = [], onClose }) {
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [showTextEdit, setShowTextEdit] = useState(false)
@@ -117,6 +117,27 @@ export default function ShareMatchModal({ match, players, onClose }) {
     }
   }
 
+  // ============================================
+  // TRANSFORMER LES DONNÉES POUR MatchShareCard
+  // ============================================
+  
+  // L'organisateur vient de match.profiles (jointure)
+  const organizer = match?.profiles ? {
+    name: match.profiles.name,
+    avatar_url: match.profiles.avatar_url,
+    level: match.profiles.level
+  } : null
+
+  // Les partenaires sont les autres joueurs confirmés (pas l'organisateur)
+  const partners = players
+    .filter(p => p.user_id !== match?.organizer_id)
+    .map(p => ({
+      name: p.profiles?.name || p.name,
+      avatar_url: p.profiles?.avatar_url || p.avatar_url,
+      team: p.team,
+      isManual: false
+    }))
+
   return (
     <div 
       style={{
@@ -175,7 +196,7 @@ export default function ShareMatchModal({ match, players, onClose }) {
           </button>
         </div>
 
-        {/* Carte de preview */}
+        {/* Carte de preview - AVEC LES BONNES PROPS */}
         <div 
           ref={cardRef}
           style={{ 
@@ -184,7 +205,11 @@ export default function ShareMatchModal({ match, players, onClose }) {
             overflow: 'hidden'
           }}
         >
-          <MatchShareCard match={match} players={players} />
+          <MatchShareCard 
+            match={match} 
+            organizer={organizer}
+            partners={partners}
+          />
         </div>
 
         {/* Texte de partage modifiable */}
