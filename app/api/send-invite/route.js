@@ -1,12 +1,23 @@
-// app/api/send-invite/route.js
-// API pour envoyer les invitations par email
-// Nécessite Resend (npm install resend) ou autre service email
+/**
+ * ============================================
+ * API ENVOI D'INVITATION PAR EMAIL
+ * ============================================
+ * 
+ * Configuration requise:
+ * 1. npm install resend
+ * 2. Ajouter RESEND_API_KEY dans .env.local
+ * 3. Créer un compte sur resend.com (gratuit 100 emails/jour)
+ * 
+ * ============================================
+ */
 
 import { NextResponse } from 'next/server'
+import { Resend } from 'resend'
 
-// Option 1: Avec Resend (recommandé, gratuit jusqu'à 100 emails/jour)
-// import { Resend } from 'resend'
-// const resend = new Resend(process.env.RESEND_API_KEY)
+// Initialiser Resend seulement si la clé est présente
+const resend = process.env.RESEND_API_KEY 
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null
 
 export async function POST(request) {
   try {
@@ -21,119 +32,150 @@ export async function POST(request) {
       clubName 
     } = body
 
-    // Détecter si c'est un email ou un téléphone
-    const isEmail = inviteeContact.includes('@')
-    const isPhone = /^(\+33|0)[0-9]{9}$/.test(inviteeContact.replace(/\s/g, ''))
+    // Vérifier que c'est un email
+    const isEmail = inviteeContact?.includes('@')
+    
+    if (!isEmail) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Contact invalide (email requis)' 
+      }, { status: 400 })
+    }
 
     // URL d'invitation
-    const inviteUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://padelmatch-beige.vercel.app'}/join-invite/${inviteToken}`
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'https://padelmatch.fr'
+    const inviteUrl = `${baseUrl}/join-invite/${inviteToken}`
 
     // Formater la date
-    const dateFormatted = new Date(matchDate).toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long'
-    })
-
-    if (isEmail) {
-      // =============================================
-      // OPTION 1: Avec Resend (décommenter si installé)
-      // =============================================
-      /*
-      const { data, error } = await resend.emails.send({
-        from: 'PadelMatch <noreply@padelmatch.fr>',
-        to: inviteeContact,
-        subject: `🎾 ${inviterName} t'invite à jouer au padel !`,
-        html: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #2e7d32; margin: 0;">🎾 PadelMatch</h1>
-            </div>
-            
-            <h2 style="color: #1a1a1a;">Salut ${inviteeName} !</h2>
-            
-            <p style="font-size: 16px; color: #333; line-height: 1.6;">
-              <strong>${inviterName}</strong> t'invite à jouer au padel en duo avec lui/elle !
-            </p>
-            
-            <div style="background: #f5f5f5; border-radius: 12px; padding: 20px; margin: 20px 0;">
-              <p style="margin: 0 0 10px 0;"><strong>📅 Date :</strong> ${dateFormatted}</p>
-              <p style="margin: 0 0 10px 0;"><strong>🕐 Heure :</strong> ${matchTime}</p>
-              <p style="margin: 0;"><strong>📍 Lieu :</strong> ${clubName}</p>
-            </div>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${inviteUrl}" style="
-                display: inline-block;
-                background: #2e7d32;
-                color: white;
-                padding: 16px 32px;
-                border-radius: 12px;
-                text-decoration: none;
-                font-weight: 600;
-                font-size: 16px;
-              ">
-                Accepter l'invitation
-              </a>
-            </div>
-            
-            <p style="font-size: 14px; color: #666; text-align: center;">
-              Tu n'as pas encore de compte ? Pas de souci, tu pourras en créer un en acceptant l'invitation !
-            </p>
-            
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-            
-            <p style="font-size: 12px; color: #999; text-align: center;">
-              Cet email a été envoyé par PadelMatch. Si tu n'as pas demandé cette invitation, tu peux ignorer cet email.
-            </p>
-          </div>
-        `
+    let dateFormatted = 'Date flexible'
+    if (matchDate) {
+      dateFormatted = new Date(matchDate).toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
       })
+    }
 
-      if (error) throw error
-      */
-
-      // =============================================
-      // OPTION 2: Sans service email (log seulement)
-      // =============================================
-      console.log('📧 Email invitation à envoyer:')
+    // Si Resend n'est pas configuré
+    if (!resend) {
+      console.log('⚠️ RESEND_API_KEY non configuré')
+      console.log('📧 Email invitation:')
       console.log(`   To: ${inviteeContact}`)
-      console.log(`   From: ${inviterName}`)
-      console.log(`   Date: ${dateFormatted} à ${matchTime}`)
-      console.log(`   Lieu: ${clubName}`)
       console.log(`   URL: ${inviteUrl}`)
       
-      // Pour le moment, retourner succès même sans envoi réel
-      // L'utilisateur verra le lien dans la modal de succès
-
       return NextResponse.json({ 
         success: true, 
-        message: 'Invitation créée',
         inviteUrl,
-        note: 'Email non envoyé - service email non configuré. Partagez le lien manuellement.'
+        warning: 'Service email non configuré. Ajoutez RESEND_API_KEY dans les variables d\'environnement.'
       })
     }
 
-    if (isPhone) {
-      // =============================================
-      // SMS avec Twilio (à implémenter si besoin)
-      // =============================================
-      console.log('📱 SMS invitation à envoyer:')
-      console.log(`   To: ${inviteeContact}`)
-      console.log(`   Message: ${inviterName} t'invite à jouer au padel le ${dateFormatted} ! ${inviteUrl}`)
+    // Envoyer l'email avec Resend
+    const { data, error } = await resend.emails.send({
+      from: 'PadelMatch <onboarding@resend.dev>', // Utiliser ce domaine en dev
+      to: inviteeContact,
+      subject: `🎾 ${inviterName} t'invite à jouer au padel !`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5;">
+          <div style="max-width: 500px; margin: 0 auto; padding: 20px;">
+            
+            <!-- Header -->
+            <div style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 16px 16px 0 0;">
+              <div style="font-size: 40px; margin-bottom: 10px;">🎾</div>
+              <h1 style="color: #fff; margin: 0; font-size: 24px;">PadelMatch</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="background: #fff; padding: 30px; border-radius: 0 0 16px 16px;">
+              
+              <h2 style="color: #1a1a2e; margin: 0 0 20px; font-size: 22px;">
+                Salut ${inviteeName || 'toi'} ! 👋
+              </h2>
+              
+              <p style="font-size: 16px; color: #333; line-height: 1.6; margin: 0 0 20px;">
+                <strong>${inviterName}</strong> t'invite à jouer au padel en duo !
+              </p>
+              
+              <!-- Détails de la partie -->
+              <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #64748b; font-size: 14px;">📅 Date</td>
+                    <td style="padding: 8px 0; color: #1a1a2e; font-weight: 600; text-align: right;">${dateFormatted}</td>
+                  </tr>
+                  ${matchTime ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #64748b; font-size: 14px;">🕐 Heure</td>
+                    <td style="padding: 8px 0; color: #1a1a2e; font-weight: 600; text-align: right;">${matchTime}</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 8px 0; color: #64748b; font-size: 14px;">📍 Lieu</td>
+                    <td style="padding: 8px 0; color: #1a1a2e; font-weight: 600; text-align: right;">${clubName || 'À définir'}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <!-- CTA Button -->
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${inviteUrl}" style="
+                  display: inline-block;
+                  background: linear-gradient(135deg, #22c55e, #16a34a);
+                  color: #fff;
+                  padding: 16px 40px;
+                  border-radius: 12px;
+                  text-decoration: none;
+                  font-weight: 700;
+                  font-size: 16px;
+                ">
+                  Accepter l'invitation →
+                </a>
+              </div>
+              
+              <p style="font-size: 13px; color: #64748b; text-align: center; margin: 20px 0 0;">
+                Tu n'as pas encore de compte ? Pas de souci, tu pourras en créer un en acceptant !
+              </p>
+              
+            </div>
+            
+            <!-- Footer -->
+            <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12px;">
+              <p style="margin: 0;">Envoyé par PadelMatch</p>
+              <p style="margin: 5px 0 0;">
+                <a href="${baseUrl}" style="color: #22c55e; text-decoration: none;">padelmatch.fr</a>
+              </p>
+            </div>
+            
+          </div>
+        </body>
+        </html>
+      `
+    })
 
+    if (error) {
+      console.error('Erreur Resend:', error)
       return NextResponse.json({ 
-        success: true, 
-        message: 'Invitation créée',
-        inviteUrl,
-        note: 'SMS non envoyé - service SMS non configuré. Partagez le lien manuellement.'
-      })
+        success: false, 
+        error: error.message 
+      }, { status: 500 })
     }
 
+    console.log('✅ Email envoyé:', data)
+    
     return NextResponse.json({ 
-      success: false, 
-      error: 'Contact invalide (ni email ni téléphone)' 
-    }, { status: 400 })
+      success: true, 
+      message: 'Invitation envoyée par email',
+      inviteUrl,
+      emailId: data?.id
+    })
 
   } catch (error) {
     console.error('Erreur send-invite:', error)

@@ -20,7 +20,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import MatchCard from './MatchCard'
+import MatchShareCard from './MatchShareCard'
 
 export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, userId }) {
   const router = useRouter()
@@ -978,175 +978,250 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
           {step === 3 && !showAddClub && !showClubInfo && (
             <>
               <h2 style={{ fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>
-                Quand veux-tu jouer ?
+                📅 Quand veux-tu jouer ?
               </h2>
               <p style={{ textAlign: 'center', color: '#666', fontSize: 14, marginBottom: 24 }}>
-                {formData.hasBooked ? "Indique la date et l'heure de ta réservation" : "Date précise ou flexible"}
+                {formData.hasBooked ? "Indique la date et l'heure" : "Choisis une date ou reste flexible"}
               </p>
 
-              {/* Toggle Précis / Flexible */}
+              {/* Toggle Précis / Flexible - Design amélioré */}
               {!formData.hasBooked && (
                 <div style={{
-                  display: 'flex',
-                  gap: 8,
-                  marginBottom: 20,
-                  background: '#f5f5f5',
-                  padding: 4,
-                  borderRadius: 10
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 12,
+                  marginBottom: 24
                 }}>
                   <button
                     onClick={() => setFormData({ ...formData, dateType: 'precise' })}
                     style={{
-                      flex: 1,
-                      padding: '10px',
-                      border: 'none',
-                      borderRadius: 8,
-                      background: formData.dateType === 'precise' ? '#fff' : 'transparent',
-                      fontWeight: '600',
-                      fontSize: 14,
+                      padding: 20,
+                      border: formData.dateType === 'precise' ? '2px solid #22c55e' : '2px solid #e5e5e5',
+                      borderRadius: 16,
+                      background: formData.dateType === 'precise' ? '#f0fdf4' : '#fff',
                       cursor: 'pointer',
-                      boxShadow: formData.dateType === 'precise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      textAlign: 'center',
+                      transition: 'all 0.2s'
                     }}
                   >
-                    📅 Date précise
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>📅</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a2e' }}>Date précise</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Je connais le jour</div>
                   </button>
                   <button
                     onClick={() => setFormData({ ...formData, dateType: 'flexible' })}
                     style={{
-                      flex: 1,
-                      padding: '10px',
-                      border: 'none',
-                      borderRadius: 8,
-                      background: formData.dateType === 'flexible' ? '#fff' : 'transparent',
-                      fontWeight: '600',
-                      fontSize: 14,
+                      padding: 20,
+                      border: formData.dateType === 'flexible' ? '2px solid #22c55e' : '2px solid #e5e5e5',
+                      borderRadius: 16,
+                      background: formData.dateType === 'flexible' ? '#f0fdf4' : '#fff',
                       cursor: 'pointer',
-                      boxShadow: formData.dateType === 'flexible' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      textAlign: 'center',
+                      transition: 'all 0.2s'
                     }}
                   >
-                    🤷 Flexible
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>🤷</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a2e' }}>Flexible</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Plusieurs jours possibles</div>
                   </button>
                 </div>
               )}
 
-              {/* Date précise */}
+              {/* Date précise - Design amélioré */}
               {(formData.hasBooked || formData.dateType === 'precise') && (
                 <div style={{
-                  background: '#f8fafc',
-                  borderRadius: 16,
-                  padding: 20,
-                  border: '1px solid #e2e8f0'
+                  background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+                  borderRadius: 20,
+                  padding: 24,
+                  border: '1px solid #bbf7d0'
                 }}>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 14, fontWeight: '600', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      📅 Date
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ 
+                      fontSize: 14, 
+                      fontWeight: 700, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 8, 
+                      marginBottom: 12,
+                      color: '#166534'
+                    }}>
+                      📅 Quel jour ?
                     </label>
                     <input
                       type="date"
                       value={formData.date}
                       onChange={e => setFormData({ ...formData, date: e.target.value })}
-                      min={getMinDate()}
+                      min={new Date().toISOString().split('T')[0]}
                       style={{
-                        ...inputStyle,
-                        background: '#fff',
+                        width: '100%',
+                        padding: 16,
+                        border: '2px solid #22c55e',
+                        borderRadius: 12,
                         fontSize: 16,
-                        padding: 16
+                        fontWeight: 600,
+                        background: '#fff',
+                        boxSizing: 'border-box'
                       }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: 14, fontWeight: '600', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      🕐 Heure
+                    <label style={{ 
+                      fontSize: 14, 
+                      fontWeight: 700, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 8, 
+                      marginBottom: 12,
+                      color: '#166534'
+                    }}>
+                      🕐 À quelle heure ?
                     </label>
                     <input
                       type="time"
                       value={formData.time}
                       onChange={e => setFormData({ ...formData, time: e.target.value })}
                       style={{
-                        ...inputStyle,
-                        background: '#fff',
+                        width: '100%',
+                        padding: 16,
+                        border: '2px solid #22c55e',
+                        borderRadius: 12,
                         fontSize: 16,
-                        padding: 16
+                        fontWeight: 600,
+                        background: '#fff',
+                        boxSizing: 'border-box'
                       }}
                     />
                   </div>
                 </div>
               )}
 
-              {/* Date flexible */}
+              {/* Date flexible - Design amélioré */}
               {!formData.hasBooked && formData.dateType === 'flexible' && (
-                <>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>Quel(s) jour(s) ? <span style={{ color: '#888', fontWeight: '400' }}>(plusieurs possibles)</span></label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(day => {
-                        const isSelected = formData.flexibleDays.includes(day)
-                        return (
-                          <button
-                            key={day}
-                            onClick={() => {
+                <div style={{
+                  background: '#f8fafc',
+                  borderRadius: 20,
+                  padding: 24,
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <label style={{ 
+                    fontSize: 14, 
+                    fontWeight: 700, 
+                    display: 'block', 
+                    marginBottom: 16,
+                    color: '#334155'
+                  }}>
+                    📆 Quels jours te conviennent ?
+                  </label>
+                  
+                  {/* Grille des jours */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(4, 1fr)', 
+                    gap: 8,
+                    marginBottom: 20
+                  }}>
+                    {[
+                      { day: 'Lundi', short: 'Lun' },
+                      { day: 'Mardi', short: 'Mar' },
+                      { day: 'Mercredi', short: 'Mer' },
+                      { day: 'Jeudi', short: 'Jeu' },
+                      { day: 'Vendredi', short: 'Ven' },
+                      { day: 'Samedi', short: 'Sam' },
+                      { day: 'Dimanche', short: 'Dim' },
+                      { day: 'all', short: 'Tous', emoji: '✓' }
+                    ].map(({ day, short, emoji }) => {
+                      const isAll = day === 'all'
+                      const allSelected = formData.flexibleDays.length === 7
+                      const isSelected = isAll ? allSelected : formData.flexibleDays.includes(day)
+                      
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => {
+                            if (isAll) {
+                              if (allSelected) {
+                                setFormData({ ...formData, flexibleDays: [] })
+                              } else {
+                                setFormData({ ...formData, flexibleDays: ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] })
+                              }
+                            } else {
                               if (isSelected) {
                                 setFormData({ ...formData, flexibleDays: formData.flexibleDays.filter(d => d !== day) })
                               } else {
                                 setFormData({ ...formData, flexibleDays: [...formData.flexibleDays, day] })
                               }
-                            }}
-                            style={{
-                              padding: '10px 14px',
-                              border: `2px solid ${isSelected ? '#22c55e' : '#e5e5e5'}`,
-                              borderRadius: 8,
-                              background: isSelected ? '#22c55e' : '#fff',
-                              color: isSelected ? '#fff' : '#1a1a1a',
-                              fontSize: 13,
-                              fontWeight: '600',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {isSelected && '✓ '}{day}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {formData.flexibleDays.length > 0 && (
-                      <div style={{ marginTop: 8, fontSize: 13, color: '#22c55e' }}>
-                        ✓ {formData.flexibleDays.length} jour{formData.flexibleDays.length > 1 ? 's' : ''} sélectionné{formData.flexibleDays.length > 1 ? 's' : ''}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>Quel moment ? (optionnel)</label>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {[
-                        { id: 'matin', label: '🌅 Matin', time: '8h-12h' },
-                        { id: 'aprem', label: '☀️ Après-midi', time: '12h-18h' },
-                        { id: 'soir', label: '🌙 Soir', time: '18h-22h' }
-                      ].map(period => (
-                        <button
-                          key={period.id}
-                          onClick={() => setFormData({
-                            ...formData,
-                            flexiblePeriod: formData.flexiblePeriod === period.id ? '' : period.id
-                          })}
+                            }
+                          }}
                           style={{
-                            flex: 1,
                             padding: '12px 8px',
-                            border: `2px solid ${formData.flexiblePeriod === period.id ? '#1a1a1a' : '#e5e5e5'}`,
+                            border: `2px solid ${isSelected ? '#22c55e' : '#e5e5e5'}`,
                             borderRadius: 10,
-                            background: formData.flexiblePeriod === period.id ? '#fafafa' : '#fff',
+                            background: isSelected ? '#22c55e' : '#fff',
+                            color: isSelected ? '#fff' : '#374151',
+                            fontSize: 13,
+                            fontWeight: 600,
                             cursor: 'pointer',
-                            textAlign: 'center'
+                            transition: 'all 0.15s'
                           }}
                         >
-                          <div style={{ fontSize: 14 }}>{period.label}</div>
-                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{period.time}</div>
+                          {emoji || short}
                         </button>
-                      ))}
-                    </div>
+                      )
+                    })}
                   </div>
-                </>
-              )}
 
-              <ContinueButton onClick={() => setStep(4)} disabled={!canProceed()} />
+                  {formData.flexibleDays.length > 0 && (
+                    <div style={{ 
+                      background: '#dcfce7', 
+                      padding: '10px 14px', 
+                      borderRadius: 10,
+                      fontSize: 13, 
+                      color: '#166534',
+                      fontWeight: 600,
+                      marginBottom: 20
+                    }}>
+                      ✓ {formData.flexibleDays.length === 7 ? 'Tous les jours' : formData.flexibleDays.join(', ')}
+                    </div>
+                  )}
+
+                  {/* Moment de la journée */}
+                  <label style={{ 
+                    fontSize: 14, 
+                    fontWeight: 700, 
+                    display: 'block', 
+                    marginBottom: 12,
+                    color: '#334155'
+                  }}>
+                    🌤️ Quel moment ? (optionnel)
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    {[
+                      { id: 'matin', emoji: '🌅', label: 'Matin' },
+                      { id: 'aprem', emoji: '☀️', label: 'Après-midi' },
+                      { id: 'soir', emoji: '🌙', label: 'Soir' }
+                    ].map(period => (
+                      <button
+                        key={period.id}
+                        onClick={() => setFormData({
+                          ...formData,
+                          flexiblePeriod: formData.flexiblePeriod === period.id ? '' : period.id
+                        })}
+                        style={{
+                          padding: 14,
+                          border: `2px solid ${formData.flexiblePeriod === period.id ? '#22c55e' : '#e5e5e5'}`,
+                          borderRadius: 12,
+                          background: formData.flexiblePeriod === period.id ? '#f0fdf4' : '#fff',
+                          cursor: 'pointer',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <div style={{ fontSize: 20, marginBottom: 4 }}>{period.emoji}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>{period.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -1471,52 +1546,114 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                 {loading ? '...' : '→ Passer et créer directement'}
               </button>
 
-              {/* Niveau */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 14, fontWeight: '600', display: 'block', marginBottom: 8 }}>
-                  Niveau recherché
+              {/* Niveau recherché - Design amélioré */}
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12 }}>
+                  🎯 Niveau recherché
                 </label>
-                {/* Aide niveau */}
+                
+                {/* Boutons de preset */}
                 <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  fontSize: 11, 
-                  color: '#64748b', 
-                  marginBottom: 8,
-                  padding: '0 4px'
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gap: 8, 
+                  marginBottom: 16 
                 }}>
-                  <span>1-3 Débutant</span>
-                  <span>4-6 Intermédiaire</span>
-                  <span>7+ Avancé</span>
+                  {[
+                    { label: 'Tous', min: 1, max: 10, desc: '1-10' },
+                    { label: 'Débutant', min: 1, max: 3, desc: '1-3' },
+                    { label: 'Inter', min: 4, max: 6, desc: '4-6' },
+                    { label: 'Avancé', min: 7, max: 10, desc: '7+' }
+                  ].map(preset => {
+                    const isSelected = formData.level_min === preset.min && formData.level_max === preset.max
+                    return (
+                      <button
+                        key={preset.label}
+                        onClick={() => setFormData({ ...formData, level_min: preset.min, level_max: preset.max })}
+                        style={{
+                          padding: '12px 8px',
+                          border: `2px solid ${isSelected ? '#22c55e' : '#e5e5e5'}`,
+                          borderRadius: 10,
+                          background: isSelected ? '#22c55e' : '#fff',
+                          color: isSelected ? '#fff' : '#374151',
+                          cursor: 'pointer',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{preset.label}</div>
+                        <div style={{ fontSize: 11, opacity: 0.8 }}>{preset.desc}</div>
+                      </button>
+                    )
+                  })}
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: '#888', minWidth: 16 }}>{formData.level_min}</span>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={formData.level_min}
-                    onChange={e => setFormData({
-                      ...formData,
-                      level_min: Math.min(parseInt(e.target.value), formData.level_max)
-                    })}
-                    style={{ flex: 1, accentColor: '#22c55e' }}
-                  />
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={formData.level_max}
-                    onChange={e => setFormData({
-                      ...formData,
-                      level_max: Math.max(parseInt(e.target.value), formData.level_min)
-                    })}
-                    style={{ flex: 1, accentColor: '#22c55e' }}
-                  />
-                  <span style={{ fontSize: 12, color: '#888', minWidth: 20 }}>{formData.level_max === 10 ? '10' : formData.level_max + '+'}</span>
-                </div>
-                <div style={{ textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: 600, color: '#166534' }}>
-                  Niveau {formData.level_min} à {formData.level_max}
+
+                {/* Sélection personnalisée */}
+                <div style={{ 
+                  background: '#f8fafc', 
+                  padding: 16, 
+                  borderRadius: 12,
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10, textAlign: 'center' }}>
+                    Ou personnalise la fourchette :
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <select
+                      value={formData.level_min}
+                      onChange={e => setFormData({ 
+                        ...formData, 
+                        level_min: Math.min(parseInt(e.target.value), formData.level_max) 
+                      })}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        background: '#fff'
+                      }}
+                    >
+                      {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                        <option key={n} value={n}>Niveau {n}</option>
+                      ))}
+                    </select>
+                    <span style={{ fontSize: 14, color: '#64748b', fontWeight: 600 }}>à</span>
+                    <select
+                      value={formData.level_max}
+                      onChange={e => setFormData({ 
+                        ...formData, 
+                        level_max: Math.max(parseInt(e.target.value), formData.level_min) 
+                      })}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        background: '#fff'
+                      }}
+                    >
+                      {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                        <option key={n} value={n}>
+                          {n === 10 ? 'Niveau 10' : `Niveau ${n}+`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ 
+                    textAlign: 'center', 
+                    marginTop: 12, 
+                    padding: '8px 16px',
+                    background: '#dcfce7',
+                    borderRadius: 8,
+                    fontSize: 14, 
+                    fontWeight: 700, 
+                    color: '#166534' 
+                  }}>
+                    ✓ Niveau {formData.level_min} à {formData.level_max}{formData.level_max < 10 ? '+' : ''}
+                  </div>
                 </div>
               </div>
 
@@ -1637,24 +1774,20 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
 
               {/* Carte de match style FIFA */}
               <div style={{ marginBottom: 24 }}>
-                <MatchCard 
-                  match={{
-                    ...matchCreated,
-                    match_date: formData.date || null,
-                    match_time: formData.time || null,
-                    flexible_day: formData.flexibleDays.join(', '),
-                    flexible_period: formData.flexiblePeriod,
-                    level_min: formData.level_min,
-                    level_max: formData.level_max,
-                    ambiance: formData.ambiance,
-                    spots_available: getSpotsNeeded(),
-                    spots_total: 4,
-                    price_total: formData.price_total ? parseInt(formData.price_total) * 100 : null,
-                    profiles: profile
-                  }}
-                  standalone
-                  size="normal"
-                />
+                <MatchShareCard 
+  match={{
+    match_date: formData.date || null,
+    match_time: formData.time || null,
+    flexible_day: formData.flexibleDays.join(', '),
+    flexible_period: formData.flexiblePeriod,
+    level_min: formData.level_min,
+    level_max: formData.level_max,
+    ambiance: formData.ambiance,
+    spots_available: getSpotsNeeded(),
+    club_name: selectedClub?.name || formData.city
+  }}
+  organizer={profile}
+/>
               </div>
 
               {/* Boutons de partage rapide */}
