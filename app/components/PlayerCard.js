@@ -9,12 +9,10 @@
  * - variant="share" : Horizontal 1.91:1 pour réseaux sociaux
  * - variant="mobile" : Vertical pour affichage in-app
  * 
- * Proportions FIXES - taille s'adapte mais ratios constants
- * 
  * ============================================
  */
 
-import { QRCodeStyledSVG } from './QRCodeStyled'
+import QRCodeStyled from './QRCodeStyled'
 import { getBadgeById } from '@/app/lib/badges'
 
 export default function PlayerCard({ 
@@ -24,21 +22,10 @@ export default function PlayerCard({
   size = 'default' // 'small', 'default', 'large'
 }) {
   
-  // Tailles selon le variant et size
-  const sizes = {
-    share: {
-      small: { width: 320, height: 168 },
-      default: { width: 500, height: 262 },
-      large: { width: 600, height: 314 }
-    },
-    mobile: {
-      small: { width: 220 },
-      default: { width: 280 },
-      large: { width: 340 }
-    }
-  }
-
-  const currentSize = sizes[variant]?.[size] || sizes[variant]?.default
+  // URL du profil pour le QR code
+  const profileUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}/player/${player?.id}` 
+    : `https://padelmatch.fr/player/${player?.id}`
 
   // Config position
   const positionConfig = {
@@ -67,16 +54,13 @@ export default function PlayerCard({
   // VARIANT: SHARE (Horizontal 1.91:1)
   // ============================================
   if (variant === 'share') {
-    const w = currentSize.width
-    const h = currentSize.height
-    const scale = w / 500 // Base scale
-
     return (
       <div style={{
-        width: w,
-        height: h,
+        width: '100%',
+        maxWidth: 460,
+        aspectRatio: '1.91 / 1',
         background: 'linear-gradient(180deg, #334155 0%, #1e293b 100%)',
-        borderRadius: 16 * scale,
+        borderRadius: 16,
         overflow: 'hidden',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         display: 'flex',
@@ -87,23 +71,23 @@ export default function PlayerCard({
         {/* GAUCHE: Niveau + Poste (38%) */}
         <div style={{
           width: '38%',
-          padding: 20 * scale,
+          padding: 16,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          gap: 10 * scale,
+          gap: 8,
           borderRight: '1px solid rgba(255,255,255,0.1)'
         }}>
           {/* Niveau */}
           <div style={{
             border: '2px solid #22c55e',
-            borderRadius: 14 * scale,
-            padding: `${14 * scale}px`,
+            borderRadius: 12,
+            padding: 12,
             textAlign: 'center',
             background: 'rgba(34, 197, 94, 0.08)'
           }}>
             <div style={{ 
-              fontSize: 40 * scale, 
+              fontSize: 32, 
               fontWeight: 900, 
               color: '#4ade80', 
               lineHeight: 1 
@@ -111,9 +95,9 @@ export default function PlayerCard({
               {player?.level || '5'}
             </div>
             <div style={{ 
-              fontSize: 10 * scale, 
+              fontSize: 9, 
               color: '#4ade80', 
-              marginTop: 4 * scale, 
+              marginTop: 4, 
               fontWeight: 600,
               letterSpacing: 1
             }}>
@@ -124,21 +108,21 @@ export default function PlayerCard({
           {/* Poste */}
           <div style={{
             border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 10 * scale,
-            padding: `${10 * scale}px`,
+            borderRadius: 8,
+            padding: 8,
             textAlign: 'center'
           }}>
             <div style={{ 
-              fontSize: 16 * scale, 
+              fontSize: 13, 
               fontWeight: 700, 
               color: '#fff' 
             }}>
               {position.emoji} {position.label}
             </div>
             <div style={{ 
-              fontSize: 9 * scale, 
+              fontSize: 8, 
               opacity: 0.5, 
-              marginTop: 2 * scale,
+              marginTop: 2,
               color: '#fff'
             }}>
               POSTE
@@ -149,34 +133,36 @@ export default function PlayerCard({
         {/* DROITE: Infos (62%) */}
         <div style={{
           flex: 1,
-          padding: `${20 * scale}px ${24 * scale}px`,
+          padding: 16,
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          minWidth: 0
         }}>
           
           {/* Header: Photo + Nom + QR */}
           <div style={{ 
             display: 'flex', 
             alignItems: 'flex-start', 
-            justifyContent: 'space-between' 
+            justifyContent: 'space-between',
+            gap: 8
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 * scale }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
               {/* Photo */}
               <div style={{
-                width: 70 * scale,
-                height: 70 * scale,
-                borderRadius: 18 * scale,
+                width: 52,
+                height: 52,
+                borderRadius: 14,
                 background: player?.avatar_url 
                   ? `url(${player.avatar_url}) center/cover`
                   : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 28 * scale,
+                fontSize: 22,
                 fontWeight: 700,
                 color: '#fff',
-                border: '3px solid rgba(255,255,255,0.2)',
+                border: '2px solid rgba(255,255,255,0.2)',
                 flexShrink: 0,
                 overflow: 'hidden'
               }}>
@@ -184,20 +170,23 @@ export default function PlayerCard({
               </div>
               
               {/* Nom + Ville */}
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ 
-                  fontSize: 26 * scale, 
+                  fontSize: 20, 
                   fontWeight: 800, 
                   color: '#fff',
-                  lineHeight: 1.1
+                  lineHeight: 1.1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
                 }}>
                   {player?.name || 'Joueur'}
                 </div>
                 <div style={{ 
-                  fontSize: 13 * scale, 
+                  fontSize: 11, 
                   opacity: 0.6,
                   color: '#fff',
-                  marginTop: 2 * scale
+                  marginTop: 2
                 }}>
                   📍 {city || 'France'}
                 </div>
@@ -206,18 +195,18 @@ export default function PlayerCard({
             
             {/* QR Code */}
             {showQR && (
-              <QRCodeStyledSVG size={58 * scale} />
+              <QRCodeStyled url={profileUrl} size={48} />
             )}
           </div>
 
           {/* Stats: Badge + Fréquence */}
           <div style={{ 
             display: 'flex', 
-            gap: 12 * scale,
+            gap: 8,
             background: 'rgba(255,255,255,0.05)',
-            borderRadius: 12 * scale,
-            padding: 12 * scale,
-            alignItems: 'stretch'
+            borderRadius: 10,
+            padding: 10,
+            alignItems: 'center'
           }}>
             {/* Badge */}
             <div style={{ 
@@ -225,13 +214,13 @@ export default function PlayerCard({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8 * scale
+              gap: 6
             }}>
-              <span style={{ fontSize: 20 * scale }}>
+              <span style={{ fontSize: 16 }}>
                 {badge?.emoji || '⚔️'}
               </span>
               <div style={{ 
-                fontSize: 15 * scale, 
+                fontSize: 13, 
                 fontWeight: 700, 
                 color: '#fff' 
               }}>
@@ -241,20 +230,21 @@ export default function PlayerCard({
             
             <div style={{ 
               width: 1, 
+              height: 24,
               background: 'rgba(255,255,255,0.15)'
             }} />
             
             {/* Fréquence */}
             <div style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ 
-                fontSize: 18 * scale, 
+                fontSize: 15, 
                 fontWeight: 700, 
                 color: '#fff' 
               }}>
                 {frequency}
               </div>
               <div style={{ 
-                fontSize: 9 * scale, 
+                fontSize: 8, 
                 opacity: 0.5,
                 color: '#fff'
               }}>
@@ -266,7 +256,7 @@ export default function PlayerCard({
           {/* Logo */}
           <div style={{ 
             textAlign: 'right', 
-            fontSize: 11 * scale, 
+            fontSize: 10, 
             opacity: 0.4,
             color: '#fff'
           }}>
@@ -280,15 +270,13 @@ export default function PlayerCard({
   // ============================================
   // VARIANT: MOBILE (Vertical)
   // ============================================
-  const w = currentSize.width
-  const scale = w / 280 // Base scale
-
   return (
     <div style={{
-      width: w,
+      width: '100%',
+      maxWidth: 260,
       background: 'linear-gradient(180deg, #334155 0%, #1e293b 100%)',
-      borderRadius: 20 * scale,
-      padding: 24 * scale,
+      borderRadius: 20,
+      padding: 20,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       color: '#fff',
       textAlign: 'center',
@@ -297,19 +285,19 @@ export default function PlayerCard({
       
       {/* Photo */}
       <div style={{
-        width: 100 * scale,
-        height: 100 * scale,
-        borderRadius: 24 * scale,
+        width: 80,
+        height: 80,
+        borderRadius: 20,
         background: player?.avatar_url 
           ? `url(${player.avatar_url}) center/cover`
           : 'linear-gradient(135deg, #3b82f6, #2563eb)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 40 * scale,
+        fontSize: 32,
         fontWeight: 700,
-        margin: `0 auto ${16 * scale}px`,
-        border: '4px solid rgba(255,255,255,0.2)',
+        margin: '0 auto 14px',
+        border: '3px solid rgba(255,255,255,0.2)',
         overflow: 'hidden'
       }}>
         {!player?.avatar_url && (player?.name?.[0]?.toUpperCase() || '?')}
@@ -317,16 +305,16 @@ export default function PlayerCard({
 
       {/* Nom + Ville */}
       <div style={{ 
-        fontSize: 26 * scale, 
+        fontSize: 22, 
         fontWeight: 800, 
-        marginBottom: 4 * scale 
+        marginBottom: 4 
       }}>
         {player?.name || 'Joueur'}
       </div>
       <div style={{ 
-        fontSize: 14 * scale, 
+        fontSize: 12, 
         opacity: 0.6, 
-        marginBottom: 20 * scale 
+        marginBottom: 16 
       }}>
         📍 {city || 'France'}
       </div>
@@ -334,22 +322,22 @@ export default function PlayerCard({
       {/* Niveau + QR Code côte à côte */}
       <div style={{ 
         display: 'flex', 
-        gap: 12 * scale, 
-        marginBottom: 16 * scale,
+        gap: 10, 
+        marginBottom: 14,
         alignItems: 'stretch'
       }}>
         {/* Niveau */}
         <div style={{
           flex: 1,
           background: 'rgba(34, 197, 94, 0.2)',
-          borderRadius: 16 * scale,
-          padding: 16 * scale,
+          borderRadius: 14,
+          padding: 14,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center'
         }}>
           <div style={{ 
-            fontSize: 38 * scale, 
+            fontSize: 32, 
             fontWeight: 900, 
             color: '#4ade80', 
             lineHeight: 1 
@@ -357,9 +345,9 @@ export default function PlayerCard({
             {player?.level || '5'}
           </div>
           <div style={{ 
-            fontSize: 11 * scale, 
+            fontSize: 10, 
             opacity: 0.7, 
-            marginTop: 4 * scale 
+            marginTop: 4 
           }}>
             NIVEAU
           </div>
@@ -367,33 +355,30 @@ export default function PlayerCard({
 
         {/* QR Code */}
         {showQR && (
-          <QRCodeStyledSVG 
-            size={80 * scale} 
-            style={{ flexShrink: 0 }}
-          />
+          <QRCodeStyled url={profileUrl} size={70} />
         )}
       </div>
 
       {/* Poste + Fréquence */}
       <div style={{ 
         display: 'flex', 
-        gap: 10 * scale, 
-        marginBottom: 20 * scale 
+        gap: 8, 
+        marginBottom: 16 
       }}>
         <div style={{
           flex: 1,
           background: 'rgba(255,255,255,0.1)',
-          padding: `${10 * scale}px ${16 * scale}px`,
-          borderRadius: 10 * scale
+          padding: '8px 12px',
+          borderRadius: 10
         }}>
           <div style={{ 
-            fontSize: 16 * scale, 
+            fontSize: 14, 
             fontWeight: 700 
           }}>
             {position.label}
           </div>
           <div style={{ 
-            fontSize: 10 * scale, 
+            fontSize: 9, 
             opacity: 0.6 
           }}>
             Poste
@@ -402,17 +387,17 @@ export default function PlayerCard({
         <div style={{
           flex: 1,
           background: 'rgba(255,255,255,0.1)',
-          padding: `${10 * scale}px ${16 * scale}px`,
-          borderRadius: 10 * scale
+          padding: '8px 12px',
+          borderRadius: 10
         }}>
           <div style={{ 
-            fontSize: 16 * scale, 
+            fontSize: 14, 
             fontWeight: 700 
           }}>
             {frequency}
           </div>
           <div style={{ 
-            fontSize: 10 * scale, 
+            fontSize: 9, 
             opacity: 0.6 
           }}>
             / semaine
@@ -422,7 +407,7 @@ export default function PlayerCard({
 
       {/* Logo */}
       <div style={{ 
-        fontSize: 12 * scale, 
+        fontSize: 11, 
         opacity: 0.4 
       }}>
         🎾 PadelMatch
