@@ -93,13 +93,11 @@ export default function DashboardLayout({ children }) {
     setLoading(false)
   }
 
-  // 5 onglets principaux
+  // 3 onglets principaux
   const navItems = [
-    { href: '/dashboard', label: 'Accueil', icon: '🏠', exact: true },
-    { href: '/dashboard/explore', label: 'Explorer', icon: '🔍', exact: false },
-    { href: '/dashboard/matches', label: 'Mes parties', icon: '🎾', exact: false },
-    { href: '/dashboard/community', label: 'Communauté', icon: '👥', exact: false },
-    { href: '/dashboard/me', label: 'Moi', icon: '👤', exact: false },
+    { href: '/dashboard/parties', label: 'Parties', icon: '🎾', exact: false },
+    { href: '/dashboard/joueurs', label: 'Joueurs', icon: '👥', exact: false },
+    { href: '/dashboard/carte', label: 'Ma carte', icon: '🎴', exact: false },
   ]
 
   const unreadCount = notifications.filter(n => !n.read).length

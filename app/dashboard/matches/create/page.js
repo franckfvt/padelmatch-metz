@@ -20,7 +20,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { COLORS, RADIUS, getAvatarColor, AMBIANCE_CONFIG } from '@/app/lib/design-tokens'
@@ -29,6 +29,8 @@ const TOTAL_STEPS = 6
 
 export default function CreateMatchPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const invitePlayerId = searchParams.get('invite') // ID du joueur à pré-ajouter
   
   // Auth
   const [user, setUser] = useState(null)
@@ -172,6 +174,29 @@ export default function CreateMatchPage() {
       }
     })
     setRecentPlayers(uniquePlayers.slice(0, 6))
+    
+    // Si on a un joueur à inviter (depuis ?invite=PLAYER_ID)
+    if (invitePlayerId) {
+      const { data: invitedPlayer } = await supabase
+        .from('profiles')
+        .select('id, name, level, avatar_url')
+        .eq('id', invitePlayerId)
+        .single()
+      
+      if (invitedPlayer) {
+        setFormData(prev => ({
+          ...prev,
+          partners: [{
+            id: invitedPlayer.id,
+            name: invitedPlayer.name,
+            level: invitedPlayer.level,
+            avatar_url: invitedPlayer.avatar_url,
+            team: 'A',
+            isManual: false
+          }]
+        }))
+      }
+    }
     
     setLoading(false)
   }
