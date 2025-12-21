@@ -2,405 +2,430 @@
 
 /**
  * ============================================
- * PLAYER CARD - Branding PadelMatch
+ * PLAYER CARD - VERSIONS FINALES PADELMATCH
  * ============================================
  * 
- * variant="share" : Format 1.91:1 pour réseaux sociaux - SIMPLIFIÉ
- * variant="profile" : Format vertical pour QR code - AÉRÉ
+ * 2 formats:
+ * - variant="share" : Horizontal 1.91:1 pour réseaux sociaux
+ * - variant="mobile" : Vertical pour affichage in-app
+ * 
+ * Proportions FIXES - taille s'adapte mais ratios constants
  * 
  * ============================================
  */
 
-export default function PlayerCard({ player, variant = 'share' }) {
+import { QRCodeStyledSVG } from './QRCodeStyled'
+import { getBadgeById } from '@/app/lib/badges'
+
+export default function PlayerCard({ 
+  player, 
+  variant = 'mobile',
+  showQR = true,
+  size = 'default' // 'small', 'default', 'large'
+}) {
   
-  // Couleur selon niveau
-  const getAccentColor = (level) => {
-    const lvl = parseInt(level) || 5
-    if (lvl >= 8) return '#f59e0b'
-    if (lvl >= 6) return '#a855f7'
-    if (lvl >= 4) return '#3b82f6'
-    return '#22c55e'
+  // Tailles selon le variant et size
+  const sizes = {
+    share: {
+      small: { width: 320, height: 168 },
+      default: { width: 500, height: 262 },
+      large: { width: 600, height: 314 }
+    },
+    mobile: {
+      small: { width: 220 },
+      default: { width: 280 },
+      large: { width: 340 }
+    }
   }
 
-  const styleConfig = {
-    loisir: { text: 'Détente', icon: '😎' },
-    mix: { text: 'Équilibré', icon: '⚡' },
-    compet: { text: 'Compétitif', icon: '🏆' },
-    progression: { text: 'Progresser', icon: '📈' }
-  }
+  const currentSize = sizes[variant]?.[size] || sizes[variant]?.default
 
+  // Config position
   const positionConfig = {
-    right: 'Droite', left: 'Gauche', both: 'Polyvalent',
-    droite: 'Droite', gauche: 'Gauche', les_deux: 'Polyvalent'
+    right: { emoji: '➡️', label: 'Droite' },
+    left: { emoji: '⬅️', label: 'Gauche' },
+    both: { emoji: '↔️', label: 'Polyvalent' },
+    droite: { emoji: '➡️', label: 'Droite' },
+    gauche: { emoji: '⬅️', label: 'Gauche' },
+    les_deux: { emoji: '↔️', label: 'Polyvalent' }
   }
 
-  const accentColor = getAccentColor(player.level)
-  const style = styleConfig[player.ambiance || player.style] || styleConfig.mix
-  const position = positionConfig[player.position] || 'Polyvalent'
-  const region = player.region || player.city || ''
+  // Config fréquence
+  const frequencyConfig = {
+    intense: '4+/sem',
+    often: '2-3x',
+    regular: '1x/sem',
+    occasional: '1-2/mois'
+  }
 
-  // Logo PadelMatch SVG
-  const Logo = ({ size = 20 }) => (
-    <div style={{
-      width: size,
-      height: size,
-      borderRadius: size * 0.25,
-      background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0
-    }}>
-      <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="2"/>
-        <ellipse cx="12" cy="12" rx="4" ry="10" stroke="#fff" strokeWidth="1.5"/>
-      </svg>
-    </div>
-  )
+  const position = positionConfig[player?.position] || positionConfig.both
+  const frequency = frequencyConfig[player?.frequency] || '2-3x'
+  const badge = player?.badge ? getBadgeById(player.badge) : null
+  const city = player?.city || player?.region || ''
 
   // ============================================
-  // VARIANT: PROFILE (Vertical, pour QR code)
+  // VARIANT: SHARE (Horizontal 1.91:1)
   // ============================================
-  if (variant === 'profile') {
+  if (variant === 'share') {
+    const w = currentSize.width
+    const h = currentSize.height
+    const scale = w / 500 // Base scale
+
     return (
       <div style={{
-        width: '100%',
-        maxWidth: 400,
-        margin: '0 auto',
-        background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
-        borderRadius: 20,
+        width: w,
+        height: h,
+        background: 'linear-gradient(180deg, #334155 0%, #1e293b 100%)',
+        borderRadius: 16 * scale,
         overflow: 'hidden',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+        display: 'flex',
+        position: 'relative',
+        flexShrink: 0
       }}>
         
-        {/* Header - Photo + Infos principales */}
+        {/* GAUCHE: Niveau + Poste (38%) */}
         <div style={{
-          padding: '28px 24px 20px',
-          textAlign: 'center',
-          position: 'relative'
+          width: '38%',
+          padding: 20 * scale,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          gap: 10 * scale,
+          borderRight: '1px solid rgba(255,255,255,0.1)'
         }}>
-          {/* Cercle décoratif */}
+          {/* Niveau */}
           <div style={{
-            position: 'absolute',
-            top: -50,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 180,
-            height: 180,
-            background: `radial-gradient(circle, ${accentColor}25 0%, transparent 70%)`,
-            borderRadius: '50%',
-            pointerEvents: 'none'
-          }} />
-
-          {/* Photo */}
-          <div style={{
-            width: 90,
-            height: 90,
-            borderRadius: 20,
-            background: player.avatar_url 
-              ? `url(${player.avatar_url}) center/cover`
-              : `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 36,
-            border: '3px solid rgba(255,255,255,0.2)',
-            boxShadow: `0 8px 24px ${accentColor}30`,
-            margin: '0 auto 16px',
-            position: 'relative',
-            overflow: 'hidden',
-            color: '#fff',
-            fontWeight: 700
+            border: '2px solid #22c55e',
+            borderRadius: 14 * scale,
+            padding: `${14 * scale}px`,
+            textAlign: 'center',
+            background: 'rgba(34, 197, 94, 0.08)'
           }}>
-            {!player.avatar_url && (player.name?.[0]?.toUpperCase() || '?')}
-          </div>
-
-          {/* Nom */}
-          <h1 style={{
-            fontSize: 26,
-            fontWeight: 800,
-            color: '#fff',
-            margin: '0 0 10px',
-            lineHeight: 1.2
-          }}>
-            {player.name || 'Joueur'}
-          </h1>
-
-          {/* Badges */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{
-              background: `${accentColor}25`,
-              padding: '6px 14px',
-              borderRadius: 20,
-              fontSize: 14,
-              fontWeight: 600,
-              color: accentColor
+            <div style={{ 
+              fontSize: 40 * scale, 
+              fontWeight: 900, 
+              color: '#4ade80', 
+              lineHeight: 1 
             }}>
-              {style.icon} {style.text}
-            </span>
-            {region && (
-              <span style={{
-                background: 'rgba(255,255,255,0.1)',
-                padding: '6px 14px',
-                borderRadius: 20,
-                fontSize: 14,
-                color: 'rgba(255,255,255,0.8)'
+              {player?.level || '5'}
+            </div>
+            <div style={{ 
+              fontSize: 10 * scale, 
+              color: '#4ade80', 
+              marginTop: 4 * scale, 
+              fontWeight: 600,
+              letterSpacing: 1
+            }}>
+              NIVEAU
+            </div>
+          </div>
+          
+          {/* Poste */}
+          <div style={{
+            border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: 10 * scale,
+            padding: `${10 * scale}px`,
+            textAlign: 'center'
+          }}>
+            <div style={{ 
+              fontSize: 16 * scale, 
+              fontWeight: 700, 
+              color: '#fff' 
+            }}>
+              {position.emoji} {position.label}
+            </div>
+            <div style={{ 
+              fontSize: 9 * scale, 
+              opacity: 0.5, 
+              marginTop: 2 * scale,
+              color: '#fff'
+            }}>
+              POSTE
+            </div>
+          </div>
+        </div>
+
+        {/* DROITE: Infos (62%) */}
+        <div style={{
+          flex: 1,
+          padding: `${20 * scale}px ${24 * scale}px`,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between'
+        }}>
+          
+          {/* Header: Photo + Nom + QR */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'flex-start', 
+            justifyContent: 'space-between' 
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 * scale }}>
+              {/* Photo */}
+              <div style={{
+                width: 70 * scale,
+                height: 70 * scale,
+                borderRadius: 18 * scale,
+                background: player?.avatar_url 
+                  ? `url(${player.avatar_url}) center/cover`
+                  : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 28 * scale,
+                fontWeight: 700,
+                color: '#fff',
+                border: '3px solid rgba(255,255,255,0.2)',
+                flexShrink: 0,
+                overflow: 'hidden'
               }}>
-                📍 {region.length > 15 ? region.substring(0, 14) + '.' : region}
-              </span>
+                {!player?.avatar_url && (player?.name?.[0]?.toUpperCase() || '?')}
+              </div>
+              
+              {/* Nom + Ville */}
+              <div>
+                <div style={{ 
+                  fontSize: 26 * scale, 
+                  fontWeight: 800, 
+                  color: '#fff',
+                  lineHeight: 1.1
+                }}>
+                  {player?.name || 'Joueur'}
+                </div>
+                <div style={{ 
+                  fontSize: 13 * scale, 
+                  opacity: 0.6,
+                  color: '#fff',
+                  marginTop: 2 * scale
+                }}>
+                  📍 {city || 'France'}
+                </div>
+              </div>
+            </div>
+            
+            {/* QR Code */}
+            {showQR && (
+              <QRCodeStyledSVG size={58 * scale} />
             )}
           </div>
-        </div>
 
-        {/* Stats principales - Niveau + Position */}
-        <div style={{
-          display: 'flex',
-          background: 'rgba(0,0,0,0.25)',
-          padding: '20px'
-        }}>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{
-              fontSize: 48,
-              fontWeight: 900,
-              color: '#fff',
-              lineHeight: 1,
-              textShadow: `0 0 30px ${accentColor}50`
+          {/* Stats: Badge + Fréquence */}
+          <div style={{ 
+            display: 'flex', 
+            gap: 12 * scale,
+            background: 'rgba(255,255,255,0.05)',
+            borderRadius: 12 * scale,
+            padding: 12 * scale,
+            alignItems: 'stretch'
+          }}>
+            {/* Badge */}
+            <div style={{ 
+              flex: 1, 
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8 * scale
             }}>
-              {player.level || '5'}
+              <span style={{ fontSize: 20 * scale }}>
+                {badge?.emoji || '⚔️'}
+              </span>
+              <div style={{ 
+                fontSize: 15 * scale, 
+                fontWeight: 700, 
+                color: '#fff' 
+              }}>
+                {badge?.label || 'Attaquant'}
+              </div>
             </div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: 600, marginTop: 4 }}>
-              Niveau
+            
+            <div style={{ 
+              width: 1, 
+              background: 'rgba(255,255,255,0.15)'
+            }} />
+            
+            {/* Fréquence */}
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ 
+                fontSize: 18 * scale, 
+                fontWeight: 700, 
+                color: '#fff' 
+              }}>
+                {frequency}
+              </div>
+              <div style={{ 
+                fontSize: 9 * scale, 
+                opacity: 0.5,
+                color: '#fff'
+              }}>
+                / SEMAINE
+              </div>
             </div>
           </div>
-          
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)', margin: '0 16px' }} />
-          
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 28, marginBottom: 4 }}>
-              {position === 'Droite' ? '👉' : position === 'Gauche' ? '👈' : '↔️'}
-            </div>
-            <div style={{ fontSize: 16, color: '#fff', fontWeight: 600 }}>{position}</div>
-          </div>
-        </div>
 
-        {/* Infos secondaires */}
-        <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-around' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>
-              {player.matches_played ?? 0}
-            </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Parties</div>
+          {/* Logo */}
+          <div style={{ 
+            textAlign: 'right', 
+            fontSize: 11 * scale, 
+            opacity: 0.4,
+            color: '#fff'
+          }}>
+            🎾 PadelMatch
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#22c55e' }}>
-              {player.reliability_score ?? 100}%
-            </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Fiabilité</div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: '12px 20px',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8
-        }}>
-          <Logo size={22} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>PadelMatch</span>
         </div>
       </div>
     )
   }
 
   // ============================================
-  // VARIANT: SHARE (Horizontal 1.91:1 - SIMPLIFIÉ)
+  // VARIANT: MOBILE (Vertical)
   // ============================================
+  const w = currentSize.width
+  const scale = w / 280 // Base scale
+
   return (
     <div style={{
-      width: '100%',
-      maxWidth: 480,
-      aspectRatio: '1.91 / 1',
-      background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
-      borderRadius: 16,
-      overflow: 'hidden',
+      width: w,
+      background: 'linear-gradient(180deg, #334155 0%, #1e293b 100%)',
+      borderRadius: 20 * scale,
+      padding: 24 * scale,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      border: '1px solid rgba(255,255,255,0.1)',
-      display: 'flex',
-      position: 'relative'
+      color: '#fff',
+      textAlign: 'center',
+      flexShrink: 0
     }}>
       
-      {/* Cercle décoratif */}
+      {/* Photo */}
       <div style={{
-        position: 'absolute',
-        top: -30,
-        right: -30,
-        width: 120,
-        height: 120,
-        background: 'rgba(255,255,255,0.03)',
-        borderRadius: '50%',
-        pointerEvents: 'none'
-      }} />
-
-      {/* GAUCHE - Niveau (c'est l'info clé au padel) */}
-      <div style={{
-        width: '35%',
-        background: `linear-gradient(180deg, ${accentColor}20 0%, ${accentColor}08 100%)`,
-        borderRight: '1px solid rgba(255,255,255,0.08)',
+        width: 100 * scale,
+        height: 100 * scale,
+        borderRadius: 24 * scale,
+        background: player?.avatar_url 
+          ? `url(${player.avatar_url}) center/cover`
+          : 'linear-gradient(135deg, #3b82f6, #2563eb)',
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative',
-        padding: '20px 0'
+        fontSize: 40 * scale,
+        fontWeight: 700,
+        margin: `0 auto ${16 * scale}px`,
+        border: '4px solid rgba(255,255,255,0.2)',
+        overflow: 'hidden'
       }}>
-        {/* Glow */}
+        {!player?.avatar_url && (player?.name?.[0]?.toUpperCase() || '?')}
+      </div>
+
+      {/* Nom + Ville */}
+      <div style={{ 
+        fontSize: 26 * scale, 
+        fontWeight: 800, 
+        marginBottom: 4 * scale 
+      }}>
+        {player?.name || 'Joueur'}
+      </div>
+      <div style={{ 
+        fontSize: 14 * scale, 
+        opacity: 0.6, 
+        marginBottom: 20 * scale 
+      }}>
+        📍 {city || 'France'}
+      </div>
+
+      {/* Niveau + QR Code côte à côte */}
+      <div style={{ 
+        display: 'flex', 
+        gap: 12 * scale, 
+        marginBottom: 16 * scale,
+        alignItems: 'stretch'
+      }}>
+        {/* Niveau */}
         <div style={{
-          position: 'absolute',
-          top: '40%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 80,
-          height: 80,
-          background: `radial-gradient(circle, ${accentColor}35 0%, transparent 70%)`,
-          borderRadius: '50%'
-        }} />
-        
-        <div style={{ position: 'relative', textAlign: 'center' }}>
-          <div style={{
-            fontSize: 64,
-            fontWeight: 900,
-            color: '#fff',
-            lineHeight: 1,
-            textShadow: `0 0 40px ${accentColor}60`
+          flex: 1,
+          background: 'rgba(34, 197, 94, 0.2)',
+          borderRadius: 16 * scale,
+          padding: 16 * scale,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}>
+          <div style={{ 
+            fontSize: 38 * scale, 
+            fontWeight: 900, 
+            color: '#4ade80', 
+            lineHeight: 1 
           }}>
-            {player.level || '5'}
+            {player?.level || '5'}
           </div>
           <div style={{ 
-            fontSize: 12, 
-            color: 'rgba(255,255,255,0.5)', 
-            fontWeight: 700, 
-            letterSpacing: 2,
-            marginTop: 4
+            fontSize: 11 * scale, 
+            opacity: 0.7, 
+            marginTop: 4 * scale 
           }}>
             NIVEAU
           </div>
         </div>
+
+        {/* QR Code */}
+        {showQR && (
+          <QRCodeStyledSVG 
+            size={80 * scale} 
+            style={{ flexShrink: 0 }}
+          />
+        )}
       </div>
 
-      {/* DROITE - Infos joueur */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '20px 24px',
-        justifyContent: 'space-between'
+      {/* Poste + Fréquence */}
+      <div style={{ 
+        display: 'flex', 
+        gap: 10 * scale, 
+        marginBottom: 20 * scale 
       }}>
-        
-        {/* Photo + Nom + Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          {/* Photo */}
-          <div style={{
-            width: 56,
-            height: 56,
-            borderRadius: 14,
-            background: player.avatar_url 
-              ? `url(${player.avatar_url}) center/cover`
-              : `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 24,
-            border: '2px solid rgba(255,255,255,0.15)',
-            flexShrink: 0,
-            overflow: 'hidden',
-            color: '#fff',
-            fontWeight: 700
-          }}>
-            {!player.avatar_url && (player.name?.[0]?.toUpperCase() || '?')}
-          </div>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: '#fff',
-              lineHeight: 1.2,
-              marginBottom: 6,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}>
-              {player.name || 'Joueur'}
-            </div>
-            
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{
-                background: `${accentColor}20`,
-                padding: '4px 10px',
-                borderRadius: 12,
-                fontSize: 12,
-                fontWeight: 600,
-                color: accentColor
-              }}>
-                {style.icon} {style.text}
-              </span>
-              {region && (
-                <span style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '4px 10px',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  color: 'rgba(255,255,255,0.7)'
-                }}>
-                  📍 {region.length > 10 ? region.substring(0, 9) + '.' : region}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Position + Parties (infos simples) */}
-        <div style={{ 
-          display: 'flex', 
-          gap: 16,
-          alignItems: 'center'
+        <div style={{
+          flex: 1,
+          background: 'rgba(255,255,255,0.1)',
+          padding: `${10 * scale}px ${16 * scale}px`,
+          borderRadius: 10 * scale
         }}>
-          <div style={{
-            background: 'rgba(255,255,255,0.08)',
-            padding: '8px 14px',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6
+          <div style={{ 
+            fontSize: 16 * scale, 
+            fontWeight: 700 
           }}>
-            <span style={{ fontSize: 16 }}>
-              {position === 'Droite' ? '👉' : position === 'Gauche' ? '👈' : '↔️'}
-            </span>
-            <span style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>{position}</span>
+            {position.label}
           </div>
-          
-          <div style={{
-            background: 'rgba(255,255,255,0.08)',
-            padding: '8px 14px',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6
+          <div style={{ 
+            fontSize: 10 * scale, 
+            opacity: 0.6 
           }}>
-            <span style={{ fontSize: 16 }}>🎾</span>
-            <span style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>{player.matches_played ?? 0} parties</span>
+            Poste
           </div>
         </div>
+        <div style={{
+          flex: 1,
+          background: 'rgba(255,255,255,0.1)',
+          padding: `${10 * scale}px ${16 * scale}px`,
+          borderRadius: 10 * scale
+        }}>
+          <div style={{ 
+            fontSize: 16 * scale, 
+            fontWeight: 700 
+          }}>
+            {frequency}
+          </div>
+          <div style={{ 
+            fontSize: 10 * scale, 
+            opacity: 0.6 
+          }}>
+            / semaine
+          </div>
+        </div>
+      </div>
 
-        {/* Logo en bas */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Logo size={20} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>PadelMatch</span>
-        </div>
+      {/* Logo */}
+      <div style={{ 
+        fontSize: 12 * scale, 
+        opacity: 0.4 
+      }}>
+        🎾 PadelMatch
       </div>
     </div>
   )
