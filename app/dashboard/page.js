@@ -17,7 +17,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import CreateMatchModal from '@/app/components/CreateMatchModal'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -26,7 +25,6 @@ export default function DashboardPage() {
   const [matches, setMatches] = useState([])
   const [myMatches, setMyMatches] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
   
   // Données pour sidebar desktop
   const [stats, setStats] = useState(null)
@@ -410,8 +408,8 @@ export default function DashboardPage() {
         
         {/* Boutons d'action */}
         <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={() => setShowCreateModal(true)}
+          <Link
+            href="/dashboard/matches/create"
             style={{
               flex: 1,
               padding: 16,
@@ -425,11 +423,12 @@ export default function DashboardPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8
+              gap: 8,
+              textDecoration: 'none'
             }}
           >
             + Créer une partie
-          </button>
+          </Link>
           
           <Link
               href="/dashboard/community"
@@ -1091,20 +1090,6 @@ export default function DashboardPage() {
         </aside>
       </div>
       {/* Fin de dashboard-desktop-layout */}
-
-      {/* ============================================ */}
-      {/* MODAL CRÉATION                              */}
-      {/* ============================================ */}
-      <CreateMatchModal 
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={() => {
-          setShowCreateModal(false)
-          loadData()
-        }}
-        profile={profile}
-        userId={user?.id}
-      />
 
       {/* ============================================ */}
       {/* STYLES RESPONSIVE                           */}

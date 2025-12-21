@@ -17,7 +17,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import CreateMatchModal from '@/app/components/CreateMatchModal'
 
 export default function MesPartiesPage() {
   const router = useRouter()
@@ -26,7 +25,6 @@ export default function MesPartiesPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('upcoming')
   const [historyFilter, setHistoryFilter] = useState('all')
-  const [showCreateModal, setShowCreateModal] = useState(false)
   
   // Modal invitation
   const [showInviteModal, setShowInviteModal] = useState(false)
@@ -491,8 +489,8 @@ export default function MesPartiesPage() {
             {upcomingMatches.length} à venir · {stats.total} jouées
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
+        <Link
+          href="/dashboard/matches/create"
           style={{
             padding: '12px 20px',
             background: 'linear-gradient(135deg, #22c55e, #16a34a)',
@@ -505,11 +503,12 @@ export default function MesPartiesPage() {
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
+            boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
+            textDecoration: 'none'
           }}
         >
           + Créer une partie
-        </button>
+        </Link>
       </div>
 
       {/* ============================================ */}
@@ -605,8 +604,8 @@ export default function MesPartiesPage() {
               <p style={{ color: '#64748b', marginBottom: 20 }}>
                 Crée ou rejoins une partie !
               </p>
-              <button
-                onClick={() => setShowCreateModal(true)}
+              <Link
+                href="/dashboard/matches/create"
                 style={{
                   padding: '12px 24px',
                   background: 'linear-gradient(135deg, #22c55e, #16a34a)',
@@ -614,11 +613,13 @@ export default function MesPartiesPage() {
                   border: 'none',
                   borderRadius: 10,
                   fontWeight: 600,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  textDecoration: 'none',
+                  display: 'inline-block'
                 }}
               >
                 Créer une partie
-              </button>
+              </Link>
             </div>
           ) : (
             upcomingMatches.map(match => {
@@ -1065,20 +1066,6 @@ export default function MesPartiesPage() {
           )}
         </div>
       )}
-
-      {/* ============================================ */}
-      {/* MODAL CRÉATION                              */}
-      {/* ============================================ */}
-      <CreateMatchModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={(match) => {
-          setShowCreateModal(false)
-          router.push(`/dashboard/match/${match.id}`)
-        }}
-        profile={profile}
-        userId={user?.id}
-      />
 
       {/* ============================================ */}
       {/* MODAL INVITER                               */}
