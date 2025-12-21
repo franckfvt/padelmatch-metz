@@ -22,6 +22,7 @@ export default function PlayerCardModal({
   const [showBadgeSelector, setShowBadgeSelector] = useState(false)
   const [saving, setSaving] = useState(false)
   const [currentVariant, setCurrentVariant] = useState(variant)
+  const [userId, setUserId] = useState(null)
   
   const [editData, setEditData] = useState({
     name: profile?.name || '',
@@ -29,6 +30,17 @@ export default function PlayerCardModal({
     frequency: profile?.frequency || 'often',
     badge: profile?.badge || 'attaquant'
   })
+
+  // Récupérer l'ID utilisateur au montage
+  useEffect(() => {
+    async function getUserId() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id) {
+        setUserId(session.user.id)
+      }
+    }
+    getUserId()
+  }, [])
 
   useEffect(() => {
     setEditData({
@@ -40,6 +52,12 @@ export default function PlayerCardModal({
   }, [profile])
 
   async function saveChanges() {
+    const idToUse = profile?.id || userId
+    if (!idToUse) {
+      alert('Erreur: impossible de sauvegarder')
+      return
+    }
+    
     setSaving(true)
     try {
       const { error } = await supabase
@@ -50,12 +68,12 @@ export default function PlayerCardModal({
           frequency: editData.frequency,
           badge: editData.badge
         })
-        .eq('id', profile.id)
+        .eq('id', idToUse)
 
       if (error) throw error
 
       if (onUpdate) {
-        onUpdate({ ...profile, ...editData })
+        onUpdate({ ...profile, ...editData, id: idToUse })
       }
       
       setIsEditing(false)
@@ -67,26 +85,33 @@ export default function PlayerCardModal({
     }
   }
 
+  // L'ID à utiliser pour le QR code
+  const finalId = profile?.id || userId
+
   function copyLink() {
-    const link = `${window.location.origin}/player/${profile?.id}`
+    if (!finalId) return
+    const link = `${window.location.origin}/player/${finalId}`
     navigator.clipboard.writeText(link)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   function shareWhatsApp() {
-    const text = `🎾 Découvre mon profil PadelMatch !\n\nJe suis niveau ${profile?.level || '?'} et je recherche des partenaires.\n\n👉 ${window.location.origin}/player/${profile?.id}`
+    if (!finalId) return
+    const text = `🎾 Découvre mon profil PadelMatch !\n\nJe suis niveau ${profile?.level || '?'} et je recherche des partenaires.\n\n👉 ${window.location.origin}/player/${finalId}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   function shareFacebook() {
-    const url = `${window.location.origin}/player/${profile?.id}`
+    if (!finalId) return
+    const url = `${window.location.origin}/player/${finalId}`
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank')
   }
 
   function shareTwitter() {
+    if (!finalId) return
     const text = `🎾 Je joue au padel niveau ${profile?.level || '?'} ! Retrouve-moi sur @PadelMatch`
-    const url = `${window.location.origin}/player/${profile?.id}`
+    const url = `${window.location.origin}/player/${finalId}`
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank')
   }
 
@@ -103,11 +128,11 @@ export default function PlayerCardModal({
     { id: 'intense', label: '4+/sem' }
   ]
 
-  // Toujours inclure l'ID dans le profil affiché
+  // Profil avec ID garanti
   const displayProfile = {
     ...profile,
     ...(isEditing ? editData : {}),
-    id: profile?.id // Toujours garder l'ID
+    id: finalId
   }
 
   return (
@@ -184,17 +209,23 @@ export default function PlayerCardModal({
           </div>
         </div>
 
-        {/* LA CARTE - centrée et contenue */}
+        {/* LA CARTE */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center',
           marginBottom: 12,
           overflow: 'hidden'
         }}>
-          <PlayerCard 
-            player={displayProfile}
-            variant={currentVariant}
-          />
+          {finalId ? (
+            <PlayerCard 
+              player={displayProfile}
+              variant={currentVariant}
+            />
+          ) : (
+            <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>
+              Chargement...
+            </div>
+          )}
         </div>
 
         {/* Bouton éditer */}
@@ -389,6 +420,7 @@ export default function PlayerCardModal({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
           <button
             onClick={copyLink}
+            disabled={!finalId}
             style={{
               padding: 12,
               background: copied ? '#dcfce7' : '#f1f5f9',
@@ -397,13 +429,15 @@ export default function PlayerCardModal({
               fontSize: 12,
               fontWeight: 600,
               color: copied ? '#16a34a' : '#1a1a2e',
-              cursor: 'pointer'
+              cursor: finalId ? 'pointer' : 'not-allowed',
+              opacity: finalId ? 1 : 0.5
             }}
           >
             {copied ? '✓ Copié' : '🔗 Copier'}
           </button>
           <button
             onClick={shareWhatsApp}
+            disabled={!finalId}
             style={{
               padding: 12,
               background: '#25D366',
@@ -412,13 +446,15 @@ export default function PlayerCardModal({
               fontSize: 12,
               fontWeight: 600,
               color: '#fff',
-              cursor: 'pointer'
+              cursor: finalId ? 'pointer' : 'not-allowed',
+              opacity: finalId ? 1 : 0.5
             }}
           >
             💬 WhatsApp
           </button>
           <button
             onClick={shareFacebook}
+            disabled={!finalId}
             style={{
               padding: 12,
               background: '#1877F2',
@@ -427,13 +463,15 @@ export default function PlayerCardModal({
               fontSize: 12,
               fontWeight: 600,
               color: '#fff',
-              cursor: 'pointer'
+              cursor: finalId ? 'pointer' : 'not-allowed',
+              opacity: finalId ? 1 : 0.5
             }}
           >
             📘 Facebook
           </button>
           <button
             onClick={shareTwitter}
+            disabled={!finalId}
             style={{
               padding: 12,
               background: '#1DA1F2',
@@ -442,7 +480,8 @@ export default function PlayerCardModal({
               fontSize: 12,
               fontWeight: 600,
               color: '#fff',
-              cursor: 'pointer'
+              cursor: finalId ? 'pointer' : 'not-allowed',
+              opacity: finalId ? 1 : 0.5
             }}
           >
             🐦 Twitter

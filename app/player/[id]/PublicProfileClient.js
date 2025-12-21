@@ -13,7 +13,6 @@ export default function PublicProfileClient() {
   
   const [profile, setProfile] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
-  const [recentMatches, setRecentMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -27,11 +26,9 @@ export default function PublicProfileClient() {
 
   async function loadData() {
     try {
-      // Vérifier si connecté
       const { data: { session } } = await supabase.auth.getSession()
       setCurrentUser(session?.user || null)
 
-      // Charger le profil
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -39,28 +36,14 @@ export default function PublicProfileClient() {
         .single()
 
       if (profileError || !profileData) {
-        console.error('Profile error:', profileError)
         setError('Joueur introuvable')
         setLoading(false)
         return
       }
 
       setProfile(profileData)
-
-      // Charger les parties récentes
-      const { data: matchesData } = await supabase
-        .from('matches')
-        .select(`*, clubs (name)`)
-        .or(`team_a.cs.{${playerId}},team_b.cs.{${playerId}}`)
-        .eq('status', 'completed')
-        .order('match_date', { ascending: false })
-        .limit(5)
-
-      setRecentMatches(matchesData || [])
       setLoading(false)
-
     } catch (error) {
-      console.error('Error loading profile:', error)
       setError('Erreur lors du chargement')
       setLoading(false)
     }
@@ -127,24 +110,19 @@ export default function PublicProfileClient() {
     )
   }
 
-  // Objet player complet avec ID pour le QR code
+  // Données du joueur avec ID explicite
   const playerData = {
-    id: playerId, // IMPORTANT pour le QR code
+    id: playerId,
     name: profile.name,
     level: profile.level,
     position: profile.position,
-    ambiance: profile.ambiance,
     frequency: profile.frequency,
-    experience: profile.experience,
     city: profile.region || profile.city,
-    region: profile.region || profile.city,
     avatar_url: profile.avatar_url,
-    badge: profile.badge,
-    matches_played: profile.matches_played,
-    reliability_score: profile.reliability_score
+    badge: profile.badge
   }
 
-  // === SI C'EST SA PROPRE CARTE (connecté) ===
+  // === PROPRE CARTE ===
   if (isOwnProfile) {
     return (
       <div style={{
@@ -155,7 +133,6 @@ export default function PublicProfileClient() {
       }}>
         <div style={{ maxWidth: 500, margin: '0 auto' }}>
           
-          {/* Header */}
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -165,25 +142,16 @@ export default function PublicProfileClient() {
             <Link href="/dashboard" style={{ 
               color: 'rgba(255,255,255,0.6)', 
               textDecoration: 'none',
-              fontSize: 14,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
+              fontSize: 14
             }}>
               ← Retour
             </Link>
-            <h1 style={{ 
-              fontSize: 18, 
-              fontWeight: 700, 
-              color: '#fff',
-              margin: 0
-            }}>
+            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>
               🎴 Ma carte
             </h1>
             <div style={{ width: 50 }} />
           </div>
           
-          {/* Carte format partage */}
           <div ref={cardRef} style={{ marginBottom: 20 }}>
             <PlayerCard 
               player={playerData}
@@ -192,10 +160,7 @@ export default function PublicProfileClient() {
             />
           </div>
 
-          {/* Boutons d'action */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            
-            {/* Partager */}
             <button
               onClick={() => {
                 if (navigator.share) {
@@ -217,31 +182,24 @@ export default function PublicProfileClient() {
                 borderRadius: 12,
                 fontSize: 15,
                 fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8
+                cursor: 'pointer'
               }}
             >
               📤 Partager ma carte
             </button>
 
-            {/* Modifier mon profil */}
             <Link href="/dashboard/me" style={{ textDecoration: 'none' }}>
-              <button
-                style={{
-                  width: '100%',
-                  padding: 14,
-                  background: 'rgba(255,255,255,0.1)',
-                  color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: 12,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
+              <button style={{
+                width: '100%',
+                padding: 14,
+                background: 'rgba(255,255,255,0.1)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}>
                 ✏️ Modifier mon profil
               </button>
             </Link>
@@ -251,60 +209,49 @@ export default function PublicProfileClient() {
     )
   }
 
-  // === SI C'EST UN AUTRE JOUEUR (QR code scanné) ===
+  // === CARTE D'UN AUTRE JOUEUR ===
   return (
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
       padding: '24px 16px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center'
     }}>
-      <div style={{ 
-        maxWidth: 340, 
-        margin: '0 auto',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
-      }}>
-        
-        {/* Carte joueur - format mobile AGRANDI */}
-        <div style={{ 
-          marginBottom: 24,
-          transform: 'scale(1.1)',
-          transformOrigin: 'top center'
-        }}>
-          <PlayerCard 
-            player={playerData}
-            variant="mobile"
-            showQR={false}
-          />
-        </div>
-
-        {/* CTA */}
-        <Link href="/" style={{ textDecoration: 'none', display: 'block', width: '100%' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-            borderRadius: 14,
-            padding: '16px 24px',
-            textAlign: 'center',
-            color: '#fff',
-            fontWeight: '700',
-            fontSize: 15
-          }}>
-            🎾 Rejoindre PadelMatch
-          </div>
-        </Link>
-
-        {/* Petite note */}
-        <p style={{ 
-          textAlign: 'center', 
-          color: 'rgba(255,255,255,0.4)', 
-          fontSize: 12, 
-          marginTop: 16 
-        }}>
-          Trouve des partenaires de padel près de chez toi
-        </p>
+      {/* Carte - PAS de scale, juste centrée */}
+      <div style={{ marginBottom: 32 }}>
+        <PlayerCard 
+          player={playerData}
+          variant="mobile"
+          showQR={false}
+        />
       </div>
+
+      {/* CTA - bien séparé */}
+      <Link href="/" style={{ textDecoration: 'none', width: '100%', maxWidth: 280 }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+          borderRadius: 14,
+          padding: '16px 24px',
+          textAlign: 'center',
+          color: '#fff',
+          fontWeight: '700',
+          fontSize: 15
+        }}>
+          🎾 Rejoindre PadelMatch
+        </div>
+      </Link>
+
+      <p style={{ 
+        textAlign: 'center', 
+        color: 'rgba(255,255,255,0.4)', 
+        fontSize: 12, 
+        marginTop: 16 
+      }}>
+        Trouve des partenaires de padel près de chez toi
+      </p>
     </div>
   )
 }
