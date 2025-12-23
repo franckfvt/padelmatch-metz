@@ -48,6 +48,12 @@ export default function JoueursPage() {
   const [myOpenMatches, setMyOpenMatches] = useState([])
   const [preselectedMatch, setPreselectedMatch] = useState(null)
   const [inviting, setInviting] = useState(false)
+  
+  // Toast notification
+  const [toast, setToast] = useState(null)
+  
+  // Compteur parties ensemble par joueur
+  const [matchesTogether, setMatchesTogether] = useState({})
 
   useEffect(() => { loadData() }, [])
 
@@ -82,7 +88,7 @@ export default function JoueursPage() {
       .select(`
         id, match_date, match_time, spots_available, city, status,
         clubs (name),
-        match_participants (user_id, team, status, profiles (id, name, avatar_url))
+        match_participants (user_id, team, status, profiles:user_id (id, name, avatar_url))
       `)
       .eq('organizer_id', session.user.id)
       .in('status', ['open', 'confirmed']) // Accepter aussi 'confirmed' si places dispo
@@ -102,48 +108,107 @@ export default function JoueursPage() {
       setMatchPlayers(confirmedPlayers)
     }
 
-    // Favoris
-    const { data: favorites } = await supabase
+    // Favoris - récupérer les IDs puis les profils
+    const { data: favoriteLinks, error: favError } = await supabase
       .from('player_favorites')
-      .select(`
-        favorite_user_id,
-        profiles!player_favorites_favorite_user_id_fkey (id, name, avatar_url, level, city, position)
-      `)
+      .select('favorite_user_id')
       .eq('user_id', session.user.id)
 
-    const favIds = new Set((favorites || []).map(f => f.favorite_user_id))
+    console.log('⭐ Favoris query:', { favoriteLinks, error: favError })
+
+    let favoritesData = []
+    const favIds = new Set((favoriteLinks || []).map(f => f.favorite_user_id))
+    
+    if (favIds.size > 0) {
+      const { data: favProfiles } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, level, city, position')
+        .in('id', Array.from(favIds))
+      favoritesData = favProfiles || []
+    }
+    
     setFavoriteIds(favIds)
-    setFavoritePlayers((favorites || []).map(f => f.profiles).filter(Boolean))
+    setFavoritePlayers(favoritesData)
 
-    if ((favorites || []).length === 0) setActiveTab('pres')
+    // Calculer le nombre de parties ensemble pour chaque favori
+    if (favIds.size > 0) {
+      const matchesCount = {}
+      for (const favId of favIds) {
+        // Trouver les matchs où on a joué ensemble
+        const { data: commonMatches } = await supabase
+          .from('match_participants')
+          .select('match_id')
+          .eq('user_id', favId)
+          .eq('status', 'confirmed')
+        
+        if (commonMatches && commonMatches.length > 0) {
+          const favMatchIds = commonMatches.map(m => m.match_id)
+          const { count } = await supabase
+            .from('match_participants')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', session.user.id)
+            .eq('status', 'confirmed')
+            .in('match_id', favMatchIds)
+          matchesCount[favId] = count || 0
+        } else {
+          matchesCount[favId] = 0
+        }
+      }
+      setMatchesTogether(matchesCount)
+    }
 
-    // Récents
-    const { data: recentMatches } = await supabase
+    if (favoritesData.length === 0) setActiveTab('pres')
+
+    // Récents - approche simplifiée en 2 étapes
+    // 1. Récupérer mes participations récentes
+    const { data: myParticipations, error: recError } = await supabase
       .from('match_participants')
-      .select(`
-        match_id,
-        matches!inner (
-          id, match_date,
-          match_participants (user_id, profiles!match_participants_user_id_fkey (id, name, avatar_url, level, city, position))
-        )
-      `)
+      .select('match_id, matches!inner(id, match_date)')
       .eq('user_id', session.user.id)
       .eq('status', 'confirmed')
       .order('matches(match_date)', { ascending: false })
       .limit(20)
 
+    console.log('🕐 Récents step 1:', { myParticipations, error: recError })
+
     const recentPlayersMap = new Map()
     const recentPlayersWithDate = []
-    ;(recentMatches || []).forEach(mp => {
-      const match = mp.matches
-      if (!match) return
-      ;(match.match_participants || []).forEach(p => {
-        if (p.user_id !== session.user.id && p.profiles && !recentPlayersMap.has(p.user_id)) {
-          recentPlayersMap.set(p.user_id, true)
-          recentPlayersWithDate.push({ ...p.profiles, lastMatchDate: match.match_date })
-        }
-      })
-    })
+
+    if (myParticipations && myParticipations.length > 0) {
+      const matchIds = myParticipations.map(p => p.match_id)
+      
+      // 2. Récupérer tous les participants de ces matchs
+      const { data: allParticipants } = await supabase
+        .from('match_participants')
+        .select('user_id, match_id')
+        .in('match_id', matchIds)
+        .eq('status', 'confirmed')
+        .neq('user_id', session.user.id)
+
+      // 3. Récupérer les profils
+      const otherUserIds = [...new Set((allParticipants || []).map(p => p.user_id))]
+      
+      if (otherUserIds.length > 0) {
+        const { data: recentProfiles } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url, level, city, position')
+          .in('id', otherUserIds)
+
+        // Associer les profils avec la date du dernier match
+        const profileMap = new Map((recentProfiles || []).map(p => [p.id, p]))
+        const matchDateMap = new Map(myParticipations.map(p => [p.match_id, p.matches?.match_date]))
+
+        ;(allParticipants || []).forEach(p => {
+          if (!recentPlayersMap.has(p.user_id) && profileMap.has(p.user_id)) {
+            recentPlayersMap.set(p.user_id, true)
+            recentPlayersWithDate.push({
+              ...profileMap.get(p.user_id),
+              lastMatchDate: matchDateMap.get(p.match_id)
+            })
+          }
+        })
+      }
+    }
     setRecentPlayers(recentPlayersWithDate.slice(0, 10))
 
     // Près de moi
@@ -230,11 +295,19 @@ export default function JoueursPage() {
       if (match?.spots_available > 0) {
         await supabase.from('matches').update({ spots_available: match.spots_available - 1 }).eq('id', matchId)
       }
+      // Afficher toast de succès
+      const playerName = selectedPlayer.name?.split(' ')[0] || 'Le joueur'
+      const matchDate = match ? formatMatchDate(match.match_date, match.match_time) : 'ta partie'
+      setToast({ type: 'success', message: `✅ ${playerName} a été invité(e) pour ${matchDate} !` })
+      setTimeout(() => setToast(null), 4000)
+      
       setShowInviteModal(false)
       setSelectedPlayer(null)
       loadData()
     } catch (err) {
       console.error('Erreur invitation:', err)
+      setToast({ type: 'error', message: '❌ Erreur lors de l\'invitation' })
+      setTimeout(() => setToast(null), 4000)
     } finally {
       setInviting(false)
     }
@@ -249,9 +322,16 @@ export default function JoueursPage() {
       if (incompleteMatch.spots_available > 0) {
         await supabase.from('matches').update({ spots_available: incompleteMatch.spots_available - 1 }).eq('id', incompleteMatch.id)
       }
+      // Afficher toast de succès
+      const playerName = player.name?.split(' ')[0] || 'Le joueur'
+      setToast({ type: 'success', message: `✅ ${playerName} a été invité(e) !` })
+      setTimeout(() => setToast(null), 4000)
+      
       loadData()
     } catch (err) {
       console.error('Erreur invitation rapide:', err)
+      setToast({ type: 'error', message: '❌ Erreur lors de l\'invitation' })
+      setTimeout(() => setToast(null), 4000)
     } finally {
       setInviting(false)
     }
@@ -403,61 +483,95 @@ export default function JoueursPage() {
           border: '1px solid #bae6fd',
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🎾</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📒</div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>
             Ton carnet de joueurs
           </h2>
-          <p style={{ fontSize: 14, color: COLORS.textMuted, lineHeight: 1.6, marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
-            Cette page se remplira au fil de tes parties ! Tu y retrouveras tes partenaires de jeu et pourras les inviter facilement.
+          <p style={{ fontSize: 14, color: COLORS.textMuted, lineHeight: 1.7, marginBottom: 20, maxWidth: 340, margin: '0 auto 20px' }}>
+            Plus tu joues, plus cette page devient <strong style={{ color: COLORS.text }}>ton allié</strong> pour organiser des parties ! 
+            Chaque match te fait découvrir des joueurs que tu pourras <strong style={{ color: COLORS.text }}>ajouter en favoris</strong> et <strong style={{ color: COLORS.text }}>réinviter en 1 clic</strong>.
           </p>
+          
+          {/* Progression vide ludique */}
+          <div style={{ 
+            background: 'rgba(255,255,255,0.8)', 
+            borderRadius: RADIUS.lg, 
+            padding: 16, 
+            marginBottom: 20,
+            maxWidth: 320,
+            margin: '0 auto 20px'
+          }}>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 12 }}>Ton réseau padel</div>
+            <div style={{ display: 'flex', justifyContent: 'space-around', gap: 8 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.textLight }}>0</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Favoris</div>
+              </div>
+              <div style={{ width: 1, background: COLORS.border }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.textLight }}>0</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Récents</div>
+              </div>
+              <div style={{ width: 1, background: COLORS.border }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.textLight }}>0</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Parties</div>
+              </div>
+            </div>
+          </div>
           
           <div style={{ 
             display: 'flex', 
             flexDirection: 'column', 
-            gap: 12, 
-            maxWidth: 280, 
-            margin: '0 auto',
+            gap: 10, 
+            maxWidth: 300, 
+            margin: '0 auto 20px',
             textAlign: 'left'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
-              <span style={{ fontSize: 20 }}>⭐</span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
+              <span style={{ fontSize: 18, marginTop: 2 }}>1️⃣</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Favoris</div>
-                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Tes joueurs préférés, à portée de clic</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Crée ou rejoins une partie</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Rencontre des joueurs de ton niveau</div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
-              <span style={{ fontSize: 20 }}>🕐</span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
+              <span style={{ fontSize: 18, marginTop: 2 }}>2️⃣</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Récents</div>
-                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Ceux avec qui tu as joué récemment</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Ajoute tes coups de cœur en favoris</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Pour les retrouver facilement</div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
-              <span style={{ fontSize: 20 }}>📍</span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
+              <span style={{ fontSize: 18, marginTop: 2 }}>3️⃣</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Près de toi</div>
-                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Découvre des joueurs dans ta ville</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Réinvite-les en 1 clic</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Ton carnet d'adresses padel !</div>
               </div>
             </div>
           </div>
 
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 16 }}>
             <Link href="/dashboard/matches/create" style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              padding: '12px 24px',
+              padding: '14px 28px',
               background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDark})`,
               color: '#fff',
               borderRadius: RADIUS.md,
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 700,
               textDecoration: 'none',
               boxShadow: '0 4px 12px rgba(34,197,94,0.3)'
             }}>
               🎾 Créer ta première partie
             </Link>
+            <div style={{ marginTop: 10 }}>
+              <Link href="/dashboard/parties" style={{ fontSize: 13, color: COLORS.accent, textDecoration: 'none' }}>
+                ou rejoins une partie existante →
+              </Link>
+            </div>
           </div>
         </div>
       )}
@@ -542,7 +656,9 @@ export default function JoueursPage() {
         <>
           {(activeTab === 'favoris' || activeTab === 'recents' || searchQuery.length >= 2) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {playersToShow.map(player => (
+              {playersToShow.map(player => {
+                const partiesTogether = matchesTogether[player.id] || 0
+                return (
                 <div key={player.id} onClick={() => router.push(`/player/${player.id}`)}
                   style={{ background: COLORS.card, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}>
                   <div style={{ width: 52, height: 52, borderRadius: '50%', background: player.avatar_url ? 'transparent' : getAvatarColor(player.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
@@ -555,7 +671,17 @@ export default function JoueursPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ background: COLORS.accentLight, color: COLORS.accentText, padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>Niv. {player.level || '?'}</span>
+                      {player.position && (
+                        <span style={{ background: '#e0e7ff', color: '#4338ca', padding: '2px 8px', borderRadius: 6, fontSize: 11 }}>
+                          {player.position === 'left' || player.position === 'gauche' ? '⬅️ Gauche' : player.position === 'right' || player.position === 'droite' ? '➡️ Droite' : '↔️ Polyvalent'}
+                        </span>
+                      )}
                       {player.city && <span style={{ background: COLORS.borderLight, color: COLORS.textMuted, padding: '2px 8px', borderRadius: 6, fontSize: 11 }}>📍 {player.city}</span>}
+                      {activeTab === 'favoris' && partiesTogether > 0 && (
+                        <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500 }}>
+                          🎾 {partiesTogether} partie{partiesTogether > 1 ? 's' : ''} ensemble
+                        </span>
+                      )}
                       {activeTab === 'recents' && player.lastMatchDate && <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 6, fontSize: 11 }}>🎾 {formatRecentDate(player.lastMatchDate)}</span>}
                     </div>
                   </div>
@@ -567,7 +693,7 @@ export default function JoueursPage() {
                     </button>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
 
@@ -586,6 +712,11 @@ export default function JoueursPage() {
                     <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 6, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 10 }}>
                       <span style={{ background: COLORS.accentLight, color: COLORS.accentText, padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600 }}>⭐ {player.level || '?'}</span>
+                      {player.position && (
+                        <span style={{ background: '#e0e7ff', color: '#4338ca', padding: '2px 6px', borderRadius: 6, fontSize: 10 }}>
+                          {player.position === 'left' || player.position === 'gauche' ? '⬅️' : player.position === 'right' || player.position === 'droite' ? '➡️' : '↔️'}
+                        </span>
+                      )}
                       {player.city && <span style={{ background: COLORS.borderLight, color: COLORS.textMuted, padding: '2px 8px', borderRadius: 6, fontSize: 10 }}>{player.city}</span>}
                     </div>
                     <button onClick={(e) => incompleteMatch && spotsRemaining > 0 ? quickInvite(player, e) : openInviteModal(player, e)}
@@ -653,6 +784,29 @@ export default function JoueursPage() {
         </div>
       )}
 
+      {/* TOAST NOTIFICATION */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: 100,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: toast.type === 'success' ? '#166534' : '#dc2626',
+          color: '#fff',
+          padding: '14px 24px',
+          borderRadius: RADIUS.lg,
+          fontSize: 14,
+          fontWeight: 600,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          zIndex: 2000,
+          animation: 'slideUp 0.3s ease-out',
+          maxWidth: '90%',
+          textAlign: 'center'
+        }}>
+          {toast.message}
+        </div>
+      )}
+
       <div style={{ height: 100 }} />
 
       <style jsx global>{`
@@ -670,6 +824,16 @@ export default function JoueursPage() {
         @media (min-width: 1024px) {
           .players-grid {
             grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
           }
         }
       `}</style>
