@@ -234,15 +234,23 @@ function ShareCard({ match, allPlayers, spotsLeft, pendingInvitesCount = 0 }) {
   }
 
   // Comptage intelligent des places
+  // On affiche les places "potentiellement disponibles" = libres + invités non confirmés
   const confirmedCount = allPlayers.filter(p => !p.isPendingInvite).length
   const invitedCount = allPlayers.filter(p => p.isPendingInvite).length
   const freeSpots = 4 - confirmedCount - invitedCount
+  const availableSpots = freeSpots + invitedCount // Places potentielles (libres + invités)
 
-  // Message de places
+  // Message de places - On montre les places potentielles pour ne pas bloquer les duos
   const getSpotsMessage = () => {
-    if (freeSpots === 0 && invitedCount === 0) return '✅ Complet'
-    if (freeSpots === 0 && invitedCount > 0) return `⏳ ${invitedCount} invité${invitedCount > 1 ? 's' : ''} en attente`
-    if (freeSpots > 0 && invitedCount > 0) return `🎾 ${freeSpots} place${freeSpots > 1 ? 's' : ''} (+${invitedCount} invité${invitedCount > 1 ? 's' : ''})`
+    if (availableSpots === 0) return '✅ Complet'
+    if (freeSpots === 0 && invitedCount > 0) {
+      // Toutes les places "libres" sont des invités
+      return `🎾 ${invitedCount} place${invitedCount > 1 ? 's' : ''} (⏳ invité${invitedCount > 1 ? 's' : ''})`
+    }
+    if (freeSpots > 0 && invitedCount > 0) {
+      // Mix de places libres et invités
+      return `🎾 ${availableSpots} places (⏳ ${invitedCount} invité${invitedCount > 1 ? 's' : ''})`
+    }
     return `🎾 ${freeSpots} place${freeSpots > 1 ? 's' : ''}`
   }
 
@@ -639,6 +647,7 @@ export default function MatchPage() {
             {(() => {
               const invitedCount = pendingInvites.length
               const freeSpots = getSpotsLeft()
+              const availableSpots = freeSpots + invitedCount
               
               if (match.status === 'cancelled') {
                 return <span style={{ background: '#fee2e2', color: '#dc2626', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>❌ Annulée</span>
@@ -646,14 +655,11 @@ export default function MatchPage() {
               if (match.status === 'completed') {
                 return <span style={{ background: '#f0fdf4', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>✅ Terminée</span>
               }
-              if (freeSpots === 0 && invitedCount === 0) {
+              if (availableSpots === 0) {
                 return <span style={{ background: '#f1f5f9', color: '#64748b', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>✅ Complet</span>
               }
-              if (freeSpots === 0 && invitedCount > 0) {
-                return <span style={{ background: '#fef3c7', color: '#92400e', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>⏳ {invitedCount} invité{invitedCount > 1 ? 's' : ''}</span>
-              }
-              if (freeSpots > 0 && invitedCount > 0) {
-                return <span style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>🎾 {freeSpots} place{freeSpots > 1 ? 's' : ''} (+{invitedCount}⏳)</span>
+              if (invitedCount > 0) {
+                return <span style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>🎾 {availableSpots} place{availableSpots > 1 ? 's' : ''} <span style={{ opacity: 0.7 }}>(⏳{invitedCount})</span></span>
               }
               return <span style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>🎾 {freeSpots} place{freeSpots > 1 ? 's' : ''}</span>
             })()}
