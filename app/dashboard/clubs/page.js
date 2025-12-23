@@ -223,7 +223,7 @@ export default function ClubsPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <Link href="/dashboard/explore" style={{ 
+        <Link href="/dashboard/parties" style={{ 
           color: '#64748b', 
           textDecoration: 'none', 
           fontSize: 14,

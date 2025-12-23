@@ -281,7 +281,7 @@ export default function MatchPage() {
       .from('matches')
       .update({ status: 'cancelled' })
       .eq('id', matchId)
-    router.push('/dashboard/matches')
+    router.push('/dashboard/parties')
   }
 
   async function saveResult() {
@@ -342,7 +342,7 @@ export default function MatchPage() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>❌</div>
           <div style={{ color: COLORS.textMuted, marginBottom: 16 }}>Partie introuvable</div>
-          <Link href="/dashboard/matches" style={{ color: COLORS.accent }}>← Retour aux parties</Link>
+          <Link href="/dashboard/parties" style={{ color: COLORS.accent }}>← Retour aux parties</Link>
         </div>
       </div>
     )
@@ -368,7 +368,7 @@ export default function MatchPage() {
         marginBottom: 16,
         padding: '0 4px'
       }}>
-        <Link href="/dashboard/matches" style={{ 
+        <Link href="/dashboard/parties" style={{ 
           color: COLORS.textMuted, 
           textDecoration: 'none',
           fontSize: 14,

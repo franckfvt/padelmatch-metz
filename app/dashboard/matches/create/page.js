@@ -630,7 +630,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
             ←
           </button>
         ) : step === 1 ? (
-          <Link href="/dashboard/matches" style={{ fontSize: 24, textDecoration: 'none' }}>
+          <Link href="/dashboard/parties" style={{ fontSize: 24, textDecoration: 'none' }}>
             ←
           </Link>
         ) : null}
@@ -1501,7 +1501,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
           </Link>
           
           <Link
-            href="/dashboard/matches"
+            href="/dashboard/parties"
             style={{
               color: COLORS.textMuted,
               fontSize: 14,
