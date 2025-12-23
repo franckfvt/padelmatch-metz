@@ -103,7 +103,30 @@ function Avatar({ name, size = 40, empty = false, avatarUrl = null, onClick, bor
 // Carte joueur sur le terrain
 function PlayerCard({ player, position, onClickPlayer, onClickEmpty }) {
   const isEmpty = !player
+  const isPendingInvite = player?.isPendingInvite
   const profile = player?.profiles || player
+  
+  // Style différent pour les invités en attente
+  const getCardStyle = () => {
+    if (isEmpty) {
+      return {
+        background: 'rgba(255,255,255,0.05)',
+        border: '2px dashed rgba(255,255,255,0.2)'
+      }
+    }
+    if (isPendingInvite) {
+      return {
+        background: 'rgba(251,191,36,0.15)', // Jaune/orange pour invité
+        border: '2px dashed rgba(251,191,36,0.4)'
+      }
+    }
+    return {
+      background: 'rgba(255,255,255,0.1)',
+      border: '2px solid rgba(255,255,255,0.15)'
+    }
+  }
+
+  const cardStyle = getCardStyle()
   
   return (
     <div
@@ -114,9 +137,9 @@ function PlayerCard({ player, position, onClickPlayer, onClickEmpty }) {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px 12px',
-        background: isEmpty ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)',
+        background: cardStyle.background,
         borderRadius: 12,
-        border: isEmpty ? '2px dashed rgba(255,255,255,0.2)' : '2px solid rgba(255,255,255,0.15)',
+        border: cardStyle.border,
         cursor: 'pointer',
         transition: 'all 0.2s',
         minHeight: 120,
@@ -124,12 +147,25 @@ function PlayerCard({ player, position, onClickPlayer, onClickEmpty }) {
         maxWidth: 140
       }}
     >
-      <Avatar
-        name={profile?.name}
-        size={52}
-        empty={isEmpty}
-        avatarUrl={profile?.avatar_url}
-      />
+      {/* Avatar avec style spécial pour invités */}
+      {isPendingInvite ? (
+        <div style={{
+          width: 52, height: 52, borderRadius: '50%',
+          border: '2px dashed rgba(251,191,36,0.6)',
+          background: 'rgba(251,191,36,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 20, color: 'rgba(255,255,255,0.8)'
+        }}>
+          {profile?.name ? profile.name[0].toUpperCase() : '?'}
+        </div>
+      ) : (
+        <Avatar
+          name={profile?.name}
+          size={52}
+          empty={isEmpty}
+          avatarUrl={profile?.avatar_url}
+        />
+      )}
       
       <div style={{ marginTop: 10, textAlign: 'center', width: '100%' }}>
         {isEmpty ? (
@@ -137,12 +173,28 @@ function PlayerCard({ player, position, onClickPlayer, onClickEmpty }) {
             <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 13 }}>Place libre</div>
             <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 4 }}>📍 {position}</div>
           </>
+        ) : isPendingInvite ? (
+          <>
+            <div style={{ color: '#fbbf24', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              {profile?.name?.split(' ')[0] || 'Invité'}
+              <span style={{ fontSize: 10 }}>⏳</span>
+            </div>
+            <div style={{ 
+              background: 'rgba(251,191,36,0.3)', 
+              padding: '3px 8px', 
+              borderRadius: 4, 
+              fontSize: 10, 
+              color: '#fbbf24',
+              marginTop: 6
+            }}>
+              Invité · En attente
+            </div>
+          </>
         ) : (
           <>
             <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
               {profile?.name?.split(' ')[0] || 'Joueur'}
               {player?.isOrganizer && <span style={{ fontSize: 12 }}>👑</span>}
-              {player?.isPendingInvite && <span style={{ fontSize: 10 }}>⏳</span>}
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
               <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: 4, fontSize: 10, color: '#fff', whiteSpace: 'nowrap' }}>
@@ -160,7 +212,7 @@ function PlayerCard({ player, position, onClickPlayer, onClickEmpty }) {
 }
 
 // Carte de partage horizontale
-function ShareCard({ match, allPlayers, spotsLeft }) {
+function ShareCard({ match, allPlayers, spotsLeft, pendingInvitesCount = 0 }) {
   // Simplifier : juste les 4 slots dans l'ordre
   const slots = []
   const teamAPlayers = allPlayers.filter(p => p.team === 'A')
@@ -179,6 +231,19 @@ function ShareCard({ match, allPlayers, spotsLeft }) {
   const formatTime = (timeStr) => {
     if (!timeStr) return '--:--'
     return timeStr.slice(0, 5)
+  }
+
+  // Comptage intelligent des places
+  const confirmedCount = allPlayers.filter(p => !p.isPendingInvite).length
+  const invitedCount = allPlayers.filter(p => p.isPendingInvite).length
+  const freeSpots = 4 - confirmedCount - invitedCount
+
+  // Message de places
+  const getSpotsMessage = () => {
+    if (freeSpots === 0 && invitedCount === 0) return '✅ Complet'
+    if (freeSpots === 0 && invitedCount > 0) return `⏳ ${invitedCount} invité${invitedCount > 1 ? 's' : ''} en attente`
+    if (freeSpots > 0 && invitedCount > 0) return `🎾 ${freeSpots} place${freeSpots > 1 ? 's' : ''} (+${invitedCount} invité${invitedCount > 1 ? 's' : ''})`
+    return `🎾 ${freeSpots} place${freeSpots > 1 ? 's' : ''}`
   }
 
   return (
@@ -207,8 +272,14 @@ function ShareCard({ match, allPlayers, spotsLeft }) {
           <span style={{ background: 'rgba(255,255,255,0.15)', padding: '5px 10px', borderRadius: 6, fontSize: 11 }}>
             ⭐ Niveau {match?.level_min || '?'}-{match?.level_max || '?'}
           </span>
-          <span style={{ background: 'rgba(34,197,94,0.4)', padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
-            🎾 {spotsLeft} place{spotsLeft > 1 ? 's' : ''}
+          <span style={{ 
+            background: freeSpots > 0 ? 'rgba(34,197,94,0.4)' : invitedCount > 0 ? 'rgba(251,191,36,0.4)' : 'rgba(255,255,255,0.2)', 
+            padding: '5px 10px', 
+            borderRadius: 6, 
+            fontSize: 11, 
+            fontWeight: 600 
+          }}>
+            {getSpotsMessage()}
           </span>
         </div>
       </div>
@@ -220,17 +291,32 @@ function ShareCard({ match, allPlayers, spotsLeft }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'center' }}>
         {slots.map((item, i) => {
           const profile = item.player?.profiles || item.player
+          const isPendingInvite = item.player?.isPendingInvite
+          
           return (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {profile?.name ? (
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  background: PLAYER_COLORS[profile.name.charCodeAt(0) % PLAYER_COLORS.length],
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, fontWeight: 600, color: '#fff',
-                  border: '2px solid rgba(255,255,255,0.3)'
-                }}>{profile.name[0].toUpperCase()}</div>
+                isPendingInvite ? (
+                  // Avatar invité (pointillé jaune)
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    border: '2px dashed rgba(251,191,36,0.6)',
+                    background: 'rgba(251,191,36,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 600, color: '#fbbf24'
+                  }}>{profile.name[0].toUpperCase()}</div>
+                ) : (
+                  // Avatar confirmé (plein)
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: PLAYER_COLORS[profile.name.charCodeAt(0) % PLAYER_COLORS.length],
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 600, color: '#fff',
+                    border: '2px solid rgba(255,255,255,0.3)'
+                  }}>{profile.name[0].toUpperCase()}</div>
+                )
               ) : (
+                // Place libre
                 <div style={{
                   width: 36, height: 36, borderRadius: '50%',
                   border: '2px dashed rgba(255,255,255,0.3)',
@@ -324,6 +410,15 @@ export default function MatchPage() {
         .in('status', ['confirmed', 'pending'])
       setParticipants(participantsData || [])
 
+      // Charger les invités en attente (visible par tous pour l'affichage)
+      const { data: invitesData } = await supabase
+        .from('pending_invites')
+        .select('*')
+        .eq('match_id', matchId)
+        .eq('status', 'pending')
+      setPendingInvites(invitesData || [])
+
+      // Les demandes en attente ne sont visibles que par l'organisateur
       if (matchData.organizer_id === session.user.id) {
         const { data: pendingData } = await supabase
           .from('match_participants')
@@ -331,13 +426,6 @@ export default function MatchPage() {
           .eq('match_id', matchId)
           .eq('status', 'pending')
         setPendingRequests(pendingData || [])
-
-        const { data: invitesData } = await supabase
-          .from('pending_invites')
-          .select('*')
-          .eq('match_id', matchId)
-          .eq('status', 'pending')
-        setPendingInvites(invitesData || [])
       }
 
       await loadMessages()
@@ -464,6 +552,12 @@ export default function MatchPage() {
     loadData()
   }
 
+  async function cancelInvite(invite) {
+    if (!confirm(`Annuler l'invitation de ${invite.name || 'cet invité'} ?`)) return
+    await supabase.from('pending_invites').delete().eq('id', invite.id)
+    loadData()
+  }
+
   async function leaveMatch() {
     if (!confirm('Quitter cette partie ?')) return
     await supabase.from('match_participants').delete().eq('match_id', matchId).eq('user_id', user.id)
@@ -542,13 +636,27 @@ export default function MatchPage() {
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <Link href="/dashboard/parties" style={{ fontSize: 14, color: '#64748b', textDecoration: 'none' }}>← Retour</Link>
-            <span style={{
-              background: match.status === 'cancelled' ? '#fee2e2' : match.status === 'completed' ? '#f0fdf4' : getSpotsLeft() > 0 ? '#dcfce7' : '#f1f5f9',
-              color: match.status === 'cancelled' ? '#dc2626' : match.status === 'completed' ? '#166534' : getSpotsLeft() > 0 ? '#166534' : '#64748b',
-              padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600
-            }}>
-              {match.status === 'cancelled' ? '❌ Annulée' : match.status === 'completed' ? '✅ Terminée' : getSpotsLeft() > 0 ? `🎾 ${getSpotsLeft()} place${getSpotsLeft() > 1 ? 's' : ''}` : '✅ Complet'}
-            </span>
+            {(() => {
+              const invitedCount = pendingInvites.length
+              const freeSpots = getSpotsLeft()
+              
+              if (match.status === 'cancelled') {
+                return <span style={{ background: '#fee2e2', color: '#dc2626', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>❌ Annulée</span>
+              }
+              if (match.status === 'completed') {
+                return <span style={{ background: '#f0fdf4', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>✅ Terminée</span>
+              }
+              if (freeSpots === 0 && invitedCount === 0) {
+                return <span style={{ background: '#f1f5f9', color: '#64748b', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>✅ Complet</span>
+              }
+              if (freeSpots === 0 && invitedCount > 0) {
+                return <span style={{ background: '#fef3c7', color: '#92400e', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>⏳ {invitedCount} invité{invitedCount > 1 ? 's' : ''}</span>
+              }
+              if (freeSpots > 0 && invitedCount > 0) {
+                return <span style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>🎾 {freeSpots} place{freeSpots > 1 ? 's' : ''} (+{invitedCount}⏳)</span>
+              }
+              return <span style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>🎾 {freeSpots} place{freeSpots > 1 ? 's' : ''}</span>
+            })()}
           </div>
 
           {/* Demandes en attente (organisateur) */}
@@ -568,6 +676,32 @@ export default function MatchPage() {
                     <button onClick={() => acceptRequest(req)} style={{ padding: '6px 12px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>✓ Accepter</button>
                     <button onClick={() => refuseRequest(req)} style={{ padding: '6px 12px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕</button>
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Invités en attente (organisateur) */}
+          {isOrganizer() && pendingInvites.length > 0 && (
+            <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 12 }}>⏳ Invités en attente ({pendingInvites.length})</div>
+              <p style={{ fontSize: 12, color: '#92400e', marginBottom: 12, opacity: 0.8 }}>Ces personnes ont été invitées mais n'ont pas encore confirmé sur l'app.</p>
+              {pendingInvites.map(invite => (
+                <div key={invite.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, background: '#fff', borderRadius: 8, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ 
+                      width: 36, height: 36, borderRadius: '50%',
+                      border: '2px dashed rgba(251,191,36,0.6)',
+                      background: 'rgba(251,191,36,0.2)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 14, fontWeight: 600, color: '#f59e0b'
+                    }}>{invite.name ? invite.name[0].toUpperCase() : '?'}</div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{invite.name || 'Invité'}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>Équipe {invite.team} · {invite.phone || 'Pas de téléphone'}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => cancelInvite(invite)} style={{ padding: '6px 12px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕ Libérer</button>
                 </div>
               ))}
             </div>
