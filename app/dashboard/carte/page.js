@@ -24,7 +24,6 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { COLORS, RADIUS, SHADOWS, getAvatarColor, AMBIANCE_CONFIG, POSITION_CONFIG } from '@/app/lib/design-tokens'
-import { getBadgeById } from '@/app/lib/badges'
 
 export default function MaCartePage() {
   const router = useRouter()
@@ -39,8 +38,10 @@ export default function MaCartePage() {
   
   // Actions
   const [showTournamentMode, setShowTournamentMode] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [qrCodeUrl, setQrCodeUrl] = useState(null)
   
   // Stats
   const [stats, setStats] = useState({
@@ -143,9 +144,14 @@ export default function MaCartePage() {
     })
 
     // === BADGES ===
+    // Charger les badges avec leurs infos (emoji, name) depuis badge_definitions
     const { data: badges } = await supabase
       .from('user_badges')
-      .select('badge_id, earned_at')
+      .select(`
+        badge_id, 
+        earned_at,
+        badge_definitions (id, name, emoji, description)
+      `)
       .eq('user_id', session.user.id)
       .order('earned_at', { ascending: false })
 
@@ -168,7 +174,36 @@ export default function MaCartePage() {
     ? `${window.location.origin}/player/${user?.id}` 
     : ''
 
+  // Générer le QR code
+  async function generateQRCode() {
+    if (qrCodeUrl) return qrCodeUrl // Déjà généré
+    
+    try {
+      const QRCode = (await import('qrcode')).default
+      const url = await QRCode.toDataURL(profileUrl, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#1e293b',
+          light: '#ffffff'
+        }
+      })
+      setQrCodeUrl(url)
+      return url
+    } catch (err) {
+      console.error('Erreur QR code:', err)
+      return null
+    }
+  }
+
+  // Ouvrir la modale de partage
   async function handleShare() {
+    await generateQRCode()
+    setShowShareModal(true)
+  }
+
+  // Partage natif (depuis la modale)
+  async function handleNativeShare() {
     const shareText = `🎾 Mon profil PadelMatch
 ⭐ Niveau ${profile?.level || '?'}
 📍 ${profile?.city || 'France'}
@@ -263,7 +298,6 @@ export default function MaCartePage() {
   // === CONFIG ===
   
   const avatarColor = getAvatarColor(profile?.name)
-  const badge = profile?.badge ? getBadgeById(profile.badge) : null
   const ambiance = AMBIANCE_CONFIG[profile?.ambiance] || AMBIANCE_CONFIG.mix
   const position = POSITION_CONFIG[profile?.position] || POSITION_CONFIG.both
 
@@ -274,6 +308,181 @@ export default function MaCartePage() {
       <div style={{ padding: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>🎴</div>
         <div style={{ color: COLORS.textMuted }}>Chargement...</div>
+      </div>
+    )
+  }
+
+  // === MODALE PARTAGE avec QR CODE ===
+  if (showShareModal) {
+    return (
+      <div
+        onClick={() => setShowShareModal(false)}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 24
+        }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            background: COLORS.card,
+            borderRadius: RADIUS.xl,
+            padding: 24,
+            width: '100%',
+            maxWidth: 320,
+            textAlign: 'center'
+          }}
+        >
+          {/* Header */}
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, margin: '0 0 4px' }}>
+              📤 Partager ma carte
+            </h2>
+            <p style={{ fontSize: 13, color: COLORS.textMuted, margin: 0 }}>
+              Scanne ou partage ton profil
+            </p>
+          </div>
+
+          {/* QR Code */}
+          <div style={{
+            background: '#fff',
+            borderRadius: RADIUS.lg,
+            padding: 16,
+            marginBottom: 20,
+            display: 'inline-block'
+          }}>
+            {qrCodeUrl ? (
+              <img 
+                src={qrCodeUrl} 
+                alt="QR Code" 
+                style={{ width: 180, height: 180, display: 'block' }}
+              />
+            ) : (
+              <div style={{ width: 180, height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.textMuted }}>
+                Génération...
+              </div>
+            )}
+          </div>
+
+          {/* Mini carte */}
+          <div style={{
+            background: COLORS.bg,
+            borderRadius: RADIUS.md,
+            padding: 12,
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12
+          }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: RADIUS.md,
+              background: profile?.avatar_url ? 'transparent' : avatarColor,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#fff',
+              overflow: 'hidden'
+            }}>
+              {profile?.avatar_url 
+                ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                : profile?.name?.[0]?.toUpperCase()
+              }
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{profile?.name}</div>
+              <div style={{ fontSize: 12, color: COLORS.textMuted }}>⭐ Niveau {profile?.level}</div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button
+              onClick={handleNativeShare}
+              style={{
+                width: '100%',
+                padding: 14,
+                background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDark})`,
+                border: 'none',
+                borderRadius: RADIUS.md,
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8
+              }}
+            >
+              📤 Partager
+            </button>
+            
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={copyLink}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: COLORS.bg,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: RADIUS.md,
+                  fontSize: 13,
+                  color: copied ? COLORS.accent : COLORS.text,
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                {copied ? '✓ Copié !' : '🔗 Copier'}
+              </button>
+              <button
+                onClick={downloadCard}
+                disabled={downloading}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: COLORS.bg,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: RADIUS.md,
+                  fontSize: 13,
+                  color: COLORS.text,
+                  cursor: downloading ? 'wait' : 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                {downloading ? '⏳' : '📷'} Image
+              </button>
+            </div>
+          </div>
+
+          {/* Fermer */}
+          <button
+            onClick={() => setShowShareModal(false)}
+            style={{
+              marginTop: 16,
+              background: 'none',
+              border: 'none',
+              color: COLORS.textMuted,
+              fontSize: 13,
+              cursor: 'pointer'
+            }}
+          >
+            Fermer
+          </button>
+        </div>
       </div>
     )
   }
@@ -363,15 +572,32 @@ export default function MaCartePage() {
           {/* Badges */}
           {userBadges.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-              {userBadges.slice(0, 4).map(ub => {
-                const b = getBadgeById(ub.badge_id)
-                if (!b) return null
-                return (
-                  <div key={ub.badge_id} style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                    {b.icon || '🏅'}
-                  </div>
-                )
-              })}
+              {userBadges.slice(0, 4).map(ub => (
+                <div key={ub.badge_id} style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                  {ub.badge_definitions?.emoji || '🏅'}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* QR Code */}
+          {qrCodeUrl && (
+            <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{
+                background: '#fff',
+                borderRadius: 12,
+                padding: 8,
+                display: 'inline-block'
+              }}>
+                <img 
+                  src={qrCodeUrl} 
+                  alt="QR Code" 
+                  style={{ width: 80, height: 80, display: 'block' }}
+                />
+              </div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>
+                Scanner pour voir mon profil
+              </div>
             </div>
           )}
         </div>
@@ -493,14 +719,11 @@ export default function MaCartePage() {
           {/* Badges mini (sur la carte) */}
           {userBadges.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-              {userBadges.slice(0, 4).map(ub => {
-                const b = getBadgeById(ub.badge_id)
-                return (
-                  <div key={ub.badge_id} style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                    {b?.icon || '🏅'}
-                  </div>
-                )
-              })}
+              {userBadges.slice(0, 4).map(ub => (
+                <div key={ub.badge_id} style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                  {ub.badge_definitions?.emoji || '🏅'}
+                </div>
+              ))}
               {userBadges.length > 4 && (
                 <div style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
                   +{userBadges.length - 4}
@@ -509,21 +732,18 @@ export default function MaCartePage() {
             </div>
           )}
 
-          {/* Stats rapides */}
-          <div style={{ display: 'flex', justifyContent: 'space-around', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>{stats.matchesPlayed}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Parties</div>
-            </div>
-            <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#4ade80' }}>{stats.winRate}%</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Win rate</div>
-            </div>
-            <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#fbbf24' }}>{stats.favorites}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Favoris</div>
+          {/* Branding PadelMatch (pour le partage) */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 8,
+              background: 'rgba(255,255,255,0.05)',
+              padding: '10px 20px',
+              borderRadius: RADIUS.full
+            }}>
+              <span style={{ fontSize: 20 }}>🎾</span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.8)', letterSpacing: 0.5 }}>PadelMatch</span>
             </div>
           </div>
         </div>
@@ -551,7 +771,10 @@ export default function MaCartePage() {
             📤 Partager
           </button>
           <button
-            onClick={() => setShowTournamentMode(true)}
+            onClick={async () => {
+              await generateQRCode()
+              setShowTournamentMode(true)
+            }}
             style={{
               padding: 16,
               background: 'rgba(255,255,255,0.1)',
@@ -710,21 +933,18 @@ export default function MaCartePage() {
             {userBadges.length > 0 ? (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-                  {userBadges.slice(0, 8).map(ub => {
-                    const b = getBadgeById(ub.badge_id)
-                    return (
-                      <div key={ub.badge_id} style={{ textAlign: 'center', padding: 10, background: COLORS.accentLight, borderRadius: RADIUS.md }}>
-                        <div style={{ fontSize: 28, marginBottom: 4 }}>{b?.icon || '🏅'}</div>
-                        <div style={{ fontSize: 9, color: COLORS.accentDark, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {b?.name || 'Badge'}
-                        </div>
+                  {userBadges.slice(0, 8).map(ub => (
+                    <div key={ub.badge_id} style={{ textAlign: 'center', padding: 10, background: COLORS.accentLight, borderRadius: RADIUS.md }}>
+                      <div style={{ fontSize: 28, marginBottom: 4 }}>{ub.badge_definitions?.emoji || '🏅'}</div>
+                      <div style={{ fontSize: 9, color: COLORS.accentDark, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ub.badge_definitions?.name || 'Badge'}
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                 </div>
 
                 <Link
-                  href="/dashboard/me/badges"
+                  href="/dashboard/carte/badges"
                   style={{
                     display: 'block',
                     width: '100%',
