@@ -347,155 +347,7 @@ export default function PartiesPage() {
             {getGreeting()}
           </h1>
 
-          {/* ------------------------------------------ */}
-          {/* CENTRE D'ACTIONS                          */}
-          {/* ------------------------------------------ */}
-          {(pendingActions.requestsToReview.length > 0 || pendingActions.invitesToFollow.length > 0) && (
-            <div style={{ 
-              background: '#fffbeb', 
-              border: '1px solid #fde68a', 
-              borderRadius: 14, 
-              padding: 16,
-              marginBottom: 20
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 8, 
-                marginBottom: 12 
-              }}>
-                <span style={{ fontSize: 18 }}>🔔</span>
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: '#92400e' }}>
-                  Actions en attente
-                </h2>
-                <span style={{ 
-                  background: '#f59e0b', 
-                  color: '#fff', 
-                  padding: '2px 8px', 
-                  borderRadius: 10, 
-                  fontSize: 11, 
-                  fontWeight: 600 
-                }}>
-                  {pendingActions.requestsToReview.length + pendingActions.invitesToFollow.length}
-                </span>
-              </div>
-
-              {/* Demandes à valider */}
-              {pendingActions.requestsToReview.length > 0 && (
-                <div style={{ marginBottom: pendingActions.invitesToFollow.length > 0 ? 12 : 0 }}>
-                  <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 8 }}>
-                    📬 Demandes à valider
-                  </div>
-                  {pendingActions.requestsToReview.map(req => (
-                    <div key={req.id} style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'space-between', 
-                      padding: 10, 
-                      background: '#fff', 
-                      borderRadius: 8, 
-                      marginBottom: 6,
-                      border: '1px solid #fde68a'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                        <div style={{ 
-                          width: 32, height: 32, borderRadius: '50%', 
-                          background: getAvatarColor(req.profiles?.name),
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 13, fontWeight: 600, color: '#fff', flexShrink: 0
-                        }}>
-                          {req.profiles?.name?.[0]?.toUpperCase() || '?'}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: DARK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {req.profiles?.name || 'Joueur'}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#64748b' }}>
-                            {formatDate(req.matches?.match_date)} · {req.matches?.clubs?.name || 'Match'}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                        <button onClick={() => acceptRequest(req)} style={{ 
-                          padding: '6px 10px', background: '#22c55e', color: '#fff', 
-                          border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' 
-                        }}>✓</button>
-                        <button onClick={() => refuseRequest(req)} style={{ 
-                          padding: '6px 10px', background: '#f1f5f9', color: '#64748b', 
-                          border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' 
-                        }}>✕</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Invités à relancer */}
-              {pendingActions.invitesToFollow.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 8 }}>
-                    ⏳ Invités en attente
-                  </div>
-                  {pendingActions.invitesToFollow.map(inv => (
-                    <div key={inv.id} style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'space-between', 
-                      padding: 10, 
-                      background: '#fff', 
-                      borderRadius: 8, 
-                      marginBottom: 6,
-                      border: '1px solid #fde68a'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                        <div style={{ 
-                          width: 32, height: 32, borderRadius: '50%', 
-                          border: '2px dashed #f59e0b',
-                          background: 'rgba(245,158,11,0.1)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 13, fontWeight: 600, color: '#f59e0b', flexShrink: 0
-                        }}>
-                          {inv.name?.[0]?.toUpperCase() || '?'}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: DARK, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {inv.name || 'Invité'}
-                            {inv.daysSince >= 2 && (
-                              <span style={{ 
-                                background: '#fef2f2', 
-                                color: '#dc2626', 
-                                padding: '1px 6px', 
-                                borderRadius: 4, 
-                                fontSize: 9, 
-                                fontWeight: 600 
-                              }}>
-                                {inv.daysSince}j
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#64748b' }}>
-                            {formatDate(inv.matches?.match_date)} · {inv.matches?.clubs?.name || 'Match'}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                        <Link href={`/dashboard/match/${inv.match_id}`} style={{ 
-                          padding: '6px 10px', background: '#f59e0b', color: '#fff', 
-                          border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, 
-                          cursor: 'pointer', textDecoration: 'none' 
-                        }}>Voir</Link>
-                        <button onClick={() => cancelInvite(inv)} style={{ 
-                          padding: '6px 10px', background: '#f1f5f9', color: '#64748b', 
-                          border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' 
-                        }}>Libérer</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
+          
           {/* ------------------------------------------ */}
           {/* HERO - Organise une partie                */}
           {/* ------------------------------------------ */}
@@ -691,6 +543,156 @@ export default function PartiesPage() {
               )}
             </div>
           )}
+
+{/* ------------------------------------------ */}
+          {/* CENTRE D'ACTIONS                          */}
+          {/* ------------------------------------------ */}
+          {(pendingActions.requestsToReview.length > 0 || pendingActions.invitesToFollow.length > 0) && (
+            <div style={{ 
+              background: '#fffbeb', 
+              border: '1px solid #fde68a', 
+              borderRadius: 14, 
+              padding: 16,
+              marginBottom: 20
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 8, 
+                marginBottom: 12 
+              }}>
+                <span style={{ fontSize: 18 }}>🔔</span>
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: '#92400e' }}>
+                  Actions en attente
+                </h2>
+                <span style={{ 
+                  background: '#f59e0b', 
+                  color: '#fff', 
+                  padding: '2px 8px', 
+                  borderRadius: 10, 
+                  fontSize: 11, 
+                  fontWeight: 600 
+                }}>
+                  {pendingActions.requestsToReview.length + pendingActions.invitesToFollow.length}
+                </span>
+              </div>
+
+              {/* Demandes à valider */}
+              {pendingActions.requestsToReview.length > 0 && (
+                <div style={{ marginBottom: pendingActions.invitesToFollow.length > 0 ? 12 : 0 }}>
+                  <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 8 }}>
+                    📬 Demandes à valider
+                  </div>
+                  {pendingActions.requestsToReview.map(req => (
+                    <div key={req.id} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between', 
+                      padding: 10, 
+                      background: '#fff', 
+                      borderRadius: 8, 
+                      marginBottom: 6,
+                      border: '1px solid #fde68a'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                        <div style={{ 
+                          width: 32, height: 32, borderRadius: '50%', 
+                          background: getAvatarColor(req.profiles?.name),
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 600, color: '#fff', flexShrink: 0
+                        }}>
+                          {req.profiles?.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: DARK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {req.profiles?.name || 'Joueur'}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#64748b' }}>
+                            {formatDate(req.matches?.match_date)} · {req.matches?.clubs?.name || 'Match'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => acceptRequest(req)} style={{ 
+                          padding: '6px 10px', background: '#22c55e', color: '#fff', 
+                          border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' 
+                        }}>✓</button>
+                        <button onClick={() => refuseRequest(req)} style={{ 
+                          padding: '6px 10px', background: '#f1f5f9', color: '#64748b', 
+                          border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' 
+                        }}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Invités à relancer */}
+              {pendingActions.invitesToFollow.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 8 }}>
+                    ⏳ Invités en attente
+                  </div>
+                  {pendingActions.invitesToFollow.map(inv => (
+                    <div key={inv.id} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between', 
+                      padding: 10, 
+                      background: '#fff', 
+                      borderRadius: 8, 
+                      marginBottom: 6,
+                      border: '1px solid #fde68a'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                        <div style={{ 
+                          width: 32, height: 32, borderRadius: '50%', 
+                          border: '2px dashed #f59e0b',
+                          background: 'rgba(245,158,11,0.1)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 600, color: '#f59e0b', flexShrink: 0
+                        }}>
+                          {inv.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: DARK, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {inv.name || 'Invité'}
+                            {inv.daysSince >= 2 && (
+                              <span style={{ 
+                                background: '#fef2f2', 
+                                color: '#dc2626', 
+                                padding: '1px 6px', 
+                                borderRadius: 4, 
+                                fontSize: 9, 
+                                fontWeight: 600 
+                              }}>
+                                {inv.daysSince}j
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#64748b' }}>
+                            {formatDate(inv.matches?.match_date)} · {inv.matches?.clubs?.name || 'Match'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <Link href={`/dashboard/match/${inv.match_id}`} style={{ 
+                          padding: '6px 10px', background: '#f59e0b', color: '#fff', 
+                          border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, 
+                          cursor: 'pointer', textDecoration: 'none' 
+                        }}>Voir</Link>
+                        <button onClick={() => cancelInvite(inv)} style={{ 
+                          padding: '6px 10px', background: '#f1f5f9', color: '#64748b', 
+                          border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' 
+                        }}>Libérer</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
 
           {/* ------------------------------------------ */}
           {/* PARTIES À REJOINDRE                       */}
