@@ -76,8 +76,8 @@ export default function JoueursPage() {
 
     const today = new Date().toISOString().split('T')[0]
     
-    // Partie incomplète
-    const { data: myMatches } = await supabase
+    // Partie incomplète où JE SUIS ORGANISATEUR
+    const { data: myMatches, error: matchError } = await supabase
       .from('matches')
       .select(`
         id, match_date, match_time, spots_available, city, status,
@@ -85,11 +85,13 @@ export default function JoueursPage() {
         match_participants (user_id, team, status, profiles (id, name, avatar_url))
       `)
       .eq('organizer_id', session.user.id)
-      .eq('status', 'open')
+      .in('status', ['open', 'confirmed']) // Accepter aussi 'confirmed' si places dispo
       .gt('spots_available', 0)
       .gte('match_date', today)
       .order('match_date', { ascending: true })
       .limit(1)
+
+    console.log('🎾 Hero query:', { today, matches: myMatches, error: matchError })
 
     if (myMatches && myMatches.length > 0) {
       const match = myMatches[0]
@@ -306,6 +308,9 @@ export default function JoueursPage() {
     )
   }
 
+  // Détection nouvel utilisateur (aucune donnée)
+  const isNewUser = favoritePlayers.length === 0 && recentPlayers.length === 0
+
   let playersToShow = []
   if (searchQuery.length >= 2) playersToShow = searchResults
   else if (activeTab === 'favoris') playersToShow = favoritePlayers
@@ -385,6 +390,75 @@ export default function JoueursPage() {
             <div style={{ fontSize: 12, color: COLORS.accentText }}>{formatMatchDate(preselectedMatch.match_date, preselectedMatch.match_time)} · {preselectedMatch.clubs?.name || preselectedMatch.city}</div>
           </div>
           <button onClick={() => { setPreselectedMatch(null); router.replace('/dashboard/joueurs') }} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: COLORS.accent, padding: 4 }}>✕</button>
+        </div>
+      )}
+
+      {/* ONBOARDING NOUVEL UTILISATEUR */}
+      {isNewUser && !incompleteMatch && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+          borderRadius: RADIUS.xl,
+          padding: 24,
+          marginBottom: 24,
+          border: '1px solid #bae6fd',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎾</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>
+            Ton carnet de joueurs
+          </h2>
+          <p style={{ fontSize: 14, color: COLORS.textMuted, lineHeight: 1.6, marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
+            Cette page se remplira au fil de tes parties ! Tu y retrouveras tes partenaires de jeu et pourras les inviter facilement.
+          </p>
+          
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 12, 
+            maxWidth: 280, 
+            margin: '0 auto',
+            textAlign: 'left'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
+              <span style={{ fontSize: 20 }}>⭐</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Favoris</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Tes joueurs préférés, à portée de clic</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
+              <span style={{ fontSize: 20 }}>🕐</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Récents</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Ceux avec qui tu as joué récemment</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'rgba(255,255,255,0.7)', borderRadius: RADIUS.md }}>
+              <span style={{ fontSize: 20 }}>📍</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Près de toi</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>Découvre des joueurs dans ta ville</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <Link href="/dashboard/matches/create" style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '12px 24px',
+              background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDark})`,
+              color: '#fff',
+              borderRadius: RADIUS.md,
+              fontSize: 14,
+              fontWeight: 700,
+              textDecoration: 'none',
+              boxShadow: '0 4px 12px rgba(34,197,94,0.3)'
+            }}>
+              🎾 Créer ta première partie
+            </Link>
+          </div>
         </div>
       )}
 
