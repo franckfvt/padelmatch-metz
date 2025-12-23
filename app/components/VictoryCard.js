@@ -54,7 +54,7 @@ export default function VictoryCard({
       `📍 ${location || 'Padel'}\n` +
       `📅 ${formattedDate}\n\n` +
       `${winStreak > 1 ? `🔥 Série de ${winStreak} victoires !` : ''}\n` +
-      `\n#PadelMatch #Padel #Victory`
+      `\n#Junto #Padel #Victory`
     
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }

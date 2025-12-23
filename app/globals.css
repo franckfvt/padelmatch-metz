@@ -1,9 +1,270 @@
+/**
+ * ============================================
+ * JUNTO - GLOBAL STYLES
+ * ============================================
+ * 
+ * Brand Guidelines v1.0
+ * - Variables CSS
+ * - Animations (breathing, etc.)
+ * - Base styles
+ * 
+ * ============================================
+ */
+
+/* ============================================
+   CSS VARIABLES
+   ============================================ */
+:root {
+  /* Primary - Junto Coral */
+  --junto: #ff5a5f;
+  --junto-dark: #e54549;
+  --junto-soft: #fff0f0;
+  --junto-glow: rgba(255, 90, 95, 0.25);
+  
+  /* Secondary - Slate */
+  --slate: #3d4f5f;
+  --slate-dark: #2d3a47;
+  --slate-soft: #f0f3f5;
+  
+  /* Accent - Amber */
+  --amber: #ffb400;
+  --amber-dark: #cc9000;
+  --amber-soft: #fff8e5;
+  
+  /* Accent - Teal */
+  --teal: #00b8a9;
+  --teal-dark: #009387;
+  --teal-soft: #e5f9f7;
+  
+  /* Backgrounds */
+  --bg: #fafafa;
+  --bg-soft: #f5f5f5;
+  --card: #ffffff;
+  
+  /* Text */
+  --ink: #1a1a1a;
+  --dark: #2d2d2d;
+  --gray: #6b7280;
+  --muted: #9ca3af;
+  
+  /* Borders */
+  --border: #e5e7eb;
+  --border-light: #f1f5f9;
+  
+  /* 4 Players */
+  --player-1: #ff5a5f;
+  --player-2: #3d4f5f;
+  --player-3: #ffb400;
+  --player-4: #00b8a9;
+  
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-xxl: 24px;
+  --radius-pill: 100px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  --shadow-xl: 0 12px 32px rgba(0,0,0,0.15);
+  
+  /* Animation */
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Typography */
+  --font-sans: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: #f5f5f5;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   ANIMATIONS - BRAND DNA
+   ============================================ */
+
+/* Breathing - Animation des 4 dots */
+@keyframes junto-breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.7;
+  }
+}
+
+/* Breathing pour les dots du logo */
+.junto-dot {
+  animation: junto-breathe 3s ease-in-out infinite;
+}
+
+.junto-dot:nth-child(1) { animation-delay: 0s; }
+.junto-dot:nth-child(2) { animation-delay: 0.15s; }
+.junto-dot:nth-child(3) { animation-delay: 0.3s; }
+.junto-dot:nth-child(4) { animation-delay: 0.45s; }
+
+/* Hero breathing (plus grand) */
+@keyframes junto-hero-breathe {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 30px currentColor;
+  }
+}
+
+/* Loading bounce */
+@keyframes junto-loading {
+  0%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-12px);
+  }
+}
+
+.junto-loading-dot {
+  animation: junto-loading 1.4s ease-in-out infinite;
+}
+
+.junto-loading-dot:nth-child(1) { animation-delay: 0s; }
+.junto-loading-dot:nth-child(2) { animation-delay: 0.1s; }
+.junto-loading-dot:nth-child(3) { animation-delay: 0.2s; }
+.junto-loading-dot:nth-child(4) { animation-delay: 0.3s; }
+
+/* Pulse ring */
+@keyframes junto-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Float animation for blobs */
+@keyframes junto-blob-float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Colors */
+.text-junto { color: var(--junto); }
+.text-slate { color: var(--slate); }
+.text-amber { color: var(--amber); }
+.text-teal { color: var(--teal); }
+.text-ink { color: var(--ink); }
+.text-gray { color: var(--gray); }
+.text-muted { color: var(--muted); }
+
+.bg-junto { background-color: var(--junto); }
+.bg-slate { background-color: var(--slate); }
+.bg-amber { background-color: var(--amber); }
+.bg-teal { background-color: var(--teal); }
+.bg-soft { background-color: var(--bg-soft); }
+
+/* Hover lift effect */
+.hover-lift {
+  transition: all 0.4s var(--spring);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+/* Card hover */
+.card-hover {
+  transition: all 0.4s ease;
+}
+
+.card-hover:hover {
+  border-color: var(--junto);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+}
+
+/* Avatar hover */
+.avatar-hover {
+  transition: all 0.4s var(--spring);
+}
+
+.avatar-hover:hover {
+  transform: translateY(-10px) scale(1.1);
+  z-index: 10;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* ============================================
+   FOCUS STATES
+   ============================================ */
+:focus-visible {
+  outline: 2px solid var(--junto);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   SELECTION
+   ============================================ */
+::selection {
+  background: var(--junto-soft);
+  color: var(--junto-dark);
 }

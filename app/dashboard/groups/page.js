@@ -433,7 +433,7 @@ export default function GroupsPage() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <span style={{ fontSize: 20 }}>ℹ️</span>
           <div style={{ fontSize: 13, color: '#0c4a6e' }}>
-            Ces groupes sont gérés par leurs créateurs. PadelMatch n'est pas responsable de leur contenu.
+            Ces groupes sont gérés par leurs créateurs. Junto n'est pas responsable de leur contenu.
           </div>
         </div>
       </div>

@@ -23,7 +23,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { COLORS, RADIUS, getAvatarColor, AMBIANCE_CONFIG } from '@/app/lib/design-tokens'
+import { COLORS, FOUR_DOTS, RADIUS, getAvatarColor, AMBIANCE_CONFIG } from '@/app/lib/design-tokens'
 
 const TOTAL_STEPS = 6
 
@@ -508,7 +508,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
     width: '100%',
     padding: '14px 16px',
     border: `1px solid ${COLORS.border}`,
-    borderRadius: RADIUS.md,
+    borderRadius: 16,
     fontSize: 15,
     outline: 'none',
     boxSizing: 'border-box'
@@ -517,10 +517,10 @@ Rejoins-nous ! 👉 ${matchUrl}`
   const buttonPrimaryStyle = {
     width: '100%',
     padding: 16,
-    background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDark})`,
+    background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
     color: '#fff',
     border: 'none',
-    borderRadius: RADIUS.md,
+    borderRadius: 16,
     fontSize: 16,
     fontWeight: 700,
     cursor: 'pointer'
@@ -659,7 +659,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
           <div style={{
             height: '100%',
             width: `${(step / (TOTAL_STEPS - 1)) * 100}%`,
-            background: COLORS.accent,
+            background: COLORS.primary,
             borderRadius: 2,
             transition: 'width 0.3s'
           }} />
@@ -726,7 +726,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
             <div style={{
               display: 'flex',
               background: COLORS.bg,
-              borderRadius: RADIUS.md,
+              borderRadius: 16,
               padding: 4,
               marginBottom: 20
             }}>
@@ -738,7 +738,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     flex: 1,
                     padding: 12,
                     border: 'none',
-                    borderRadius: RADIUS.sm,
+                    borderRadius: 12,
                     background: formData.locationType === type ? COLORS.card : 'transparent',
                     color: formData.locationType === type ? COLORS.text : COLORS.textMuted,
                     fontWeight: 600,
@@ -766,9 +766,9 @@ Rejoins-nous ! 👉 ${matchUrl}`
               
               {formData.club_id && (
                 <div style={{
-                  background: COLORS.accentLight,
-                  border: `2px solid ${COLORS.accent}`,
-                  borderRadius: RADIUS.md,
+                  background: COLORS.primaryLight,
+                  border: `2px solid ${COLORS.primary}`,
+                  borderRadius: 16,
                   padding: 16,
                   marginBottom: 16,
                   display: 'flex',
@@ -802,7 +802,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                         padding: 14,
                         background: COLORS.card,
                         border: `1px solid ${COLORS.border}`,
-                        borderRadius: RADIUS.md,
+                        borderRadius: 16,
                         marginBottom: 8,
                         cursor: 'pointer'
                       }}
@@ -827,7 +827,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                       padding: 14,
                       background: COLORS.bg,
                       border: `2px dashed ${COLORS.border}`,
-                      borderRadius: RADIUS.md,
+                      borderRadius: 16,
                       color: COLORS.textMuted,
                       fontWeight: 600,
                       fontSize: 14,
@@ -898,7 +898,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
             <div style={{
               display: 'flex',
               background: COLORS.bg,
-              borderRadius: RADIUS.md,
+              borderRadius: 16,
               padding: 4,
               marginBottom: 20
             }}>
@@ -910,7 +910,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     flex: 1,
                     padding: 12,
                     border: 'none',
-                    borderRadius: RADIUS.sm,
+                    borderRadius: 12,
                     background: formData.dateType === type ? COLORS.card : 'transparent',
                     color: formData.dateType === type ? COLORS.text : COLORS.textMuted,
                     fontWeight: 600,
@@ -974,9 +974,9 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     style={{
                       padding: '10px 16px',
                       border: 'none',
-                      borderRadius: RADIUS.sm,
+                      borderRadius: 12,
                       background: formData.flexibleDays.includes(day) 
-                        ? COLORS.accent 
+                        ? COLORS.primary 
                         : COLORS.bg,
                       color: formData.flexibleDays.includes(day) ? '#fff' : COLORS.text,
                       fontWeight: 600,
@@ -1005,9 +1005,9 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     style={{
                       padding: '10px 16px',
                       border: 'none',
-                      borderRadius: RADIUS.sm,
+                      borderRadius: 12,
                       background: formData.flexiblePeriod === period.id 
-                        ? COLORS.accent 
+                        ? COLORS.primary 
                         : COLORS.bg,
                       color: formData.flexiblePeriod === period.id ? '#fff' : COLORS.text,
                       fontWeight: 600,
@@ -1051,7 +1051,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
           {/* Ton équipe */}
           <div style={{
             background: COLORS.bg,
-            borderRadius: RADIUS.md,
+            borderRadius: 16,
             padding: 16,
             marginBottom: 20
           }}>
@@ -1067,9 +1067,9 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     flex: 1,
                     padding: 12,
                     border: 'none',
-                    borderRadius: RADIUS.sm,
+                    borderRadius: 12,
                     background: formData.organizer_team === team
-                      ? (team === 'A' ? COLORS.accent : COLORS.info)
+                      ? (team === 'A' ? COLORS.primary : COLORS.info)
                       : COLORS.card,
                     color: formData.organizer_team === team ? '#fff' : COLORS.text,
                     fontWeight: 700,
@@ -1098,7 +1098,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     gap: 12,
                     padding: 12,
                     background: partner.isManual ? COLORS.warningLight : COLORS.bg,
-                    borderRadius: RADIUS.md,
+                    borderRadius: 16,
                     marginBottom: 8
                   }}
                 >
@@ -1138,7 +1138,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                           border: 'none',
                           borderRadius: 6,
                           background: partner.team === team
-                            ? (team === 'A' ? COLORS.accent : COLORS.info)
+                            ? (team === 'A' ? COLORS.primary : COLORS.info)
                             : COLORS.card,
                           color: partner.team === team ? '#fff' : COLORS.textMuted,
                           fontSize: 11,
@@ -1173,7 +1173,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
               />
               
               {playerResults.length > 0 && (
-                <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, marginBottom: 16, overflow: 'hidden' }}>
+                <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 16, marginBottom: 16, overflow: 'hidden' }}>
                   {playerResults.map(player => (
                     <div
                       key={player.id}
@@ -1208,7 +1208,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{player.name}</div>
                         <div style={{ fontSize: 12, color: COLORS.textMuted }}>Niveau {player.level}/10</div>
                       </div>
-                      <div style={{ color: COLORS.accent, fontWeight: 600 }}>+ Ajouter</div>
+                      <div style={{ color: COLORS.primary, fontWeight: 600 }}>+ Ajouter</div>
                     </div>
                   ))}
                 </div>
@@ -1232,7 +1232,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                           padding: '8px 12px',
                           background: COLORS.bg,
                           border: 'none',
-                          borderRadius: RADIUS.md,
+                          borderRadius: 16,
                           cursor: 'pointer'
                         }}
                       >
@@ -1263,7 +1263,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
               {/* Ajout manuel */}
               <div style={{
                 background: COLORS.bg,
-                borderRadius: RADIUS.md,
+                borderRadius: 16,
                 padding: 16,
                 marginTop: 16
               }}>
@@ -1284,10 +1284,10 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     disabled={!manualPartnerName.trim()}
                     style={{
                       padding: '0 20px',
-                      background: manualPartnerName.trim() ? COLORS.accent : COLORS.border,
+                      background: manualPartnerName.trim() ? COLORS.primary : COLORS.border,
                       color: '#fff',
                       border: 'none',
-                      borderRadius: RADIUS.md,
+                      borderRadius: 16,
                       fontWeight: 700,
                       cursor: manualPartnerName.trim() ? 'pointer' : 'not-allowed'
                     }}
@@ -1334,7 +1334,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     flex: 1,
                     padding: 14,
                     border: formData.ambiance === key ? `2px solid ${config.color}` : `1px solid ${COLORS.border}`,
-                    borderRadius: RADIUS.md,
+                    borderRadius: 16,
                     background: formData.ambiance === key ? `${config.color}15` : COLORS.card,
                     cursor: 'pointer',
                     textAlign: 'center'
@@ -1431,7 +1431,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
           {/* Récap */}
           <div style={{
             background: COLORS.bg,
-            borderRadius: RADIUS.lg,
+            borderRadius: 20,
             padding: 20,
             marginBottom: 24,
             textAlign: 'left'
@@ -1471,10 +1471,10 @@ Rejoins-nous ! 👉 ${matchUrl}`
               style={{
                 flex: 1,
                 padding: 14,
-                background: copied ? COLORS.accentLight : COLORS.bg,
-                border: `1px solid ${copied ? COLORS.accent : COLORS.border}`,
-                borderRadius: RADIUS.md,
-                color: copied ? COLORS.accent : COLORS.text,
+                background: copied ? COLORS.primaryLight : COLORS.bg,
+                border: `1px solid ${copied ? COLORS.primary : COLORS.border}`,
+                borderRadius: 16,
+                color: copied ? COLORS.primary : COLORS.text,
                 fontWeight: 600,
                 cursor: 'pointer'
               }}
@@ -1490,7 +1490,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
               padding: 14,
               background: COLORS.card,
               border: `1px solid ${COLORS.border}`,
-              borderRadius: RADIUS.md,
+              borderRadius: 16,
               color: COLORS.text,
               fontWeight: 600,
               textDecoration: 'none',
@@ -1529,9 +1529,9 @@ function OptionButton({ selected, onClick, emoji, title, subtitle }) {
         alignItems: 'center',
         gap: 16,
         padding: 20,
-        border: selected ? `2px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
-        borderRadius: RADIUS.lg,
-        background: selected ? COLORS.accentLight : COLORS.card,
+        border: selected ? `2px solid ${COLORS.primary}` : `1px solid ${COLORS.border}`,
+        borderRadius: 20,
+        background: selected ? COLORS.primaryLight : COLORS.card,
         cursor: 'pointer',
         textAlign: 'left',
         width: '100%'
@@ -1543,7 +1543,7 @@ function OptionButton({ selected, onClick, emoji, title, subtitle }) {
         <div style={{ fontSize: 13, color: COLORS.textMuted }}>{subtitle}</div>
       </div>
       {selected && (
-        <div style={{ marginLeft: 'auto', color: COLORS.accent, fontSize: 20 }}>✓</div>
+        <div style={{ marginLeft: 'auto', color: COLORS.primary, fontSize: 20 }}>✓</div>
       )}
     </button>
   )

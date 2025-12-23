@@ -2,18 +2,7 @@
 
 /**
  * ============================================
- * LAYOUT DASHBOARD - NOUVELLE ARCHITECTURE
- * ============================================
- * 
- * Navigation: 5 onglets
- * 1. Accueil 🏠
- * 2. Explorer 🔍
- * 3. Mes parties 🎾
- * 4. Communauté 👥
- * 5. Moi 👤
- * 
- * Branding: Plateforme sobre + Joueurs colorés
- * 
+ * LAYOUT DASHBOARD - JUNTO BRAND
  * ============================================
  */
 
@@ -22,6 +11,32 @@ import { supabase } from '@/lib/supabase'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import WelcomeModal from '@/app/components/WelcomeModal'
+import { COLORS, FOUR_DOTS, getAvatarColor } from '@/app/lib/design-tokens'
+
+function FourDots({ size = 8, gap = 4 }) {
+  return (
+    <div style={{ display: 'flex', gap }}>
+      {FOUR_DOTS.colors.map((color, i) => (
+        <div key={i} className="junto-dot" style={{ width: size, height: size, borderRadius: '50%', background: color }} />
+      ))}
+    </div>
+  )
+}
+
+function LoadingDots() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+          {FOUR_DOTS.colors.map((color, i) => (
+            <div key={i} className="junto-loading-dot" style={{ width: 14, height: 14, borderRadius: '50%', background: color }} />
+          ))}
+        </div>
+        <div style={{ color: COLORS.gray, fontSize: 15 }}>Chargement...</div>
+      </div>
+    </div>
+  )
+}
 
 export default function DashboardLayout({ children }) {
   const router = useRouter()
@@ -33,463 +48,158 @@ export default function DashboardLayout({ children }) {
   const [notifications, setNotifications] = useState([])
   const [showWelcome, setShowWelcome] = useState(false)
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
+  useEffect(() => { checkAuth() }, [])
 
-  // Subscription realtime pour mettre à jour le profil (avatar, etc.)
   useEffect(() => {
     if (!user?.id) return
-    
-    const channel = supabase
-      .channel(`profile-${user.id}`)
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'profiles',
-        filter: `id=eq.${user.id}`
-      }, (payload) => {
-        // Mettre à jour le profil quand il change
-        setProfile(payload.new)
-      })
+    const channel = supabase.channel(`profile-${user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, (payload) => setProfile(payload.new))
       .subscribe()
-    
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [user?.id])
 
   async function checkAuth() {
     const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session) {
-      router.push('/auth')
-      return
-    }
-
+    if (!session) { router.push('/auth'); return }
     setUser(session.user)
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profileData?.level && !profileData?.experience) {
-      router.push('/onboarding')
-      return
-    }
-
+    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
+    if (!profileData?.level && !profileData?.experience) { router.push('/onboarding'); return }
     setProfile(profileData)
-    
-    // Afficher le popup de bienvenue si première visite
-    if (profileData && !profileData.has_seen_welcome) {
-      setShowWelcome(true)
-    }
-    
-    // TODO: Charger les notifications
-    // const { data: notifs } = await supabase.from('notifications')...
-    
+    if (profileData && !profileData.has_seen_welcome) setShowWelcome(true)
     setLoading(false)
   }
 
-  // 3 onglets principaux
   const navItems = [
-    { href: '/dashboard/parties', label: 'Parties', icon: '🎾', exact: false },
-    { href: '/dashboard/joueurs', label: 'Joueurs', icon: '👥', exact: false },
-    { href: '/dashboard/carte', label: 'Ma carte', icon: '🎴', exact: false },
+    { href: '/dashboard/parties', label: 'Parties', icon: '🎾' },
+    { href: '/dashboard/joueurs', label: 'Joueurs', icon: '👥' },
+    { href: '/dashboard/carte', label: 'Ma carte', icon: '🎴' },
   ]
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  const isActive = (item) => pathname.startsWith(item.href)
 
-  // Vérifier si un onglet est actif
-  function isActive(item) {
-    if (item.exact) {
-      return pathname === item.href
-    }
-    return pathname.startsWith(item.href)
-  }
-
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f8fafc',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
-          <div style={{ color: '#64748b' }}>Chargement...</div>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <LoadingDots />
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f8fafc',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
+    <div style={{ minHeight: '100vh', background: COLORS.bg, fontFamily: "'Satoshi', -apple-system, sans-serif" }}>
       
-      {/* ============================================ */}
-      {/* HEADER - STICKY                             */}
-      {/* ============================================ */}
-      <header style={{
-        background: '#fff',
-        borderBottom: '1px solid #e2e8f0',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100
-      }}>
-        <div style={{
-          maxWidth: 1200,
-          margin: '0 auto',
-          padding: '0 16px',
-          height: 56,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
+      {/* HEADER */}
+      <header style={{ background: COLORS.white, borderBottom: `1px solid ${COLORS.border}`, position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           
-          {/* Logo */}
-          <Link href="/dashboard" style={{ 
-            textDecoration: 'none', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 8,
-            flexShrink: 0
-          }}>
-            <span style={{ fontSize: 24 }}>🎾</span>
-            <span style={{ 
-              fontSize: 18, 
-              fontWeight: 700, 
-              color: '#1a1a2e'
-            }} className="logo-text">
-              PadelMatch
-            </span>
+          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="logo-text" style={{ fontSize: 22, fontWeight: 700, color: COLORS.ink, letterSpacing: -1 }}>junto</span>
+            <FourDots size={8} gap={4} />
           </Link>
 
-          {/* Navigation centrale - Desktop */}
-          <nav style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2
-          }} className="desktop-nav">
-            {navItems.map(item => {
-              const active = isActive(item)
-              return (
-                <Link 
-                  key={item.href}
-                  href={item.href} 
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: 8,
-                    textDecoration: 'none',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: active ? '#1a1a2e' : '#64748b',
-                    background: active ? '#f1f5f9' : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <span>{item.icon}</span>
-                  <span className="nav-label">{item.label}</span>
-                </Link>
-              )
-            })}
+          <nav className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {navItems.map(item => (
+              <Link key={item.href} href={item.href} style={{
+                padding: '10px 18px', borderRadius: 100, textDecoration: 'none', fontSize: 14, fontWeight: 600,
+                color: isActive(item) ? COLORS.white : COLORS.gray,
+                background: isActive(item) ? COLORS.primary : 'transparent',
+                display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}>
+                <span>{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
+              </Link>
+            ))}
           </nav>
 
-          {/* Actions droite */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Bouton Notifications */}
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                border: 'none',
-                background: '#f1f5f9',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18,
-                position: 'relative'
-              }}
-              title="Notifications"
-            >
-              🔔
-              {unreadCount > 0 && (
-                <span style={{
-                  position: 'absolute',
-                  top: 4,
-                  right: 4,
-                  width: 16,
-                  height: 16,
-                  background: '#ef4444',
-                  borderRadius: '50%',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={() => setShowNotifications(!showNotifications)} style={{
+              width: 42, height: 42, borderRadius: 12, border: `2px solid ${COLORS.border}`, background: COLORS.white,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, position: 'relative'
+            }}>🔔</button>
 
-            {/* Avatar utilisateur - Desktop */}
-            <Link 
-              href="/dashboard/me"
-              className="user-avatar-desktop"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: profile?.avatar_url ? 'transparent' : '#1a1a2e',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 14,
-                textDecoration: 'none',
-                border: pathname.startsWith('/dashboard/me') ? '2px solid #22c55e' : '2px solid transparent',
-                overflow: 'hidden'
-              }}
-            >
-              {profile?.avatar_url ? (
-                <img 
-                  src={`${profile.avatar_url}?t=${profile.updated_at || Date.now()}`}
-                  alt={profile?.name || ''}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                profile?.name?.[0]?.toUpperCase() || '?'
-              )}
+            <Link href="/dashboard/me" className="user-avatar-desktop" style={{
+              width: 42, height: 42, borderRadius: '50%',
+              background: profile?.avatar_url ? 'transparent' : getAvatarColor(profile?.name),
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: COLORS.white, fontWeight: 700, fontSize: 15, textDecoration: 'none',
+              border: pathname.startsWith('/dashboard/me') ? `3px solid ${COLORS.primary}` : '3px solid transparent',
+              overflow: 'hidden'
+            }}>
+              {profile?.avatar_url ? <img src={`${profile.avatar_url}?t=${profile.updated_at || Date.now()}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : profile?.name?.[0]?.toUpperCase() || '?'}
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ============================================ */}
-      {/* CONTENU PRINCIPAL                           */}
-      {/* ============================================ */}
-      <main className="main-content" style={{
-        maxWidth: 1400,
-        margin: '0 auto',
-        padding: '24px 16px',
-        paddingBottom: 100 // Espace pour la navbar mobile
-      }}>
+      {/* MAIN */}
+      <main className="main-content" style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 16px', paddingBottom: 100 }}>
         {children}
       </main>
 
-      {/* ============================================ */}
-      {/* NAVBAR MOBILE - BOTTOM                      */}
-      {/* ============================================ */}
-      <nav 
-        className="mobile-nav"
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: '#fff',
-          borderTop: '1px solid #e2e8f0',
-          padding: '8px 0',
-          paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-          display: 'none', // Affiché via CSS sur mobile
-          justifyContent: 'space-around',
-          zIndex: 100
-        }}
-      >
-        {navItems.map(item => {
-          const active = isActive(item)
-          return (
-            <Link 
-              key={item.href}
-              href={item.href} 
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 2,
-                padding: '6px 12px',
-                borderRadius: 8,
-                textDecoration: 'none',
-                color: active ? '#1a1a2e' : '#94a3b8',
-                background: active ? '#f1f5f9' : 'transparent',
-                minWidth: 56
-              }}
-            >
-              <span style={{ fontSize: 22 }}>{item.icon}</span>
-              <span style={{ 
-                fontSize: 10, 
-                fontWeight: active ? 600 : 500
-              }}>
-                {item.label === 'Mes parties' ? 'Parties' : item.label}
-              </span>
-            </Link>
-          )
-        })}
+      {/* MOBILE NAV */}
+      <nav className="mobile-nav" style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, background: COLORS.white, borderTop: `1px solid ${COLORS.border}`,
+        padding: '10px 0', paddingBottom: 'max(10px, env(safe-area-inset-bottom))', display: 'none', justifyContent: 'space-around', zIndex: 100
+      }}>
+        {navItems.map(item => (
+          <Link key={item.href} href={item.href} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 16,
+            textDecoration: 'none', color: isActive(item) ? COLORS.primary : COLORS.muted,
+            background: isActive(item) ? COLORS.primarySoft : 'transparent', minWidth: 64
+          }}>
+            <span style={{ fontSize: 22 }}>{item.icon}</span>
+            <span style={{ fontSize: 11, fontWeight: isActive(item) ? 700 : 500 }}>{item.label}</span>
+          </Link>
+        ))}
+        <Link href="/dashboard/me" style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 16,
+          textDecoration: 'none', color: pathname.startsWith('/dashboard/me') ? COLORS.primary : COLORS.muted,
+          background: pathname.startsWith('/dashboard/me') ? COLORS.primarySoft : 'transparent', minWidth: 64
+        }}>
+          <div style={{
+            width: 24, height: 24, borderRadius: '50%', background: profile?.avatar_url ? 'transparent' : getAvatarColor(profile?.name),
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.white, fontWeight: 700, fontSize: 11, overflow: 'hidden'
+          }}>
+            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : profile?.name?.[0]?.toUpperCase() || '?'}
+          </div>
+          <span style={{ fontSize: 11, fontWeight: pathname.startsWith('/dashboard/me') ? 700 : 500 }}>Moi</span>
+        </Link>
       </nav>
 
-      {/* ============================================ */}
-      {/* PANNEAU NOTIFICATIONS                       */}
-      {/* ============================================ */}
+      {/* NOTIFICATIONS PANEL */}
       {showNotifications && (
         <>
-          <div 
-            onClick={() => setShowNotifications(false)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.3)',
-              zIndex: 200
-            }}
-          />
-          <div style={{
-            position: 'fixed',
-            top: 60,
-            right: 16,
-            width: 320,
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: 'calc(100vh - 100px)',
-            background: '#fff',
-            borderRadius: 16,
-            boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-            zIndex: 201,
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              padding: '16px 20px',
-              borderBottom: '1px solid #f1f5f9',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-                Notifications
-              </h3>
-              <button
-                onClick={() => setShowNotifications(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: 18,
-                  cursor: 'pointer',
-                  color: '#94a3b8'
-                }}
-              >
-                ✕
-              </button>
+          <div onClick={() => setShowNotifications(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200 }} />
+          <div style={{ position: 'fixed', top: 72, right: 16, width: 340, maxWidth: 'calc(100vw - 32px)', background: COLORS.white, borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.15)', zIndex: 201, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${COLORS.borderLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink }}>Notifications</h3>
+              <button onClick={() => setShowNotifications(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: COLORS.muted }}>✕</button>
             </div>
-            <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>🔔</div>
-              <p style={{ color: '#64748b', fontSize: 14 }}>
-                Aucune notification pour le moment
-              </p>
+            <div style={{ padding: 24, textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 16 }}>
+                {FOUR_DOTS.colors.map((color, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: color, opacity: 0.3 }} />)}
+              </div>
+              <p style={{ color: COLORS.gray, fontSize: 14 }}>Aucune notification</p>
             </div>
           </div>
         </>
       )}
 
-      {/* ============================================ */}
-      {/* STYLES RESPONSIVE                           */}
-      {/* ============================================ */}
+      {/* STYLES */}
       <style jsx global>{`
-        /* Mobile first */
-        .nav-label {
-          display: none;
-        }
-        .logo-text {
-          display: none !important;
-        }
-        .desktop-nav {
-          display: none !important;
-        }
-        .mobile-nav {
-          display: flex !important;
-        }
-        .user-avatar-desktop {
-          display: none !important;
-        }
+        .nav-label, .logo-text { display: none !important; }
+        .desktop-nav { display: none !important; }
+        .mobile-nav { display: flex !important; }
+        .user-avatar-desktop { display: none !important; }
         
-        /* Desktop */
         @media (min-width: 768px) {
-          .nav-label {
-            display: inline !important;
-          }
-          .logo-text {
-            display: inline !important;
-          }
-          .desktop-nav {
-            display: flex !important;
-          }
-          .mobile-nav {
-            display: none !important;
-          }
-          .user-avatar-desktop {
-            display: flex !important;
-          }
-          main {
-            padding-bottom: 24px !important;
-          }
-          .main-content {
-            padding: 32px 24px !important;
-          }
+          .nav-label, .logo-text { display: inline !important; }
+          .desktop-nav { display: flex !important; }
+          .mobile-nav { display: none !important; }
+          .user-avatar-desktop { display: flex !important; }
+          main { padding-bottom: 24px !important; }
+          .main-content { padding: 32px 24px !important; }
         }
         
-        /* Large Desktop */
-        @media (min-width: 1024px) {
-          .main-content {
-            padding: 32px 40px !important;
-          }
-        }
-        
-        @media (min-width: 1280px) {
-          .main-content {
-            padding: 32px 48px !important;
-          }
-        }
-
-        /* Scrollbar sobre */
-        ::-webkit-scrollbar {
-          width: 6px;
-          height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
+        @media (min-width: 1024px) { .main-content { padding: 32px 40px !important; } }
+        @media (min-width: 1280px) { .main-content { padding: 32px 48px !important; } }
       `}</style>
 
-      {/* Modal de bienvenue pour les nouveaux utilisateurs */}
-      {showWelcome && profile && (
-        <WelcomeModal 
-          profile={profile} 
-          onClose={() => setShowWelcome(false)} 
-        />
-      )}
+      {showWelcome && profile && <WelcomeModal profile={profile} onClose={() => setShowWelcome(false)} />}
     </div>
   )
 }

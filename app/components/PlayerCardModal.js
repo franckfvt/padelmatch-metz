@@ -117,7 +117,7 @@ export default function PlayerCardModal({
 
   function shareWhatsApp() {
     if (!profileUrl) return
-    const text = `🎾 Découvre mon profil PadelMatch !\nNiveau ${profile?.level || '?'}\n👉 ${profileUrl}`
+    const text = `🎾 Découvre mon profil Junto !\nNiveau ${profile?.level || '?'}\n👉 ${profileUrl}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 

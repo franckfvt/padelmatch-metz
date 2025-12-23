@@ -216,7 +216,7 @@ export default function MatchShareCard({ match, players = [] }) {
               <ellipse cx="12" cy="12" rx="4" ry="10" stroke="#fff" strokeWidth="1.5"/>
             </svg>
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>PadelMatch</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Junto</div>
         </div>
         <div style={{
           background: 'linear-gradient(135deg, #22c55e, #16a34a)',

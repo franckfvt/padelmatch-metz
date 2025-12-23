@@ -170,7 +170,7 @@ export default function CommunityPage() {
 
   // Partage intelligent
   async function handleShare() {
-    const shareText = `🎾 Mon profil PadelMatch
+    const shareText = `🎾 Mon profil Junto
 ⭐ Niveau ${profile?.level || '?'}
 📍 ${profile?.city || 'France'}
 
@@ -180,7 +180,7 @@ export default function CommunityPage() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${profile?.name} - PadelMatch`,
+          title: `${profile?.name} - Junto`,
           text: shareText,
           url: profileUrl
         })
@@ -412,7 +412,7 @@ export default function CommunityPage() {
           </div>
         </div>
 
-        {/* Logo PadelMatch petit */}
+        {/* Logo Junto petit */}
         <div style={{
           fontSize: 10,
           color: 'rgba(255,255,255,0.4)',
@@ -918,7 +918,7 @@ export default function CommunityPage() {
             fontSize: 14,
             color: 'rgba(255,255,255,0.4)'
           }}>
-            🎾 PadelMatch
+            🎾 Junto
           </div>
 
           {/* Instruction */}

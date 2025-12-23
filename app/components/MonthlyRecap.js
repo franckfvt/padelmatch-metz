@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 
 /**
  * Récap mensuel style Spotify Wrapped
- * "PadelMatch Monthly"
+ * "Junto Monthly"
  */
 export default function MonthlyRecap({ 
   userId,
@@ -146,12 +146,12 @@ export default function MonthlyRecap({
   }
 
   async function shareRecap() {
-    const text = `🎾 Mon mois de ${stats.monthName} sur PadelMatch !\n\n` +
+    const text = `🎾 Mon mois de ${stats.monthName} sur Junto !\n\n` +
       `🏆 ${stats.wins} victoires sur ${stats.totalMatches} parties (${stats.winRate}%)\n` +
       `🔥 Meilleure série : ${stats.maxStreak} wins\n` +
       `📍 Club favori : ${stats.favoriteClub || 'Padel'}\n` +
       `\n📊 Top ${100 - stats.percentile}% des joueurs les plus actifs !\n` +
-      `\n#PadelMatch #Padel`
+      `\n#Junto #Padel`
 
     if (navigator.share) {
       try {

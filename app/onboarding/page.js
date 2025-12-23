@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import PlayerCard from '@/app/components/PlayerCard'
+import { COLORS, FOUR_DOTS } from '@/app/lib/design-tokens'
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -13,795 +14,253 @@ export default function OnboardingPage() {
   const [user, setUser] = useState(null)
   const [existingProfile, setExistingProfile] = useState(null)
   
-  // Données du profil - étendues
   const [profile, setProfile] = useState({
-    level: '',
-    position: '',
-    ambiance: '',
-    frequency: '',
-    experience: '',
-    region: '',
-    city: ''
+    level: '', position: '', ambiance: '', frequency: '', experience: '', region: '', city: ''
   })
 
-  // Vérifier que l'utilisateur est connecté
   useEffect(() => {
     async function checkUser() {
       const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        router.push('/auth')
-        return
-      }
-      
+      if (!session) { router.push('/auth'); return }
       setUser(session.user)
-      
-      // Vérifier si profil déjà complet
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
-      
+
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
       setExistingProfile(profileData)
-      
-      // Si profil complet, rediriger
+
       if (profileData?.level && profileData?.position && profileData?.ambiance) {
-        // Vérifier s'il y a un redirect en attente
         const redirectUrl = sessionStorage.getItem('redirectAfterOnboarding') || sessionStorage.getItem('redirectAfterLogin')
-        if (redirectUrl) {
-          sessionStorage.removeItem('redirectAfterOnboarding')
-          sessionStorage.removeItem('redirectAfterLogin')
-          router.push(redirectUrl)
-        } else {
-          router.push('/dashboard')
-        }
+        if (redirectUrl) { sessionStorage.removeItem('redirectAfterOnboarding'); sessionStorage.removeItem('redirectAfterLogin'); router.push(redirectUrl) }
+        else router.push('/dashboard')
         return
       }
-      
-      // Pré-remplir si données existantes
+
       if (profileData) {
         setProfile({
-          level: profileData.level?.toString() || '',
-          position: profileData.position || '',
-          ambiance: profileData.ambiance || '',
-          frequency: profileData.frequency || '',
-          experience: profileData.experience || '',
-          region: profileData.region || ''
+          level: profileData.level?.toString() || '', position: profileData.position || '', ambiance: profileData.ambiance || '',
+          frequency: profileData.frequency || '', experience: profileData.experience || '', region: profileData.region || '', city: profileData.city || ''
         })
       }
-      
       setLoading(false)
     }
-    
     checkUser()
   }, [router])
 
-  // Sauvegarder le profil
   async function saveProfile() {
     if (!user) return
-    
     setSaving(true)
-    
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          level: parseInt(profile.level),
-          position: profile.position,
-          ambiance: profile.ambiance,
-          frequency: profile.frequency,
-          experience: profile.experience,
-          region: profile.region,
-          city: profile.city
-        })
-        .eq('id', user.id)
-      
-      if (error) throw error
-      
-      // Aller à l'étape carte
+      await supabase.from('profiles').update({
+        level: parseInt(profile.level), position: profile.position, ambiance: profile.ambiance,
+        frequency: profile.frequency, experience: profile.experience, region: profile.region, city: profile.city
+      }).eq('id', user.id)
       setStep(7)
-    } catch (error) {
-      console.error('Error saving profile:', error)
-      alert('Erreur lors de la sauvegarde. Réessaie.')
-    } finally {
-      setSaving(false)
-    }
+    } catch (err) { console.error(err) }
+    finally { setSaving(false) }
   }
 
-  // Options
-  const levelOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  const levelOptions = [
+    { id: '2', label: '2.0', desc: 'Débutant' }, { id: '3', label: '3.0', desc: 'Intermédiaire' },
+    { id: '4', label: '4.0', desc: 'Confirmé' }, { id: '5', label: '5.0', desc: 'Avancé' },
+    { id: '6', label: '6.0', desc: 'Expert' }, { id: '7', label: '7.0+', desc: 'Pro' }
+  ]
 
   const positionOptions = [
-    { id: 'right', label: 'Droite', desc: 'Côté revers (droitier)', emoji: '👉' },
-    { id: 'left', label: 'Gauche', desc: 'Côté coup droit (droitier)', emoji: '👈' },
-    { id: 'both', label: 'Polyvalent', desc: 'Je joue des deux côtés', emoji: '↔️' }
+    { id: 'right', emoji: '👉', label: 'Droite', desc: 'Je joue souvent à droite' },
+    { id: 'left', emoji: '👈', label: 'Gauche', desc: 'Je préfère le côté gauche' },
+    { id: 'both', emoji: '↔️', label: 'Les deux', desc: 'Je suis polyvalent' }
   ]
 
   const ambianceOptions = [
-    { id: 'loisir', label: 'Détente', desc: 'Fun et convivial, sans prise de tête', emoji: '😎' },
-    { id: 'progression', label: 'Progresser', desc: 'Je veux m\'améliorer', emoji: '📈' },
-    { id: 'compet', label: 'Compétitif', desc: 'On est là pour gagner', emoji: '🏆' }
+    { id: 'loisir', emoji: '😎', label: 'Détente', desc: 'On est là pour s\'amuser', color: COLORS.teal },
+    { id: 'mix', emoji: '⚡', label: 'Équilibré', desc: 'Fun mais on veut progresser', color: COLORS.secondary },
+    { id: 'compet', emoji: '🏆', label: 'Compétitif', desc: 'On joue pour gagner', color: COLORS.amber }
   ]
 
   const frequencyOptions = [
-    { id: 'occasional', label: 'Occasionnellement', desc: '1-2 fois par mois', emoji: '🗓️' },
-    { id: 'regular', label: 'Régulièrement', desc: '1 fois par semaine', emoji: '📅' },
-    { id: 'often', label: 'Souvent', desc: '2-3 fois par semaine', emoji: '🔥' },
-    { id: 'intense', label: 'Intensément', desc: '4+ fois par semaine', emoji: '⚡' }
+    { id: 'weekly', label: '1-2x/semaine' }, { id: 'biweekly', label: '2-3x/mois' },
+    { id: 'monthly', label: '1x/mois' }, { id: 'occasionally', label: 'Occasionnel' }
   ]
 
   const experienceOptions = [
-    { id: 'less6months', label: 'Moins de 6 mois', desc: 'Je découvre le padel', emoji: '🌱' },
-    { id: '6months2years', label: '6 mois - 2 ans', desc: 'Je progresse bien', emoji: '📈' },
-    { id: '2to5years', label: '2 - 5 ans', desc: 'Je maîtrise le jeu', emoji: '💪' },
-    { id: 'more5years', label: 'Plus de 5 ans', desc: 'Joueur expérimenté', emoji: '🏆' }
+    { id: 'beginner', label: 'Moins de 6 mois' }, { id: 'intermediate', label: '6 mois - 2 ans' },
+    { id: 'experienced', label: '2-5 ans' }, { id: 'veteran', label: 'Plus de 5 ans' }
   ]
 
-  // Régions et villes principales
   const regionsWithCities = {
-    'Île-de-France': ['Paris', 'Boulogne-Billancourt', 'Saint-Denis', 'Versailles', 'Nanterre', 'Créteil', 'Argenteuil', 'Montreuil'],
-    'Hauts-de-France': ['Lille', 'Amiens', 'Roubaix', 'Tourcoing', 'Dunkerque', 'Valenciennes', 'Lens', 'Calais'],
-    'Grand Est': ['Strasbourg', 'Reims', 'Metz', 'Mulhouse', 'Nancy', 'Colmar', 'Troyes', 'Charleville-Mézières'],
-    'Normandie': ['Rouen', 'Le Havre', 'Caen', 'Cherbourg', 'Évreux', 'Dieppe', 'Alençon'],
+    'Île-de-France': ['Paris', 'Boulogne', 'Levallois', 'Neuilly', 'Vincennes', 'Saint-Denis', 'Versailles', 'Nanterre'],
+    'Hauts-de-France': ['Lille', 'Amiens', 'Roubaix', 'Tourcoing', 'Dunkerque', 'Calais', 'Valenciennes'],
+    'Grand Est': ['Strasbourg', 'Reims', 'Metz', 'Nancy', 'Mulhouse', 'Colmar', 'Troyes'],
+    'Normandie': ['Rouen', 'Le Havre', 'Caen', 'Cherbourg', 'Évreux', 'Dieppe'],
     'Bretagne': ['Rennes', 'Brest', 'Quimper', 'Lorient', 'Vannes', 'Saint-Malo', 'Saint-Brieuc'],
-    'Pays de la Loire': ['Nantes', 'Angers', 'Le Mans', 'Saint-Nazaire', 'La Roche-sur-Yon', 'Cholet', 'Laval'],
-    'Centre-Val de Loire': ['Tours', 'Orléans', 'Bourges', 'Blois', 'Chartres', 'Châteauroux', 'Dreux'],
-    'Bourgogne-Franche-Comté': ['Dijon', 'Besançon', 'Belfort', 'Chalon-sur-Saône', 'Auxerre', 'Mâcon', 'Nevers'],
-    'Nouvelle-Aquitaine': ['Bordeaux', 'Limoges', 'Poitiers', 'La Rochelle', 'Pau', 'Bayonne', 'Angoulême', 'Biarritz'],
-    'Occitanie': ['Toulouse', 'Montpellier', 'Nîmes', 'Perpignan', 'Béziers', 'Tarbes', 'Albi', 'Carcassonne'],
-    'Auvergne-Rhône-Alpes': ['Lyon', 'Grenoble', 'Saint-Étienne', 'Villeurbanne', 'Clermont-Ferrand', 'Annecy', 'Valence', 'Chambéry'],
-    'PACA': ['Marseille', 'Nice', 'Toulon', 'Aix-en-Provence', 'Avignon', 'Cannes', 'Antibes', 'Fréjus'],
-    'Corse': ['Ajaccio', 'Bastia', 'Porto-Vecchio', 'Corte', 'Calvi']
+    'Pays de la Loire': ['Nantes', 'Angers', 'Le Mans', 'Saint-Nazaire', 'La Roche-sur-Yon'],
+    'Centre-Val de Loire': ['Tours', 'Orléans', 'Bourges', 'Blois', 'Chartres', 'Châteauroux'],
+    'Bourgogne-Franche-Comté': ['Dijon', 'Besançon', 'Belfort', 'Chalon-sur-Saône', 'Auxerre'],
+    'Nouvelle-Aquitaine': ['Bordeaux', 'Limoges', 'Poitiers', 'La Rochelle', 'Pau', 'Bayonne', 'Biarritz'],
+    'Occitanie': ['Toulouse', 'Montpellier', 'Nîmes', 'Perpignan', 'Béziers', 'Tarbes'],
+    'Auvergne-Rhône-Alpes': ['Lyon', 'Grenoble', 'Saint-Étienne', 'Clermont-Ferrand', 'Annecy', 'Valence'],
+    'PACA': ['Marseille', 'Nice', 'Toulon', 'Aix-en-Provence', 'Cannes', 'Antibes'],
+    'Corse': ['Ajaccio', 'Bastia', 'Porto-Vecchio']
   }
 
-  const regionOptions = Object.keys(regionsWithCities).map(r => ({ id: r, label: r }))
   const cityOptions = profile.region ? regionsWithCities[profile.region] || [] : []
 
-  // Affichage loading
+  // Loading Junto
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f5f5f5',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg, fontFamily: "'Satoshi', sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
-          <div style={{ color: '#666' }}>Chargement...</div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
+            {FOUR_DOTS.colors.map((c, i) => <div key={i} className="junto-loading-dot" style={{ width: 16, height: 16, borderRadius: '50%', background: c }} />)}
+          </div>
+          <div style={{ color: COLORS.gray }}>Chargement...</div>
         </div>
+        <style jsx global>{`
+          @keyframes junto-loading { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-14px); } }
+          .junto-loading-dot { animation: junto-loading 1.4s ease-in-out infinite; }
+          .junto-loading-dot:nth-child(1) { animation-delay: 0s; }
+          .junto-loading-dot:nth-child(2) { animation-delay: 0.1s; }
+          .junto-loading-dot:nth-child(3) { animation-delay: 0.2s; }
+          .junto-loading-dot:nth-child(4) { animation-delay: 0.3s; }
+        `}</style>
       </div>
     )
   }
 
-  // Étape finale : afficher la carte
+  // Étape finale - Carte prête
   if (step === 7) {
-    const playerData = {
-      name: existingProfile?.name || 'Joueur',
-      level: profile.level,
-      position: profile.position,
-      ambiance: profile.ambiance,
-      frequency: profile.frequency,
-      experience: profile.experience,
-      region: profile.region,
-      avatar_url: existingProfile?.avatar_url
-    }
-
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)',
-        padding: 20,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}>
-        <div style={{
-          maxWidth: 500,
-          margin: '0 auto',
-          paddingTop: 40,
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-          <h1 style={{ 
-            fontSize: 28, 
-            fontWeight: '700', 
-            color: '#fff',
-            marginBottom: 8
-          }}>
-            Ta carte est prête !
-          </h1>
-          <p style={{ 
-            color: 'rgba(255,255,255,0.6)', 
-            marginBottom: 32,
-            fontSize: 16
-          }}>
-            Partage-la sur Facebook pour trouver des partenaires
-          </p>
+      <div style={{ minHeight: '100vh', background: COLORS.ink, padding: 24, fontFamily: "'Satoshi', sans-serif" }}>
+        <div style={{ maxWidth: 500, margin: '0 auto', paddingTop: 48, textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 24 }}>
+            {FOUR_DOTS.colors.map((c, i) => <div key={i} className="junto-dot" style={{ width: 14, height: 14, borderRadius: '50%', background: c }} />)}
+          </div>
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: COLORS.white, marginBottom: 10 }}>Ta carte est prête !</h1>
+          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 36, fontSize: 16 }}>Partage-la pour trouver des partenaires</p>
 
-          {/* La carte */}
-          <div style={{ marginBottom: 32 }}>
-            <PlayerCard player={playerData} standalone size="normal" />
+          <div style={{ marginBottom: 36 }}>
+            <PlayerCard player={{ name: existingProfile?.name || 'Joueur', level: profile.level, position: profile.position, ambiance: profile.ambiance, avatar_url: existingProfile?.avatar_url }} standalone size="normal" />
           </div>
 
-          {/* Boutons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <button
-              onClick={() => {
-                const link = `${window.location.origin}/player/${user.id}`
-                navigator.clipboard.writeText(link)
-                alert('Lien copié ! Partage-le sur Facebook 🎾')
-              }}
-              style={{
-                padding: '18px',
-                background: '#1877f2',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 14,
-                fontSize: 16,
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8
-              }}
-            >
-              📋 Copier le lien de ma carte
-            </button>
-            
-            <button
-              onClick={() => {
-                const redirectUrl = sessionStorage.getItem('redirectAfterOnboarding') || sessionStorage.getItem('redirectAfterLogin')
-                if (redirectUrl) {
-                  sessionStorage.removeItem('redirectAfterOnboarding')
-                  sessionStorage.removeItem('redirectAfterLogin')
-                  router.push(redirectUrl)
-                } else {
-                  router.push('/dashboard')
-                }
-              }}
-              style={{
-                padding: '18px',
-                background: '#22c55e',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 14,
-                fontSize: 16,
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              🎾 Aller au dashboard
-            </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/player/${user.id}`); alert('Lien copié !') }} style={{ padding: 18, background: COLORS.white, color: COLORS.ink, border: 'none', borderRadius: 100, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>📋 Copier le lien</button>
+            <button onClick={() => { const url = sessionStorage.getItem('redirectAfterOnboarding') || '/dashboard'; sessionStorage.removeItem('redirectAfterOnboarding'); router.push(url) }} style={{ padding: 18, background: COLORS.primary, color: COLORS.white, border: 'none', borderRadius: 100, fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: `0 4px 20px ${COLORS.primaryGlow}` }}>🎾 C'est parti !</button>
           </div>
         </div>
+        <style jsx global>{`
+          @keyframes junto-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); opacity: 0.8; } }
+          .junto-dot { animation: junto-breathe 3s ease-in-out infinite; }
+          .junto-dot:nth-child(1) { animation-delay: 0s; }
+          .junto-dot:nth-child(2) { animation-delay: 0.15s; }
+          .junto-dot:nth-child(3) { animation-delay: 0.3s; }
+          .junto-dot:nth-child(4) { animation-delay: 0.45s; }
+        `}</style>
       </div>
     )
   }
+
+  // Composant Option
+  function Option({ selected, onClick, emoji, label, desc, color }) {
+    return (
+      <button onClick={onClick} style={{
+        width: '100%', padding: 18, background: selected ? (color ? `${color}15` : COLORS.primarySoft) : COLORS.white,
+        border: `2px solid ${selected ? (color || COLORS.primary) : COLORS.border}`, borderRadius: 18, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 16, textAlign: 'left'
+      }}>
+        {emoji && <span style={{ fontSize: 28 }}>{emoji}</span>}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, color: COLORS.ink, fontSize: 16 }}>{label}</div>
+          {desc && <div style={{ fontSize: 13, color: COLORS.gray, marginTop: 2 }}>{desc}</div>}
+        </div>
+        {selected && <span style={{ color: color || COLORS.primary, fontSize: 20 }}>✓</span>}
+      </button>
+    )
+  }
+
+  // Grille Level
+  function LevelGrid() {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        {levelOptions.map(opt => (
+          <button key={opt.id} onClick={() => setProfile({ ...profile, level: opt.id })} style={{
+            padding: 18, background: profile.level === opt.id ? COLORS.primarySoft : COLORS.white,
+            border: `2px solid ${profile.level === opt.id ? COLORS.primary : COLORS.border}`, borderRadius: 16,
+            cursor: 'pointer', textAlign: 'center'
+          }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: profile.level === opt.id ? COLORS.primary : COLORS.ink }}>{opt.label}</div>
+            <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>{opt.desc}</div>
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  const steps = [
+    { title: 'Quel est ton niveau ?', subtitle: 'Sur une échelle de 2 à 7+', component: <LevelGrid />, valid: !!profile.level },
+    { title: 'Côté préféré ?', subtitle: 'Position sur le terrain', component: <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{positionOptions.map(o => <Option key={o.id} selected={profile.position === o.id} onClick={() => setProfile({ ...profile, position: o.id })} emoji={o.emoji} label={o.label} desc={o.desc} />)}</div>, valid: !!profile.position },
+    { title: 'Quel style de jeu ?', subtitle: 'L\'ambiance qui te correspond', component: <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{ambianceOptions.map(o => <Option key={o.id} selected={profile.ambiance === o.id} onClick={() => setProfile({ ...profile, ambiance: o.id })} emoji={o.emoji} label={o.label} desc={o.desc} color={o.color} />)}</div>, valid: !!profile.ambiance },
+    { title: 'Tu joues souvent ?', subtitle: 'Ta fréquence de jeu', component: <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>{frequencyOptions.map(o => <Option key={o.id} selected={profile.frequency === o.id} onClick={() => setProfile({ ...profile, frequency: o.id })} label={o.label} />)}</div>, valid: !!profile.frequency },
+    { title: 'Depuis combien de temps ?', subtitle: 'Ton expérience au padel', component: <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>{experienceOptions.map(o => <Option key={o.id} selected={profile.experience === o.id} onClick={() => setProfile({ ...profile, experience: o.id })} label={o.label} />)}</div>, valid: !!profile.experience },
+    { title: 'Où joues-tu ?', subtitle: 'Ta région et ville', component: (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <select value={profile.region} onChange={e => setProfile({ ...profile, region: e.target.value, city: '' })} style={{ width: '100%', padding: 16, border: `2px solid ${COLORS.border}`, borderRadius: 14, fontSize: 15, fontFamily: "'Satoshi', sans-serif" }}>
+          <option value="">Sélectionne ta région</option>
+          {Object.keys(regionsWithCities).map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+        {profile.region && (
+          <select value={profile.city} onChange={e => setProfile({ ...profile, city: e.target.value })} style={{ width: '100%', padding: 16, border: `2px solid ${COLORS.border}`, borderRadius: 14, fontSize: 15, fontFamily: "'Satoshi', sans-serif" }}>
+            <option value="">Sélectionne ta ville</option>
+            {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+      </div>
+    ), valid: !!profile.region }
+  ]
+
+  const currentStep = steps[step - 1]
+  const isLastStep = step === steps.length
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f5f5f5',
-      padding: 20,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
-      <div style={{
-        maxWidth: 500,
-        margin: '0 auto',
-        paddingTop: 40
-      }}>
+    <div style={{ minHeight: '100vh', background: COLORS.bg, padding: 24, fontFamily: "'Satoshi', sans-serif" }}>
+      <div style={{ maxWidth: 500, margin: '0 auto', paddingTop: 32 }}>
         
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🎾</div>
-          <h1 style={{ fontSize: 24, fontWeight: '700', color: '#1a1a1a' }}>
-            PadelMatch
-          </h1>
-        </div>
-
-        {/* Carte principale */}
-        <div style={{
-          background: '#fff',
-          borderRadius: 24,
-          padding: '40px 32px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
-        }}>
-          
-          {/* Barre de progression */}
-          <div style={{ marginBottom: 40 }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              marginBottom: 8
-            }}>
-              <span style={{ fontSize: 13, color: '#999' }}>Étape {step}/6</span>
-              <span style={{ fontSize: 13, color: '#999' }}>
-                {step === 1 && 'Ton niveau'}
-                {step === 2 && 'Ton poste'}
-                {step === 3 && 'Ton ambiance'}
-                {step === 4 && 'Ta fréquence'}
-                {step === 5 && 'Ton expérience'}
-                {step === 6 && 'Ta région'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {[1, 2, 3, 4, 5, 6].map(s => (
-                <div
-                  key={s}
-                  style={{
-                    flex: 1,
-                    height: 6,
-                    borderRadius: 3,
-                    background: step >= s ? '#1a1a1a' : '#e5e5e5',
-                    transition: 'background 0.3s'
-                  }}
-                />
-              ))}
-            </div>
+        {/* Logo Junto */}
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+            {FOUR_DOTS.colors.map((c, i) => <div key={i} style={{ width: 12, height: 12, borderRadius: '50%', background: c }} />)}
           </div>
-
-          {/* ========== ÉTAPE 1 : NIVEAU ========== */}
-          {step === 1 && (
-            <>
-              <h2 style={{ fontSize: 26, fontWeight: '700', marginBottom: 8, color: '#1a1a1a' }}>
-                Quel est ton niveau ?
-              </h2>
-              <p style={{ color: '#666', marginBottom: 20, fontSize: 15, lineHeight: 1.5 }}>
-                Un niveau précis permet de trouver des partenaires adaptés.
-              </p>
-
-              {/* Aide niveau */}
-              <div style={{
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: 12,
-                padding: 14,
-                marginBottom: 24,
-                fontSize: 13,
-                color: '#166534'
-              }}>
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>💡 Repères :</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12 }}>
-                  <span><strong>1-2</strong> : Débutant</span>
-                  <span><strong>3-4</strong> : Intermédiaire</span>
-                  <span><strong>5-6</strong> : Confirmé</span>
-                  <span><strong>7-8</strong> : Avancé</span>
-                  <span><strong>9-10</strong> : Compétiteur/Pro</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
-                {levelOptions.map(lvl => (
-                  <div
-                    key={lvl}
-                    onClick={() => setProfile({ ...profile, level: lvl.toString() })}
-                    style={{
-                      aspectRatio: '1',
-                      border: profile.level === lvl.toString()
-                        ? '3px solid #1a1a1a' 
-                        : '2px solid #e5e5e5',
-                      borderRadius: 16,
-                      cursor: 'pointer',
-                      background: profile.level === lvl.toString() ? '#f5f5f5' : '#fff',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 24,
-                      fontWeight: '700',
-                      color: profile.level === lvl.toString() ? '#1a1a1a' : '#666'
-                    }}
-                  >
-                    {lvl}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ marginTop: 16, padding: 16, background: '#f9fafb', borderRadius: 12 }}>
-                <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
-                  <strong>Guide rapide :</strong><br/>
-                  1-2 : Débutant • 3-4 : Intermédiaire<br/>
-                  5-6 : Confirmé • 7-8 : Expert • 9-10 : Pro
-                </div>
-              </div>
-
-              <button
-                onClick={() => profile.level && setStep(2)}
-                disabled={!profile.level}
-                style={{
-                  width: '100%',
-                  marginTop: 32,
-                  padding: '18px',
-                  background: profile.level ? '#1a1a1a' : '#e5e5e5',
-                  color: profile.level ? '#fff' : '#999',
-                  border: 'none',
-                  borderRadius: 14,
-                  fontSize: 16,
-                  fontWeight: '600',
-                  cursor: profile.level ? 'pointer' : 'not-allowed'
-                }}
-              >
-                Continuer
-              </button>
-            </>
-          )}
-
-          {/* ========== ÉTAPE 2 : POSITION ========== */}
-          {step === 2 && (
-            <>
-              <h2 style={{ fontSize: 26, fontWeight: '700', marginBottom: 8, color: '#1a1a1a' }}>
-                Tu joues de quel côté ?
-              </h2>
-              <p style={{ color: '#666', marginBottom: 32, fontSize: 16, lineHeight: 1.5 }}>
-                C'est souvent la première question qu'on pose !
-              </p>
-
-              <div style={{ display: 'grid', gap: 12 }}>
-                {positionOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setProfile({ ...profile, position: opt.id })}
-                    style={{
-                      padding: '24px',
-                      border: profile.position === opt.id ? '2px solid #1a1a1a' : '2px solid #e5e5e5',
-                      borderRadius: 16,
-                      cursor: 'pointer',
-                      background: profile.position === opt.id ? '#fafafa' : '#fff',
-                      transition: 'all 0.2s',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>{opt.emoji}</div>
-                    <div style={{ fontWeight: '700', fontSize: 18, color: '#1a1a1a', marginBottom: 4 }}>
-                      {opt.label}
-                    </div>
-                    <div style={{ fontSize: 14, color: '#666' }}>{opt.desc}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button onClick={() => setStep(1)} style={{
-                  padding: '18px 24px', background: '#fff', color: '#1a1a1a',
-                  border: '2px solid #e5e5e5', borderRadius: 14, fontSize: 16, fontWeight: '600', cursor: 'pointer'
-                }}>
-                  Retour
-                </button>
-                <button
-                  onClick={() => profile.position && setStep(3)}
-                  disabled={!profile.position}
-                  style={{
-                    flex: 1, padding: '18px',
-                    background: profile.position ? '#1a1a1a' : '#e5e5e5',
-                    color: profile.position ? '#fff' : '#999',
-                    border: 'none', borderRadius: 14, fontSize: 16, fontWeight: '600',
-                    cursor: profile.position ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  Continuer
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* ========== ÉTAPE 3 : AMBIANCE ========== */}
-          {step === 3 && (
-            <>
-              <h2 style={{ fontSize: 26, fontWeight: '700', marginBottom: 8, color: '#1a1a1a' }}>
-                Quelle ambiance tu recherches ?
-              </h2>
-              <p style={{ color: '#666', marginBottom: 32, fontSize: 16, lineHeight: 1.5 }}>
-                On te matche avec des joueurs qui veulent la même chose.
-              </p>
-
-              <div style={{ display: 'grid', gap: 12 }}>
-                {ambianceOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setProfile({ ...profile, ambiance: opt.id })}
-                    style={{
-                      padding: '24px',
-                      border: profile.ambiance === opt.id ? '2px solid #1a1a1a' : '2px solid #e5e5e5',
-                      borderRadius: 16,
-                      cursor: 'pointer',
-                      background: profile.ambiance === opt.id ? '#fafafa' : '#fff',
-                      transition: 'all 0.2s',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>{opt.emoji}</div>
-                    <div style={{ fontWeight: '700', fontSize: 18, color: '#1a1a1a', marginBottom: 4 }}>
-                      {opt.label}
-                    </div>
-                    <div style={{ fontSize: 14, color: '#666' }}>{opt.desc}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button onClick={() => setStep(2)} style={{
-                  padding: '18px 24px', background: '#fff', color: '#1a1a1a',
-                  border: '2px solid #e5e5e5', borderRadius: 14, fontSize: 16, fontWeight: '600', cursor: 'pointer'
-                }}>
-                  Retour
-                </button>
-                <button
-                  onClick={() => profile.ambiance && setStep(4)}
-                  disabled={!profile.ambiance}
-                  style={{
-                    flex: 1, padding: '18px',
-                    background: profile.ambiance ? '#1a1a1a' : '#e5e5e5',
-                    color: profile.ambiance ? '#fff' : '#999',
-                    border: 'none', borderRadius: 14, fontSize: 16, fontWeight: '600',
-                    cursor: profile.ambiance ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  Continuer
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* ========== ÉTAPE 4 : FRÉQUENCE ========== */}
-          {step === 4 && (
-            <>
-              <h2 style={{ fontSize: 26, fontWeight: '700', marginBottom: 8, color: '#1a1a1a' }}>
-                Tu joues à quelle fréquence ?
-              </h2>
-              <p style={{ color: '#666', marginBottom: 32, fontSize: 16, lineHeight: 1.5 }}>
-                Pour te proposer le bon nombre de parties.
-              </p>
-
-              <div style={{ display: 'grid', gap: 12 }}>
-                {frequencyOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setProfile({ ...profile, frequency: opt.id })}
-                    style={{
-                      padding: '20px 24px',
-                      border: profile.frequency === opt.id ? '2px solid #1a1a1a' : '2px solid #e5e5e5',
-                      borderRadius: 16,
-                      cursor: 'pointer',
-                      background: profile.frequency === opt.id ? '#fafafa' : '#fff',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16
-                    }}
-                  >
-                    <div style={{ fontSize: 28 }}>{opt.emoji}</div>
-                    <div>
-                      <div style={{ fontWeight: '600', fontSize: 16, color: '#1a1a1a', marginBottom: 2 }}>
-                        {opt.label}
-                      </div>
-                      <div style={{ fontSize: 14, color: '#666' }}>{opt.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button onClick={() => setStep(3)} style={{
-                  padding: '18px 24px', background: '#fff', color: '#1a1a1a',
-                  border: '2px solid #e5e5e5', borderRadius: 14, fontSize: 16, fontWeight: '600', cursor: 'pointer'
-                }}>
-                  Retour
-                </button>
-                <button
-                  onClick={() => profile.frequency && setStep(5)}
-                  disabled={!profile.frequency}
-                  style={{
-                    flex: 1, padding: '18px',
-                    background: profile.frequency ? '#1a1a1a' : '#e5e5e5',
-                    color: profile.frequency ? '#fff' : '#999',
-                    border: 'none', borderRadius: 14, fontSize: 16, fontWeight: '600',
-                    cursor: profile.frequency ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  Continuer
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* ========== ÉTAPE 5 : EXPÉRIENCE ========== */}
-          {step === 5 && (
-            <>
-              <h2 style={{ fontSize: 26, fontWeight: '700', marginBottom: 8, color: '#1a1a1a' }}>
-                Tu joues depuis combien de temps ?
-              </h2>
-              <p style={{ color: '#666', marginBottom: 32, fontSize: 16, lineHeight: 1.5 }}>
-                Ça aide à comprendre ton parcours.
-              </p>
-
-              <div style={{ display: 'grid', gap: 12 }}>
-                {experienceOptions.map(opt => (
-                  <div
-                    key={opt.id}
-                    onClick={() => setProfile({ ...profile, experience: opt.id })}
-                    style={{
-                      padding: '20px 24px',
-                      border: profile.experience === opt.id ? '2px solid #1a1a1a' : '2px solid #e5e5e5',
-                      borderRadius: 16,
-                      cursor: 'pointer',
-                      background: profile.experience === opt.id ? '#fafafa' : '#fff',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16
-                    }}
-                  >
-                    <div style={{ fontSize: 28 }}>{opt.emoji}</div>
-                    <div>
-                      <div style={{ fontWeight: '600', fontSize: 16, color: '#1a1a1a', marginBottom: 2 }}>
-                        {opt.label}
-                      </div>
-                      <div style={{ fontSize: 14, color: '#666' }}>{opt.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button onClick={() => setStep(4)} style={{
-                  padding: '18px 24px', background: '#fff', color: '#1a1a1a',
-                  border: '2px solid #e5e5e5', borderRadius: 14, fontSize: 16, fontWeight: '600', cursor: 'pointer'
-                }}>
-                  Retour
-                </button>
-                <button
-                  onClick={() => profile.experience && setStep(6)}
-                  disabled={!profile.experience}
-                  style={{
-                    flex: 1, padding: '18px',
-                    background: profile.experience ? '#1a1a1a' : '#e5e5e5',
-                    color: profile.experience ? '#fff' : '#999',
-                    border: 'none', borderRadius: 14, fontSize: 16, fontWeight: '600',
-                    cursor: profile.experience ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  Continuer
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* ========== ÉTAPE 6 : RÉGION + VILLE ========== */}
-          {step === 6 && (
-            <>
-              <h2 style={{ fontSize: 26, fontWeight: '700', marginBottom: 8, color: '#1a1a1a' }}>
-                Où joues-tu habituellement ?
-              </h2>
-              <p style={{ color: '#666', marginBottom: 24, fontSize: 15, lineHeight: 1.5 }}>
-                Pour te proposer des parties et joueurs près de chez toi.
-              </p>
-
-              {/* Sélection région */}
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>
-                  Ta région
-                </label>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(2, 1fr)', 
-                  gap: 8,
-                  maxHeight: 200,
-                  overflowY: 'auto',
-                  padding: 4
-                }}>
-                  {regionOptions.map(opt => (
-                    <div
-                      key={opt.id}
-                      onClick={() => setProfile({ ...profile, region: opt.id, city: '' })}
-                      style={{
-                        padding: '12px 10px',
-                        border: profile.region === opt.id ? '2px solid #22c55e' : '2px solid #e5e5e5',
-                        borderRadius: 10,
-                        cursor: 'pointer',
-                        background: profile.region === opt.id ? '#f0fdf4' : '#fff',
-                        transition: 'all 0.2s',
-                        textAlign: 'center',
-                        fontSize: 12,
-                        fontWeight: profile.region === opt.id ? '600' : '500',
-                        color: profile.region === opt.id ? '#166534' : '#666'
-                      }}
-                    >
-                      {opt.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sélection ville si région choisie */}
-              {profile.region && cityOptions.length > 0 && (
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>
-                    Ta ville (ou la plus proche)
-                  </label>
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(2, 1fr)', 
-                    gap: 8,
-                    maxHeight: 180,
-                    overflowY: 'auto',
-                    padding: 4
-                  }}>
-                    {cityOptions.map(city => (
-                      <div
-                        key={city}
-                        onClick={() => setProfile({ ...profile, city })}
-                        style={{
-                          padding: '12px 10px',
-                          border: profile.city === city ? '2px solid #22c55e' : '2px solid #e5e5e5',
-                          borderRadius: 10,
-                          cursor: 'pointer',
-                          background: profile.city === city ? '#f0fdf4' : '#fff',
-                          transition: 'all 0.2s',
-                          textAlign: 'center',
-                          fontSize: 13,
-                          fontWeight: profile.city === city ? '600' : '500',
-                          color: profile.city === city ? '#166534' : '#666'
-                        }}
-                      >
-                        📍 {city}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-                <button onClick={() => setStep(5)} style={{
-                  padding: '18px 24px', background: '#fff', color: '#1a1a1a',
-                  border: '2px solid #e5e5e5', borderRadius: 14, fontSize: 16, fontWeight: '600', cursor: 'pointer'
-                }}>
-                  Retour
-                </button>
-                <button
-                  onClick={saveProfile}
-                  disabled={!profile.region || !profile.city || saving}
-                  style={{
-                    flex: 1, padding: '18px',
-                    background: profile.region && profile.city && !saving ? '#22c55e' : '#e5e5e5',
-                    color: profile.region && profile.city && !saving ? '#fff' : '#999',
-                    border: 'none', borderRadius: 14, fontSize: 16, fontWeight: '600',
-                    cursor: profile.region && profile.city && !saving ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  {saving ? 'Enregistrement...' : 'Créer ma carte de joueur 🎴'}
-                </button>
-              </div>
-            </>
-          )}
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: COLORS.ink }}>Crée ton profil</h1>
         </div>
 
-        {/* Skip pour plus tard */}
+        {/* Progress */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 36 }}>
+          {steps.map((_, i) => (
+            <div key={i} style={{ flex: 1, height: 4, borderRadius: 100, background: i < step ? COLORS.primary : COLORS.border }} />
+          ))}
+        </div>
+
+        {/* Question */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: COLORS.ink, marginBottom: 8 }}>{currentStep.title}</h2>
+          <p style={{ color: COLORS.gray, fontSize: 15 }}>{currentStep.subtitle}</p>
+        </div>
+
+        {/* Contenu */}
+        {currentStep.component}
+
+        {/* Boutons */}
+        <div style={{ display: 'flex', gap: 12, marginTop: 36 }}>
+          {step > 1 && (
+            <button onClick={() => setStep(step - 1)} style={{ flex: 1, padding: 16, background: COLORS.bgSoft, color: COLORS.gray, border: `2px solid ${COLORS.border}`, borderRadius: 100, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>← Retour</button>
+          )}
+          <button onClick={() => isLastStep ? saveProfile() : setStep(step + 1)} disabled={!currentStep.valid || saving} style={{
+            flex: 2, padding: 16, background: currentStep.valid ? COLORS.primary : COLORS.border,
+            color: COLORS.white, border: 'none', borderRadius: 100, fontSize: 16, fontWeight: 700,
+            cursor: currentStep.valid ? 'pointer' : 'not-allowed', opacity: currentStep.valid ? 1 : 0.5
+          }}>{saving ? '...' : isLastStep ? 'Terminer ✓' : 'Continuer →'}</button>
+        </div>
+
         <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <button
-            onClick={() => {
-              const redirectUrl = sessionStorage.getItem('redirectAfterOnboarding') || sessionStorage.getItem('redirectAfterLogin')
-              if (redirectUrl) {
-                sessionStorage.removeItem('redirectAfterOnboarding')
-                sessionStorage.removeItem('redirectAfterLogin')
-                router.push(redirectUrl)
-              } else {
-                router.push('/dashboard')
-              }
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#999',
-              fontSize: 14,
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
-          >
-            Compléter plus tard
-          </button>
+          <span style={{ fontSize: 13, color: COLORS.muted }}>Étape {step} sur {steps.length}</span>
         </div>
       </div>
     </div>

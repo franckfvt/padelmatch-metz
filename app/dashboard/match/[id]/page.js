@@ -2,17 +2,14 @@
 
 /**
  * ============================================
- * PAGE MATCH - VERSION REDESIGN V6
+ * PAGE MATCH DETAIL - JUNTO BRAND v2
  * ============================================
  * 
- * Nouveau design avec :
- * - Terrain de padel visuel (bleu)
- * - Carte de partage horizontale (ratio 1.91:1)
- * - Section paiements avec toggle
- * - Chat amélioré
- * - Sidebar desktop avec actions
- * - Modal profil joueur
- * - Full responsive
+ * Structure:
+ * 1. Carte Match (header + terrain + logo + bouton inviter)
+ * 2. Actions en attente (organisateur)
+ * 3. Chat Junto
+ * 4. Sidebar (partager, actions, orga, danger)
  * 
  * ============================================
  */
@@ -22,372 +19,75 @@ import { supabase } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
-// ============================================
-// TOKENS DE DESIGN
-// ============================================
-const DARK = '#1a1a2e'
-const DARK_GRADIENT = 'linear-gradient(135deg, #1a1a2e, #334155)'
-const GREEN_GRADIENT = 'linear-gradient(135deg, #22c55e, #16a34a)'
-const COURT_GRADIENT = 'linear-gradient(180deg, #1e3a5f 0%, #2d5a87 100%)'
-const PLAYER_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6']
-
-const COLORS = {
-  bg: '#f8fafc',
-  card: '#ffffff',
-  text: '#1a1a2e',
-  textMuted: '#64748b',
+// === JUNTO DESIGN TOKENS ===
+const JUNTO = {
+  coral: '#ff5a5f',
+  slate: '#3d4f5f',
+  amber: '#ffb400',
+  teal: '#00b8a9',
+  ink: '#1a1a1a',
+  dark: '#2d2d2d',
+  gray: '#6b7280',
+  muted: '#9ca3af',
+  white: '#ffffff',
+  bg: '#fafafa',
+  bgSoft: '#f5f5f5',
   border: '#e5e7eb',
-  accent: '#22c55e',
-  teamA: '#3b82f6',
-  teamB: '#f97316',
-  danger: '#ef4444',
-  warning: '#f59e0b'
+  coralSoft: '#fff0f0',
+  tealSoft: '#e5f9f7',
+  amberSoft: '#fff8e5',
+  slateSoft: '#f0f3f5',
+  coralGlow: 'rgba(255, 90, 95, 0.25)',
+  tealGlow: 'rgba(0, 184, 169, 0.25)',
 }
 
-// ============================================
-// COMPOSANTS RÉUTILISABLES
-// ============================================
+const AVATAR_COLORS = [JUNTO.coral, JUNTO.slate, JUNTO.amber, JUNTO.teal]
+const SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
 
-// Avatar avec couleur basée sur le nom
-function Avatar({ name, size = 40, empty = false, avatarUrl = null, onClick, border = false }) {
-  if (empty || !name) {
-    return (
-      <div style={{
-        width: size, height: size, borderRadius: '50%',
-        border: '2px dashed rgba(255,255,255,0.4)',
-        background: 'rgba(255,255,255,0.1)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: size * 0.4, color: 'rgba(255,255,255,0.6)',
-        flexShrink: 0
-      }}>+</div>
-    )
-  }
-  
-  const color = PLAYER_COLORS[name.charCodeAt(0) % PLAYER_COLORS.length]
-  
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={name}
-        onClick={onClick}
-        style={{
-          width: size, height: size, borderRadius: '50%',
-          objectFit: 'cover',
-          border: border ? '2px solid #fff' : '3px solid rgba(255,255,255,0.3)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          cursor: onClick ? 'pointer' : 'default',
-          flexShrink: 0
-        }}
-      />
-    )
-  }
-  
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        width: size, height: size, borderRadius: '50%',
-        background: color,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: size * 0.4, fontWeight: 600, color: '#fff',
-        border: border ? '2px solid #fff' : '3px solid rgba(255,255,255,0.3)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        cursor: onClick ? 'pointer' : 'default',
-        flexShrink: 0
-      }}
-    >{name[0].toUpperCase()}</div>
-  )
+const AMBIANCE_CONFIG = {
+  chill: { label: 'Détente', emoji: '😌', color: JUNTO.teal },
+  mix: { label: 'Équilibré', emoji: '⚡', color: JUNTO.amber },
+  competition: { label: 'Compétition', emoji: '🔥', color: JUNTO.coral }
 }
 
-// Carte joueur sur le terrain
-function PlayerCard({ player, position, onClickPlayer, onClickEmpty }) {
-  const isEmpty = !player
-  const isPendingInvite = player?.isPendingInvite
-  const profile = player?.profiles || player
-  
-  // Style différent pour les invités en attente
-  const getCardStyle = () => {
-    if (isEmpty) {
-      return {
-        background: 'rgba(255,255,255,0.05)',
-        border: '2px dashed rgba(255,255,255,0.2)'
-      }
-    }
-    if (isPendingInvite) {
-      return {
-        background: 'rgba(251,191,36,0.15)', // Jaune/orange pour invité
-        border: '2px dashed rgba(251,191,36,0.4)'
-      }
-    }
-    return {
-      background: 'rgba(255,255,255,0.1)',
-      border: '2px solid rgba(255,255,255,0.15)'
-    }
-  }
-
-  const cardStyle = getCardStyle()
-  
-  return (
-    <div
-      onClick={() => isEmpty ? onClickEmpty?.() : onClickPlayer?.(player)}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px 12px',
-        background: cardStyle.background,
-        borderRadius: 12,
-        border: cardStyle.border,
-        cursor: 'pointer',
-        transition: 'all 0.2s',
-        minHeight: 120,
-        width: '100%',
-        maxWidth: 140
-      }}
-    >
-      {/* Avatar avec style spécial pour invités */}
-      {isPendingInvite ? (
-        <div style={{
-          width: 52, height: 52, borderRadius: '50%',
-          border: '2px dashed rgba(251,191,36,0.6)',
-          background: 'rgba(251,191,36,0.2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20, color: 'rgba(255,255,255,0.8)'
-        }}>
-          {profile?.name ? profile.name[0].toUpperCase() : '?'}
-        </div>
-      ) : (
-        <Avatar
-          name={profile?.name}
-          size={52}
-          empty={isEmpty}
-          avatarUrl={profile?.avatar_url}
-        />
-      )}
-      
-      <div style={{ marginTop: 10, textAlign: 'center', width: '100%' }}>
-        {isEmpty ? (
-          <>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 13 }}>Place libre</div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 4 }}>📍 {position}</div>
-          </>
-        ) : isPendingInvite ? (
-          <>
-            <div style={{ color: '#fbbf24', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-              {profile?.name?.split(' ')[0] || 'Invité'}
-              <span style={{ fontSize: 10 }}>⏳</span>
-            </div>
-            <div style={{ 
-              background: 'rgba(251,191,36,0.3)', 
-              padding: '3px 8px', 
-              borderRadius: 4, 
-              fontSize: 10, 
-              color: '#fbbf24',
-              marginTop: 6
-            }}>
-              Invité · En attente
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-              {profile?.name?.split(' ')[0] || 'Joueur'}
-              {player?.isOrganizer && <span style={{ fontSize: 12 }}>👑</span>}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
-              <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: 4, fontSize: 10, color: '#fff', whiteSpace: 'nowrap' }}>
-                Niv. {profile?.level || '?'}
-              </span>
-              <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: 4, fontSize: 10, color: '#fff', whiteSpace: 'nowrap' }}>
-                📍 {profile?.position || position}
-              </span>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  )
+const POSITION_LABELS = {
+  left: { label: 'Gauche', icon: '⬅️' },
+  right: { label: 'Droite', icon: '➡️' },
+  both: { label: 'Les deux', icon: '↔️' }
 }
 
-// Carte de partage horizontale
-function ShareCard({ match, allPlayers, spotsLeft, pendingInvitesCount = 0 }) {
-  // Simplifier : juste les 4 slots dans l'ordre
-  const slots = []
-  const teamAPlayers = allPlayers.filter(p => p.team === 'A')
-  const teamBPlayers = allPlayers.filter(p => p.team === 'B')
-  
-  slots.push({ player: teamAPlayers[0], slot: 'D' })
-  slots.push({ player: teamAPlayers[1], slot: 'G' })
-  slots.push({ player: teamBPlayers[0], slot: 'D' })
-  slots.push({ player: teamBPlayers[1], slot: 'G' })
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'Date à définir'
-    return new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-  }
-
-  const formatTime = (timeStr) => {
-    if (!timeStr) return '--:--'
-    return timeStr.slice(0, 5)
-  }
-
-  // Comptage intelligent des places
-  // On affiche les places "potentiellement disponibles" = libres + invités non confirmés
-  const confirmedCount = allPlayers.filter(p => !p.isPendingInvite).length
-  const invitedCount = allPlayers.filter(p => p.isPendingInvite).length
-  const freeSpots = 4 - confirmedCount - invitedCount
-  const availableSpots = freeSpots + invitedCount // Places potentielles (libres + invités)
-
-  // Message de places - On montre les places potentielles pour ne pas bloquer les duos
-  const getSpotsMessage = () => {
-    if (availableSpots === 0) return '✅ Complet'
-    if (freeSpots === 0 && invitedCount > 0) {
-      // Toutes les places "libres" sont des invités
-      return `🎾 ${invitedCount} place${invitedCount > 1 ? 's' : ''} (⏳ invité${invitedCount > 1 ? 's' : ''})`
-    }
-    if (freeSpots > 0 && invitedCount > 0) {
-      // Mix de places libres et invités
-      return `🎾 ${availableSpots} places (⏳ ${invitedCount} invité${invitedCount > 1 ? 's' : ''})`
-    }
-    return `🎾 ${freeSpots} place${freeSpots > 1 ? 's' : ''}`
-  }
-
-  return (
-    <div style={{
-      background: COURT_GRADIENT,
-      borderRadius: 12,
-      padding: '20px 24px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 24,
-      aspectRatio: '1.91 / 1',
-      minHeight: 180
-    }}>
-      {/* Colonne gauche : Infos */}
-      <div style={{ flex: 1, color: '#fff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 12, opacity: 0.7 }}>
-          <span style={{ fontSize: 12 }}>🎾</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>PADEL MATCH</span>
-        </div>
-
-        <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 2 }}>{formatTime(match?.match_time)}</div>
-        <div style={{ fontSize: 14, opacity: 0.85, marginBottom: 10 }}>{formatDate(match?.match_date)}</div>
-        <div style={{ fontSize: 13, marginBottom: 12, opacity: 0.9 }}>📍 {match?.clubs?.name || match?.city || 'Lieu à définir'}</div>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ background: 'rgba(255,255,255,0.15)', padding: '5px 10px', borderRadius: 6, fontSize: 11 }}>
-            ⭐ Niveau {match?.level_min || '?'}-{match?.level_max || '?'}
-          </span>
-          <span style={{ 
-            background: freeSpots > 0 ? 'rgba(34,197,94,0.4)' : invitedCount > 0 ? 'rgba(251,191,36,0.4)' : 'rgba(255,255,255,0.2)', 
-            padding: '5px 10px', 
-            borderRadius: 6, 
-            fontSize: 11, 
-            fontWeight: 600 
-          }}>
-            {getSpotsMessage()}
-          </span>
-        </div>
-      </div>
-
-      {/* Séparateur */}
-      <div style={{ width: 1, height: '80%', background: 'rgba(255,255,255,0.2)' }} />
-
-      {/* Colonne droite : Avatars */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'center' }}>
-        {slots.map((item, i) => {
-          const profile = item.player?.profiles || item.player
-          const isPendingInvite = item.player?.isPendingInvite
-          
-          return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {profile?.name ? (
-                isPendingInvite ? (
-                  // Avatar invité (pointillé jaune)
-                  <div style={{
-                    width: 36, height: 36, borderRadius: '50%',
-                    border: '2px dashed rgba(251,191,36,0.6)',
-                    background: 'rgba(251,191,36,0.2)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 14, fontWeight: 600, color: '#fbbf24'
-                  }}>{profile.name[0].toUpperCase()}</div>
-                ) : (
-                  // Avatar confirmé (plein)
-                  <div style={{
-                    width: 36, height: 36, borderRadius: '50%',
-                    background: PLAYER_COLORS[profile.name.charCodeAt(0) % PLAYER_COLORS.length],
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 14, fontWeight: 600, color: '#fff',
-                    border: '2px solid rgba(255,255,255,0.3)'
-                  }}>{profile.name[0].toUpperCase()}</div>
-                )
-              ) : (
-                // Place libre
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  border: '2px dashed rgba(255,255,255,0.3)',
-                  background: 'rgba(255,255,255,0.05)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16, color: 'rgba(255,255,255,0.4)'
-                }}>?</div>
-              )}
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>{item.slot}</span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// PAGE PRINCIPALE
-// ============================================
-export default function MatchPage() {
+export default function MatchDetailPage() {
   const router = useRouter()
-  const params = useParams()
-  const matchId = params.id
+  const { id: matchId } = useParams()
+  const messagesEndRef = useRef(null)
 
-  // États principaux
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [match, setMatch] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [participants, setParticipants] = useState([])
   const [pendingRequests, setPendingRequests] = useState([])
   const [pendingInvites, setPendingInvites] = useState([])
   const [messages, setMessages] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  // UI
   const [newMessage, setNewMessage] = useState('')
-  const [showShareModal, setShowShareModal] = useState(false)
-  const [showPlayerModal, setShowPlayerModal] = useState(null)
   const [modal, setModal] = useState(null)
-
-  // Forms
   const [joinTeam, setJoinTeam] = useState('A')
+  const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [copied, setCopied] = useState(false)
 
-  const messagesEndRef = useRef(null)
-  const chatContainerRef = useRef(null)
-
-  // ============================================
-  // CHARGEMENT DES DONNÉES
-  // ============================================
+  // === DATA LOADING ===
+  useEffect(() => { loadData() }, [matchId])
+  
   useEffect(() => {
-    loadData()
-    const channel = supabase
-      .channel(`match-${matchId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_messages', filter: `match_id=eq.${matchId}` }, loadMessages)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_participants', filter: `match_id=eq.${matchId}` }, loadData)
+    const channel = supabase.channel(`match-${matchId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_messages', filter: `match_id=eq.${matchId}` }, () => loadMessages())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_participants', filter: `match_id=eq.${matchId}` }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_invites', filter: `match_id=eq.${matchId}` }, () => loadData())
       .subscribe()
-    return () => supabase.removeChannel(channel)
+    return () => { supabase.removeChannel(channel) }
   }, [matchId])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   async function loadData() {
     try {
@@ -395,157 +95,124 @@ export default function MatchPage() {
       if (!session) { router.push('/auth'); return }
       setUser(session.user)
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
       setProfile(profileData)
 
-      const { data: matchData } = await supabase
-        .from('matches')
-        .select(`*, clubs (id, name, address), profiles!matches_organizer_id_fkey (id, name, level, position, avatar_url, phone)`)
-        .eq('id', matchId)
-        .single()
-
+      const { data: matchData } = await supabase.from('matches').select(`*, clubs (id, name, address, city), profiles!matches_organizer_id_fkey (id, name, level, position, avatar_url, phone)`).eq('id', matchId).single()
       if (!matchData) { router.push('/dashboard/parties'); return }
       setMatch(matchData)
 
-      const { data: participantsData } = await supabase
-        .from('match_participants')
-        .select(`*, profiles!match_participants_user_id_fkey (id, name, level, position, avatar_url)`)
-        .eq('match_id', matchId)
-        .in('status', ['confirmed', 'pending'])
+      const { data: participantsData } = await supabase.from('match_participants').select(`*, profiles!match_participants_user_id_fkey (id, name, level, position, avatar_url)`).eq('match_id', matchId).in('status', ['confirmed', 'pending'])
       setParticipants(participantsData || [])
 
-      // Charger les invités en attente (visible par tous pour l'affichage)
-      const { data: invitesData } = await supabase
-        .from('pending_invites')
-        .select('*')
-        .eq('match_id', matchId)
-        .eq('status', 'pending')
-      setPendingInvites(invitesData || [])
+      const { data: invitesData } = await supabase.from('pending_invites').select('*').eq('match_id', matchId).eq('status', 'pending')
+      const invitesWithAge = (invitesData || []).map(inv => {
+        const created = new Date(inv.created_at)
+        const now = new Date()
+        const daysSince = Math.floor((now - created) / (1000 * 60 * 60 * 24))
+        return { ...inv, daysSince }
+      })
+      setPendingInvites(invitesWithAge)
 
-      // Les demandes en attente ne sont visibles que par l'organisateur
       if (matchData.organizer_id === session.user.id) {
-        const { data: pendingData } = await supabase
-          .from('match_participants')
-          .select(`*, profiles!match_participants_user_id_fkey (id, name, level, position, avatar_url)`)
-          .eq('match_id', matchId)
-          .eq('status', 'pending')
+        const { data: pendingData } = await supabase.from('match_participants').select(`*, profiles!match_participants_user_id_fkey (id, name, level, position, avatar_url)`).eq('match_id', matchId).eq('status', 'pending')
         setPendingRequests(pendingData || [])
       }
 
       await loadMessages()
       setLoading(false)
-    } catch (error) {
-      console.error('Error:', error)
-      setLoading(false)
-    }
+    } catch (error) { console.error('Error:', error); setLoading(false) }
   }
 
   async function loadMessages() {
-    const { data } = await supabase
-      .from('match_messages')
-      .select(`*, profiles (id, name, avatar_url)`)
-      .eq('match_id', matchId)
-      .order('created_at', { ascending: true })
-      .limit(100)
+    const { data } = await supabase.from('match_messages').select(`*, profiles (id, name, avatar_url)`).eq('match_id', matchId).order('created_at', { ascending: true }).limit(100)
     setMessages(data || [])
   }
 
-  // ============================================
-  // HELPERS
-  // ============================================
+  // === HELPERS ===
   const isOrganizer = () => match?.organizer_id === user?.id
   const isParticipant = () => participants.some(p => p.user_id === user?.id && p.status === 'confirmed')
   const pricePerPerson = match?.price_total ? Math.round(match.price_total / 100 / 4) : 0
-  const priceTotal = match?.price_total ? Math.round(match.price_total / 100) : 0
-
   const confirmedParticipants = participants.filter(p => p.status === 'confirmed')
-  const pendingParticipants = participants.filter(p => p.status === 'pending')
-
-  function getPlayerCount() {
-    return confirmedParticipants.length + 1 + pendingInvites.length
+  
+  function getPlayerCount() { 
+    return confirmedParticipants.length + 1 + pendingInvites.length 
+  }
+  
+  function getSpotsLeft() { 
+    return Math.max(0, 4 - getPlayerCount()) 
   }
 
-  function getSpotsLeft() {
-    return Math.max(0, 4 - getPlayerCount())
-  }
-
-  function formatDate(dateStr) {
+  function formatDateFull(dateStr) {
     if (!dateStr) return 'Date à définir'
     return new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
   }
 
-  function formatDateShort(dateStr) {
-    if (!dateStr) return '—'
-    return new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
+  function formatDateParts(dateStr) {
+    if (!dateStr) return { day: '—', num: '?', month: '' }
+    const date = new Date(dateStr)
+    return {
+      day: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      num: date.getDate(),
+      month: date.toLocaleDateString('fr-FR', { month: 'short' })
+    }
   }
 
-  function formatTime(timeStr) {
-    if (!timeStr) return '--:--'
-    return timeStr.slice(0, 5)
+  function formatTime(timeStr) { 
+    return timeStr ? timeStr.slice(0, 5) : '--:--' 
   }
 
-  // Équipes
-  const orgaPlayer = {
-    isOrganizer: true,
-    profiles: match?.profiles,
-    team: match?.organizer_team || 'A',
-    status: 'confirmed',
-    user_id: match?.organizer_id
+  function getShareUrl() {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/join/${matchId}`
+    }
+    return ''
   }
 
-  const allPlayers = [
-    orgaPlayer,
-    ...confirmedParticipants,
-    ...pendingInvites.map(i => ({ ...i, isPendingInvite: true }))
-  ]
-
-  const teamA = allPlayers.filter(p => p.team === 'A')
-  const teamB = allPlayers.filter(p => p.team === 'B')
-
-  const ambianceConfig = {
-    loisir: { emoji: '😎', label: 'Détente' },
-    mix: { emoji: '⚡', label: 'Équilibré' },
-    compet: { emoji: '🏆', label: 'Compétitif' }
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(getShareUrl())
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
   }
-  const ambiance = ambianceConfig[match?.ambiance] || ambianceConfig.mix
 
-  // ============================================
-  // ACTIONS
-  // ============================================
+  function shareVia(platform) {
+    const url = getShareUrl()
+    const text = `Rejoins ma partie de padel ! ${formatDateFull(match?.match_date)} à ${formatTime(match?.match_time)}`
+    
+    const links = {
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`,
+      sms: `sms:?body=${encodeURIComponent(text + ' ' + url)}`,
+      email: `mailto:?subject=${encodeURIComponent('Partie de padel')}&body=${encodeURIComponent(text + '\n\n' + url)}`
+    }
+    
+    if (links[platform]) {
+      window.open(links[platform], '_blank')
+    }
+  }
+
+  // === ACTIONS ===
   async function sendMessage(e) {
     e.preventDefault()
     if (!newMessage.trim()) return
-
     const messageText = newMessage.trim()
-    const tempMessage = {
-      id: Date.now(),
-      match_id: parseInt(matchId),
-      user_id: user.id,
-      message: messageText,
-      created_at: new Date().toISOString(),
-      profiles: { id: user.id, name: profile?.name, avatar_url: profile?.avatar_url }
-    }
-    setMessages(prev => [...prev, tempMessage])
+    setMessages(prev => [...prev, { 
+      id: Date.now(), 
+      match_id: parseInt(matchId), 
+      user_id: user.id, 
+      message: messageText, 
+      created_at: new Date().toISOString(), 
+      profiles: { id: user.id, name: profile?.name, avatar_url: profile?.avatar_url } 
+    }])
     setNewMessage('')
-
-    await supabase.from('match_messages').insert({
-      match_id: parseInt(matchId),
-      user_id: user.id,
-      message: messageText
-    })
+    await supabase.from('match_messages').insert({ match_id: parseInt(matchId), user_id: user.id, message: messageText })
   }
 
   async function requestToJoin() {
-    await supabase.from('match_participants').insert({
-      match_id: parseInt(matchId),
-      user_id: user.id,
-      team: joinTeam,
-      status: 'pending'
-    })
+    await supabase.from('match_participants').insert({ match_id: parseInt(matchId), user_id: user.id, team: joinTeam, status: 'pending' })
     setModal(null)
     loadData()
   }
@@ -561,57 +228,225 @@ export default function MatchPage() {
   }
 
   async function cancelInvite(invite) {
-    if (!confirm(`Annuler l'invitation de ${invite.name || 'cet invité'} ?`)) return
     await supabase.from('pending_invites').delete().eq('id', invite.id)
     loadData()
   }
 
+  async function resendInvite(invite) {
+    // TODO: Implement resend logic (SMS/notification)
+    alert(`Invitation renvoyée à ${invite.invited_name || invite.invited_phone}`)
+  }
+
   async function leaveMatch() {
-    if (!confirm('Quitter cette partie ?')) return
-    await supabase.from('match_participants').delete().eq('match_id', matchId).eq('user_id', user.id)
+    await supabase.from('match_participants').delete().eq('match_id', parseInt(matchId)).eq('user_id', user.id)
+    setModal(null)
     loadData()
   }
 
   async function cancelMatch() {
-    if (!confirm('Annuler cette partie ? Cette action est irréversible.')) return
-    await supabase.from('matches').update({ status: 'cancelled' }).eq('id', matchId)
+    await supabase.from('matches').update({ status: 'cancelled' }).eq('id', parseInt(matchId))
+    setModal(null)
     router.push('/dashboard/parties')
   }
 
-  function copyLink() {
-    const url = `${window.location.origin}/join/${matchId}`
-    navigator.clipboard.writeText(url)
-    alert('Lien copié !')
+  // === PLAYERS DATA ===
+  const orgaPlayer = { 
+    isOrganizer: true, 
+    profiles: match?.profiles, 
+    team: match?.organizer_team || 'A', 
+    status: 'confirmed', 
+    user_id: match?.organizer_id 
   }
+  
+  const allPlayers = [
+    orgaPlayer, 
+    ...confirmedParticipants, 
+    ...pendingInvites.map(i => ({ ...i, isPendingInvite: true, profiles: { name: i.invited_name || 'Invité' } }))
+  ]
+  
+  const teamA = allPlayers.filter(p => p.team === 'A')
+  const teamB = allPlayers.filter(p => p.team === 'B')
+  const ambiance = AMBIANCE_CONFIG[match?.ambiance] || AMBIANCE_CONFIG.mix
 
-  function addToCalendar() {
-    if (!match?.match_date || !match?.match_time) return
-    const start = new Date(`${match.match_date}T${match.match_time}`)
-    const end = new Date(start.getTime() + 90 * 60000)
-    const title = `🎾 Padel - ${match.clubs?.name || match.city || 'Match'}`
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${start.toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${end.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`
-    window.open(url, '_blank')
-  }
+  const canJoin = !isOrganizer() && !isParticipant() && !participants.some(p => p.user_id === user?.id && p.status === 'pending') && getSpotsLeft() > 0 && match?.status === 'open'
+  const hasPendingActions = pendingRequests.length > 0 || pendingInvites.filter(i => i.daysSince >= 2).length > 0
 
-  const handlePlayerClick = (player) => {
-    if (player?.profiles || player?.name) {
-      setShowPlayerModal(player)
+  // === COMPONENTS ===
+  function Avatar({ player, size = 40, index = 0, onClick }) {
+    const bgColor = AVATAR_COLORS[index % 4]
+    const profile = player?.profiles || player
+    
+    if (!profile?.name) {
+      return (
+        <div style={{
+          width: size, height: size, borderRadius: '50%',
+          background: 'transparent',
+          border: '2px dashed rgba(255,255,255,0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: size * 0.5, color: 'rgba(255,255,255,0.4)',
+          flexShrink: 0
+        }}>+</div>
+      )
     }
+    
+    if (profile.avatar_url) {
+      return (
+        <img 
+          src={profile.avatar_url} 
+          alt={profile.name}
+          onClick={onClick}
+          style={{
+            width: size, height: size, borderRadius: '50%',
+            objectFit: 'cover',
+            border: `3px solid ${bgColor}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            cursor: onClick ? 'pointer' : 'default',
+            flexShrink: 0
+          }}
+        />
+      )
+    }
+    
+    return (
+      <div 
+        onClick={onClick}
+        style={{
+          width: size, height: size, borderRadius: '50%',
+          background: bgColor,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: size * 0.4, fontWeight: 700, color: JUNTO.white,
+          border: '3px solid rgba(255,255,255,0.2)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          cursor: onClick ? 'pointer' : 'default',
+          flexShrink: 0
+        }}
+      >
+        {profile.name[0].toUpperCase()}
+      </div>
+    )
   }
 
-  const handleEmptyClick = () => {
-    setShowShareModal(true)
+  function PlayerCard({ player, index = 0, onClickPlayer, onClickEmpty }) {
+    const isEmpty = !player
+    const isPendingInvite = player?.isPendingInvite
+    const profile = player?.profiles || player
+    const bgColor = AVATAR_COLORS[index % 4]
+    const position = POSITION_LABELS[profile?.position] || null
+
+    if (isEmpty) {
+      return (
+        <div 
+          onClick={onClickEmpty}
+          className="player-card-empty"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '2px dashed rgba(255,255,255,0.2)',
+            borderRadius: 16,
+            padding: '20px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            cursor: onClickEmpty ? 'pointer' : 'default',
+            transition: `all 0.3s ${SPRING}`
+          }}
+        >
+          <div style={{
+            width: 52, height: 52, borderRadius: '50%',
+            border: '2px dashed rgba(255,255,255,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 24, color: 'rgba(255,255,255,0.4)'
+          }}>+</div>
+          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Place libre</span>
+        </div>
+      )
+    }
+
+    if (isPendingInvite) {
+      return (
+        <div style={{
+          background: 'rgba(255, 180, 0, 0.1)',
+          border: '2px dashed rgba(255, 180, 0, 0.5)',
+          borderRadius: 16,
+          padding: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14
+        }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: '50%',
+            background: 'rgba(255, 180, 0, 0.2)',
+            border: `2px dashed ${JUNTO.amber}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20, fontWeight: 700, color: JUNTO.amber
+          }}>
+            {profile?.name?.[0]?.toUpperCase() || '?'}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: JUNTO.white }}>
+              {profile?.name?.split(' ')[0] || 'Invité'}
+            </div>
+            <div style={{ fontSize: 12, color: JUNTO.amber, marginTop: 4, fontWeight: 600 }}>
+              ⏳ Invitation envoyée
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div 
+        onClick={() => onClickPlayer?.(profile)}
+        className="player-card"
+        style={{
+          background: 'rgba(255,255,255,0.08)',
+          border: '2px solid rgba(255,255,255,0.15)',
+          borderRadius: 16,
+          padding: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          cursor: onClickPlayer ? 'pointer' : 'default',
+          transition: `all 0.3s ${SPRING}`
+        }}
+      >
+        <Avatar player={player} size={52} index={index} />
+        <div style={{ flex: 1 }}>
+          <div style={{ 
+            fontSize: 15, fontWeight: 600, color: JUNTO.white,
+            display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            {profile?.name?.split(' ')[0]}
+            {player.isOrganizer && (
+              <span style={{
+                background: JUNTO.amber, color: JUNTO.ink,
+                fontSize: 9, padding: '2px 6px', borderRadius: 4, fontWeight: 700
+              }}>👑 ORGA</span>
+            )}
+          </div>
+          <div style={{ 
+            fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4,
+            display: 'flex', gap: 10
+          }}>
+            <span>⭐ Niv. {profile?.level || '?'}</span>
+            {position && <span>{position.icon} {position.label}</span>}
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
+  // === LOADING ===
   if (loading) {
     return (
       <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', color: COLORS.textMuted }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
-          <div>Chargement...</div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+            {AVATAR_COLORS.map((c, i) => (
+              <div key={i} className="junto-loading-dot" style={{ width: 14, height: 14, borderRadius: '50%', background: c }} />
+            ))}
+          </div>
+          <div style={{ color: JUNTO.gray }}>Chargement...</div>
         </div>
       </div>
     )
@@ -621,486 +456,879 @@ export default function MatchPage() {
     return (
       <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>❌</div>
-          <div style={{ color: COLORS.textMuted, marginBottom: 16 }}>Partie introuvable</div>
-          <Link href="/dashboard/parties" style={{ color: COLORS.accent }}>← Retour aux parties</Link>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 16, opacity: 0.4 }}>
+            {AVATAR_COLORS.map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
+          </div>
+          <div style={{ color: JUNTO.gray, marginBottom: 16 }}>Partie introuvable</div>
+          <Link href="/dashboard/parties" style={{ color: JUNTO.coral, fontWeight: 600 }}>← Retour aux parties</Link>
         </div>
       </div>
     )
   }
 
-  const isMatchPast = match.match_date && match.match_time && new Date(`${match.match_date}T${match.match_time}`) < new Date()
-  const canJoin = !isOrganizer() && !isParticipant() && !pendingParticipants.some(p => p.user_id === user?.id) && getSpotsLeft() > 0 && match.status === 'open'
+  const dateParts = formatDateParts(match.match_date)
 
+  // === RENDER ===
   return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: '#f8fafc', minHeight: '100vh', padding: '16px' }}>
+    <div style={{ fontFamily: "'Satoshi', sans-serif", background: JUNTO.bg, minHeight: '100vh', padding: '16px' }}>
       <div className="page-container">
         
-        {/* ============================================ */}
-        {/* COLONNE PRINCIPALE                          */}
-        {/* ============================================ */}
-        <div className="main-column">
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <Link href="/dashboard/parties" style={{ fontSize: 14, color: JUNTO.gray, textDecoration: 'none', fontWeight: 500 }}>
+            ← Retour aux parties
+          </Link>
+          {(() => {
+            const spots = getSpotsLeft()
+            if (match.status === 'cancelled') return <span style={{ background: JUNTO.coralSoft, color: JUNTO.coral, padding: '6px 14px', borderRadius: 100, fontSize: 12, fontWeight: 700 }}>❌ Annulée</span>
+            if (match.status === 'completed') return <span style={{ background: JUNTO.tealSoft, color: JUNTO.teal, padding: '6px 14px', borderRadius: 100, fontSize: 12, fontWeight: 700 }}>✅ Terminée</span>
+            if (spots === 0) return <span style={{ background: JUNTO.bgSoft, color: JUNTO.gray, padding: '6px 14px', borderRadius: 100, fontSize: 12, fontWeight: 700 }}>✅ Complet</span>
+            return <span style={{ background: JUNTO.tealSoft, color: JUNTO.teal, padding: '6px 14px', borderRadius: 100, fontSize: 12, fontWeight: 700 }}>🎾 {spots} place{spots > 1 ? 's' : ''}</span>
+          })()}
+        </div>
+
+        <div className="page-layout">
           
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Link href="/dashboard/parties" style={{ fontSize: 14, color: '#64748b', textDecoration: 'none' }}>← Retour</Link>
-            {(() => {
-              const invitedCount = pendingInvites.length
-              const freeSpots = getSpotsLeft()
-              const availableSpots = freeSpots + invitedCount
-              
-              if (match.status === 'cancelled') {
-                return <span style={{ background: '#fee2e2', color: '#dc2626', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>❌ Annulée</span>
-              }
-              if (match.status === 'completed') {
-                return <span style={{ background: '#f0fdf4', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>✅ Terminée</span>
-              }
-              if (availableSpots === 0) {
-                return <span style={{ background: '#f1f5f9', color: '#64748b', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>✅ Complet</span>
-              }
-              if (invitedCount > 0) {
-                return <span style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>🎾 {availableSpots} place{availableSpots > 1 ? 's' : ''} <span style={{ opacity: 0.7 }}>(⏳{invitedCount})</span></span>
-              }
-              return <span style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>🎾 {freeSpots} place{freeSpots > 1 ? 's' : ''}</span>
-            })()}
-          </div>
-
-          {/* Demandes en attente (organisateur) */}
-          {isOrganizer() && pendingRequests.length > 0 && (
-            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 12 }}>📬 Demandes en attente ({pendingRequests.length})</div>
-              {pendingRequests.map(req => (
-                <div key={req.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, background: '#fff', borderRadius: 8, marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Avatar name={req.profiles?.name} size={36} avatarUrl={req.profiles?.avatar_url} />
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{req.profiles?.name}</div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>Niveau {req.profiles?.level} · Équipe {req.team}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => acceptRequest(req)} style={{ padding: '6px 12px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>✓ Accepter</button>
-                    <button onClick={() => refuseRequest(req)} style={{ padding: '6px 12px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Invités en attente (organisateur) */}
-          {isOrganizer() && pendingInvites.length > 0 && (
-            <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 12 }}>⏳ Invités en attente ({pendingInvites.length})</div>
-              <p style={{ fontSize: 12, color: '#92400e', marginBottom: 12, opacity: 0.8 }}>Ces personnes ont été invitées mais n'ont pas encore confirmé sur l'app.</p>
-              {pendingInvites.map(invite => (
-                <div key={invite.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, background: '#fff', borderRadius: 8, marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ 
-                      width: 36, height: 36, borderRadius: '50%',
-                      border: '2px dashed rgba(251,191,36,0.6)',
-                      background: 'rgba(251,191,36,0.2)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 14, fontWeight: 600, color: '#f59e0b'
-                    }}>{invite.name ? invite.name[0].toUpperCase() : '?'}</div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{invite.name || 'Invité'}</div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>Équipe {invite.team} · {invite.phone || 'Pas de téléphone'}</div>
-                    </div>
-                  </div>
-                  <button onClick={() => cancelInvite(invite)} style={{ padding: '6px 12px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕ Libérer</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ============================================ */}
-          {/* CARTE TERRAIN                               */}
-          {/* ============================================ */}
-          <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', border: '1px solid #e5e7eb', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', marginBottom: 20 }}>
+          {/* === COLONNE PRINCIPALE === */}
+          <main className="main-column">
             
-            {/* Header date/heure/lieu */}
-            <div style={{ background: DARK_GRADIENT, padding: '20px', color: '#fff' }}>
-              <div className="match-header">
-                <div style={{ textAlign: 'center', flex: 1 }}>
-                  <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 2 }}>📅</div>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{formatDateShort(match.match_date)}</div>
-                </div>
-                <div style={{ textAlign: 'center', flex: 1 }}>
-                  <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>{formatTime(match.match_time)}</div>
-                </div>
-                <div style={{ textAlign: 'center', flex: 1 }}>
-                  <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 2 }}>📍</div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{match.clubs?.name || match.city || 'Lieu TBD'}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Terrain */}
-            <div style={{ background: COURT_GRADIENT, padding: '20px 16px', position: 'relative' }}>
-              {/* Branding */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-                <div style={{ background: 'rgba(0,0,0,0.4)', padding: '8px 20px', borderRadius: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>🎾</span>
-                  <span style={{ color: '#fff', fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>PADEL MATCH</span>
-                </div>
-              </div>
-
-              {/* Container terrain */}
-              <div style={{ position: 'relative', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '20px 12px' }}>
-                {/* Ligne filet */}
-                <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 2, background: 'rgba(255,255,255,0.4)', transform: 'translateX(-50%)' }} />
-
-                {/* Équipes */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, position: 'relative', zIndex: 1 }}>
-                  
-                  {/* Équipe A */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                    <div style={{ background: 'rgba(59,130,246,0.3)', padding: '6px 14px', borderRadius: 6, border: '1px solid rgba(59,130,246,0.5)' }}>
-                      <span style={{ color: '#93c5fd', fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>ÉQUIPE A</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', alignItems: 'center' }}>
-                      {[0, 1].map(i => (
-                        <PlayerCard key={i} player={teamA[i]} position={i === 0 ? 'Droite' : 'Gauche'} onClickPlayer={handlePlayerClick} onClickEmpty={handleEmptyClick} />
-                      ))}
-                    </div>
+            {/* ======================== */}
+            {/* CARTE MATCH JUNTO */}
+            {/* ======================== */}
+            <div style={{ 
+              background: JUNTO.white, 
+              borderRadius: 24, 
+              border: `2px solid ${JUNTO.border}`,
+              overflow: 'hidden',
+              marginBottom: 24
+            }}>
+              
+              {/* Header: Date + Heure + Lieu */}
+              <div style={{
+                background: JUNTO.ink,
+                padding: '20px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: JUNTO.white,
+                flexWrap: 'wrap',
+                gap: 16
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1 }}>{dateParts.day}</div>
+                    <div style={{ fontSize: 28, fontWeight: 900, lineHeight: 1 }}>{dateParts.num}</div>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>{dateParts.month}</div>
                   </div>
-
-                  {/* Équipe B */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                    <div style={{ background: 'rgba(249,115,22,0.3)', padding: '6px 14px', borderRadius: 6, border: '1px solid rgba(249,115,22,0.5)' }}>
-                      <span style={{ color: '#fdba74', fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>ÉQUIPE B</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', alignItems: 'center' }}>
-                      {[0, 1].map(i => (
-                        <PlayerCard key={i} player={teamB[i]} position={i === 0 ? 'Droite' : 'Gauche'} onClickPlayer={handlePlayerClick} onClickEmpty={handleEmptyClick} />
-                      ))}
-                    </div>
-                  </div>
+                  <div style={{ fontSize: 42, fontWeight: 900, letterSpacing: -2 }}>{formatTime(match.match_time)}</div>
                 </div>
-
-                {/* VS */}
-                <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
-                  <div style={{ background: 'rgba(0,0,0,0.5)', padding: '10px 18px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.2)' }}>
-                    <span style={{ color: '#fff', fontWeight: 800, fontSize: 14 }}>VS</span>
-                  </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 4 }}>📍</div>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>{match.clubs?.name || match.city || 'Lieu à définir'}</div>
+                  {match.clubs?.address && <div style={{ fontSize: 12, opacity: 0.6 }}>{match.clubs.address}</div>}
                 </div>
               </div>
 
-              {/* Badges */}
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-                <span style={{ background: 'rgba(255,255,255,0.15)', padding: '6px 12px', borderRadius: 6, fontSize: 12, color: '#fff' }}>⭐ {match.level_min || '?'}-{match.level_max || '?'}</span>
-                <span style={{ background: 'rgba(255,255,255,0.15)', padding: '6px 12px', borderRadius: 6, fontSize: 12, color: '#fff' }}>{ambiance.emoji} {ambiance.label}</span>
-                {pricePerPerson > 0 && <span style={{ background: 'rgba(255,255,255,0.15)', padding: '6px 12px', borderRadius: 6, fontSize: 12, color: '#fff' }}>💰 {pricePerPerson}€/pers</span>}
-              </div>
-            </div>
-
-            {/* Footer CTA */}
-            <div style={{ padding: '16px 20px', background: '#fff', display: 'flex', justifyContent: 'center' }}>
-              {getSpotsLeft() > 0 && match.status === 'open' && (
-                <button onClick={() => setShowShareModal(true)} style={{
-                  padding: '14px 28px', background: GREEN_GRADIENT, color: '#fff',
-                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(34,197,94,0.3)', display: 'flex', alignItems: 'center', gap: 8,
-                  width: '100%', maxWidth: 320, justifyContent: 'center'
+              {/* Zone Terrain */}
+              <div style={{
+                background: `linear-gradient(180deg, ${JUNTO.slate} 0%, #2a3a48 100%)`,
+                padding: '28px 20px'
+              }}>
+                
+                {/* Terrain */}
+                <div style={{
+                  border: '2px solid rgba(255,255,255,0.2)',
+                  borderRadius: 16,
+                  padding: '28px 16px',
+                  position: 'relative',
+                  background: 'rgba(0,0,0,0.15)'
                 }}>
-                  📤 Partager pour compléter l'équipe
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Chat */}
-          <div style={{ background: '#fff', borderRadius: 14, padding: '16px', border: '1px solid #e5e7eb', marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: DARK }}>💬 Discussion</h3>
-              <span style={{ fontSize: 12, color: '#64748b' }}>{messages.length} message{messages.length > 1 ? 's' : ''}</span>
-            </div>
-
-            <div ref={chatContainerRef} style={{ maxHeight: 280, overflowY: 'auto', marginBottom: 14 }}>
-              {messages.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#64748b', padding: 32 }}>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>💬</div>
-                  <div style={{ fontSize: 13 }}>Aucun message. Soyez le premier !</div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {messages.map(m => (
-                    <div key={m.id} style={{ display: 'flex', gap: 10 }}>
-                      <Avatar name={m.profiles?.name || 'U'} size={32} avatarUrl={m.profiles?.avatar_url} />
-                      <div style={{ flex: 1, background: '#f8fafc', padding: '10px 12px', borderRadius: 10 }}>
-                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{m.profiles?.name || 'Utilisateur'} · {new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-                        <div style={{ fontSize: 13, color: DARK }}>{m.message}</div>
+                  {/* Filet central */}
+                  <div style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: 24,
+                    bottom: 24,
+                    width: 2,
+                    background: 'rgba(255,255,255,0.25)',
+                    transform: 'translateX(-50%)'
+                  }} />
+                  
+                  <div className="teams-grid">
+                    {/* Équipe A */}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{
+                        display: 'inline-block',
+                        fontSize: 11, fontWeight: 700, letterSpacing: 1,
+                        padding: '5px 16px', borderRadius: 100,
+                        background: 'rgba(255, 90, 95, 0.25)',
+                        color: JUNTO.coral,
+                        marginBottom: 18
+                      }}>ÉQUIPE A</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {[0, 1].map(i => (
+                          <PlayerCard 
+                            key={`a-${i}`}
+                            player={teamA[i]} 
+                            index={i}
+                            onClickPlayer={p => setSelectedPlayer(p)}
+                            onClickEmpty={isOrganizer() ? () => setModal('invite') : null}
+                          />
+                        ))}
                       </div>
                     </div>
-                  ))}
-                  <div ref={messagesEndRef} />
+                    
+                    {/* Équipe B */}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{
+                        display: 'inline-block',
+                        fontSize: 11, fontWeight: 700, letterSpacing: 1,
+                        padding: '5px 16px', borderRadius: 100,
+                        background: 'rgba(255, 180, 0, 0.25)',
+                        color: JUNTO.amber,
+                        marginBottom: 18
+                      }}>ÉQUIPE B</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {[0, 1].map(i => (
+                          <PlayerCard 
+                            key={`b-${i}`}
+                            player={teamB[i]} 
+                            index={i + 2}
+                            onClickPlayer={p => setSelectedPlayer(p)}
+                            onClickEmpty={isOrganizer() ? () => setModal('invite') : null}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Badges infos */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  gap: 10, 
+                  marginTop: 24,
+                  flexWrap: 'wrap'
+                }}>
+                  <span style={{ background: 'rgba(255,255,255,0.1)', padding: '10px 18px', borderRadius: 100, fontSize: 13, color: 'rgba(255,255,255,0.9)' }}>
+                    ⭐ Niveau {match.level_min || '?'}-{match.level_max || '?'}
+                  </span>
+                  <span style={{ background: `${ambiance.color}30`, padding: '10px 18px', borderRadius: 100, fontSize: 13, color: ambiance.color }}>
+                    {ambiance.emoji} {ambiance.label}
+                  </span>
+                  {pricePerPerson > 0 && (
+                    <span style={{ background: 'rgba(255,255,255,0.1)', padding: '10px 18px', borderRadius: 100, fontSize: 13, color: 'rgba(255,255,255,0.9)' }}>
+                      💰 {pricePerPerson}€/pers
+                    </span>
+                  )}
+                </div>
+
+                {/* Logo Junto */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '10px 22px',
+                    borderRadius: 100
+                  }}>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: JUNTO.white, letterSpacing: -0.5 }}>junto</span>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      {AVATAR_COLORS.map((c, i) => (
+                        <div key={i} className="junto-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bouton Inviter */}
+              <div style={{ background: JUNTO.ink, padding: '16px 24px', display: 'flex', justifyContent: 'center' }}>
+                <button 
+                  onClick={() => setModal('share')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    background: JUNTO.teal,
+                    color: JUNTO.white,
+                    padding: '14px 28px',
+                    borderRadius: 100,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: `0 4px 16px ${JUNTO.tealGlow}`
+                  }}
+                >
+                  <span>📤</span> Inviter des joueurs
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={sendMessage} style={{ display: 'flex', gap: 8 }}>
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Écrire un message..."
-                style={{ flex: 1, padding: '12px 14px', border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 14, outline: 'none' }}
-              />
-              <button type="submit" style={{ padding: '12px 18px', background: DARK, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>→</button>
-            </form>
-          </div>
+            {/* Bouton Rejoindre (si visiteur) */}
+            {canJoin && (
+              <button 
+                onClick={() => setModal('join')}
+                style={{
+                  width: '100%',
+                  padding: 18,
+                  background: JUNTO.coral,
+                  color: JUNTO.white,
+                  border: 'none',
+                  borderRadius: 100,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  marginBottom: 24,
+                  boxShadow: `0 8px 24px ${JUNTO.coralGlow}`
+                }}
+              >
+                🎾 Rejoindre cette partie
+              </button>
+            )}
 
-          {/* Paiements */}
-          {pricePerPerson > 0 && (
-            <div style={{ background: '#fff', borderRadius: 14, padding: '16px', border: '1px solid #e5e7eb' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: DARK }}>💳 Paiements</h3>
-              </div>
+            {/* ======================== */}
+            {/* ACTIONS EN ATTENTE */}
+            {/* ======================== */}
+            {isOrganizer() && hasPendingActions && (
+              <div style={{
+                background: JUNTO.coralSoft,
+                border: `2px solid ${JUNTO.coral}`,
+                borderRadius: 20,
+                padding: 22,
+                marginBottom: 24
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 10, 
+                  marginBottom: 18 
+                }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: JUNTO.ink }}>
+                    🔔 Actions en attente
+                  </h3>
+                  <span style={{
+                    background: JUNTO.coral, color: JUNTO.white,
+                    width: 24, height: 24, borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700
+                  }}>
+                    {pendingRequests.length + pendingInvites.filter(i => i.daysSince >= 2).length}
+                  </span>
+                </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-around', padding: 14, background: '#f8fafc', borderRadius: 10, marginBottom: 14 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: DARK }}>{priceTotal}€</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Total</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: DARK }}>{pricePerPerson}€</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>/ personne</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#22c55e' }}>{allPlayers.length * pricePerPerson}€</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>à collecter</div>
-                </div>
-              </div>
+                {/* Demandes de joueurs */}
+                {pendingRequests.map((req, i) => (
+                  <div key={req.id} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    background: JUNTO.white,
+                    padding: '14px 16px',
+                    borderRadius: 14,
+                    marginBottom: 12
+                  }}>
+                    <Avatar player={req} size={46} index={i} />
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ display: 'block', fontSize: 15, color: JUNTO.ink }}>
+                        {req.profiles?.name} veut rejoindre
+                      </strong>
+                      <span style={{ fontSize: 13, color: JUNTO.gray }}>
+                        Niveau {req.profiles?.level || '?'} · Équipe {req.team}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => acceptRequest(req)} style={{
+                        padding: '10px 18px', background: JUNTO.teal, color: JUNTO.white,
+                        border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600, cursor: 'pointer'
+                      }}>Accepter</button>
+                      <button onClick={() => refuseRequest(req)} style={{
+                        padding: '10px 16px', background: JUNTO.bgSoft, color: JUNTO.gray,
+                        border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600, cursor: 'pointer'
+                      }}>Refuser</button>
+                    </div>
+                  </div>
+                ))}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {allPlayers.map((player, idx) => {
-                  const p = player.profiles || player
-                  return (
-                    <div key={idx} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e5e7eb'
+                {/* Invitations sans réponse */}
+                {pendingInvites.filter(i => i.daysSince >= 2).map((inv) => (
+                  <div key={inv.id} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    background: JUNTO.white,
+                    padding: '14px 16px',
+                    borderRadius: 14,
+                    marginBottom: 12,
+                    borderLeft: `4px solid ${JUNTO.amber}`
+                  }}>
+                    <div style={{
+                      width: 46, height: 46, borderRadius: '50%',
+                      background: JUNTO.amber, color: JUNTO.ink,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 18, fontWeight: 700
                     }}>
-                      <div onClick={() => handlePlayerClick(player)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                        <Avatar name={p?.name} size={32} avatarUrl={p?.avatar_url} />
-                        <div>
-                          <div style={{ fontWeight: 600, color: DARK, fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {p?.name || 'Invité'}
-                            {player.isOrganizer && <span style={{ fontSize: 11 }}>👑</span>}
+                      {inv.invited_name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ display: 'block', fontSize: 15, color: JUNTO.ink }}>
+                        {inv.invited_name || inv.invited_phone || 'Invité'} n'a pas répondu
+                      </strong>
+                      <span style={{ fontSize: 13, color: JUNTO.amber, fontWeight: 500 }}>
+                        ⏳ Invité il y a {inv.daysSince} jours
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => resendInvite(inv)} style={{
+                        padding: '10px 16px', background: JUNTO.bgSoft, color: JUNTO.gray,
+                        border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600, cursor: 'pointer'
+                      }}>Relancer</button>
+                      <button onClick={() => cancelInvite(inv)} style={{
+                        padding: '10px 16px', background: JUNTO.bgSoft, color: JUNTO.gray,
+                        border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600, cursor: 'pointer'
+                      }}>Annuler</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ======================== */}
+            {/* CHAT JUNTO */}
+            {/* ======================== */}
+            {(isOrganizer() || isParticipant()) && (
+              <div style={{
+                display: 'flex',
+                background: JUNTO.white,
+                borderRadius: 20,
+                border: `2px solid ${JUNTO.border}`,
+                overflow: 'hidden',
+                marginBottom: 24
+              }}>
+                <div style={{ width: 5, background: JUNTO.slate, flexShrink: 0 }} />
+                <div style={{ flex: 1, padding: 22 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 18px', color: JUNTO.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    💬 Discussion
+                  </h3>
+                  
+                  <div style={{ maxHeight: 280, overflowY: 'auto', marginBottom: 18 }}>
+                    {messages.length === 0 ? (
+                      <div style={{ 
+                        textAlign: 'center', 
+                        padding: '40px 20px', 
+                        color: JUNTO.muted, 
+                        fontSize: 14,
+                        background: JUNTO.bgSoft,
+                        borderRadius: 12
+                      }}>
+                        Aucun message. Lancez la conversation !
+                      </div>
+                    ) : messages.map((msg, i) => (
+                      <div key={msg.id} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                        <Avatar player={msg} size={38} index={i % 4} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink }}>
+                            {msg.profiles?.name}
+                            <span style={{ fontWeight: 400, color: JUNTO.muted, fontSize: 12, marginLeft: 8 }}>
+                              {new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 14, color: JUNTO.dark, marginTop: 4, lineHeight: 1.5 }}>
+                            {msg.message}
                           </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontWeight: 600, color: DARK, fontSize: 14 }}>{pricePerPerson}€</span>
-                        <span style={{ background: '#f59e0b', color: '#fff', padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>En attente</span>
-                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                  
+                  <form onSubmit={sendMessage} style={{ display: 'flex', gap: 12 }}>
+                    <input 
+                      value={newMessage} 
+                      onChange={e => setNewMessage(e.target.value)} 
+                      placeholder="Écrire un message..."
+                      style={{
+                        flex: 1,
+                        padding: '14px 20px',
+                        border: `2px solid ${JUNTO.border}`,
+                        borderRadius: 100,
+                        fontSize: 14,
+                        fontFamily: "'Satoshi', sans-serif"
+                      }}
+                    />
+                    <button type="submit" style={{
+                      padding: '14px 26px',
+                      background: JUNTO.coral,
+                      color: JUNTO.white,
+                      border: 'none',
+                      borderRadius: 100,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}>Envoyer</button>
+                  </form>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* === SIDEBAR === */}
+          <aside className="sidebar">
+            
+            {/* Partager la partie */}
+            <div style={{
+              display: 'flex',
+              background: JUNTO.white,
+              borderRadius: 20,
+              border: `2px solid ${JUNTO.border}`,
+              overflow: 'hidden',
+              marginBottom: 20
+            }}>
+              <div style={{ width: 5, background: JUNTO.teal, flexShrink: 0 }} />
+              <div style={{ flex: 1, padding: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: JUNTO.ink, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  📤 Partager la partie
+                </div>
+                <button 
+                  onClick={copyShareLink}
+                  style={{
+                    width: '100%',
+                    padding: 16,
+                    background: JUNTO.teal,
+                    color: JUNTO.white,
+                    border: 'none',
+                    borderRadius: 14,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    marginBottom: 14
+                  }}
+                >
+                  {copied ? '✓ Copié !' : '🔗 Copier le lien'}
+                </button>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {[
+                    { icon: '💬', label: 'WhatsApp', action: () => shareVia('whatsapp') },
+                    { icon: '✉️', label: 'SMS', action: () => shareVia('sms') },
+                    { icon: '📧', label: 'Email', action: () => shareVia('email') },
+                    { icon: '📱', label: 'QR', action: () => setModal('qr') }
+                  ].map((opt, i) => (
+                    <div 
+                      key={i}
+                      onClick={opt.action}
+                      style={{
+                        padding: '12px 8px',
+                        background: JUNTO.bgSoft,
+                        border: `1px solid ${JUNTO.border}`,
+                        borderRadius: 12,
+                        textAlign: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ fontSize: 20 }}>{opt.icon}</div>
+                      <div style={{ fontSize: 10, color: JUNTO.gray, marginTop: 4 }}>{opt.label}</div>
                     </div>
-                  )
-                })}
-              </div>
-
-              <div style={{ marginTop: 12, padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: 12, color: '#0369a1', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>💡</span>
-                <span>Le suivi des paiements sera bientôt disponible</span>
+                  ))}
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Sidebar Mobile */}
-          <div className="sidebar-mobile">
-            <div style={{ background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #e5e7eb', marginTop: 20 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 12px', color: DARK }}>⚡ Actions</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button onClick={copyLink} style={{ padding: '12px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>📋 Copier lien</button>
-                <button onClick={addToCalendar} style={{ padding: '12px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>📅 Calendrier</button>
-                {isOrganizer() && (
-                  <>
-                    <Link href={`/dashboard/matches/edit/${matchId}`} style={{ padding: '12px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', color: 'inherit' }}>✏️ Modifier</Link>
-                    <button onClick={cancelMatch} style={{ padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#dc2626' }}>Annuler</button>
-                  </>
-                )}
-                {isParticipant() && !isOrganizer() && (
-                  <button onClick={leaveMatch} style={{ padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#dc2626', gridColumn: 'span 2' }}>Quitter la partie</button>
+            {/* Actions rapides */}
+            {(isOrganizer() || isParticipant()) && (
+              <div style={{
+                display: 'flex',
+                background: JUNTO.white,
+                borderRadius: 20,
+                border: `2px solid ${JUNTO.border}`,
+                overflow: 'hidden',
+                marginBottom: 20
+              }}>
+                <div style={{ width: 5, background: JUNTO.coral, flexShrink: 0 }} />
+                <div style={{ flex: 1, padding: 20 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: JUNTO.ink, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    ⚡ Actions rapides
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {isOrganizer() && (
+                      <Link href={`/dashboard/matches/create?edit=${matchId}`} style={{ textDecoration: 'none' }}>
+                        <div className="quick-action" style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '14px 16px', background: JUNTO.bgSoft, borderRadius: 12, cursor: 'pointer'
+                        }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 10, background: JUNTO.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>✏️</div>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: 14, color: JUNTO.ink }}>Modifier la partie</strong>
+                            <span style={{ fontSize: 12, color: JUNTO.gray }}>Date, lieu, niveau...</span>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                    {isOrganizer() && (
+                      <Link href={`/dashboard/joueurs?match=${matchId}`} style={{ textDecoration: 'none' }}>
+                        <div className="quick-action" style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '14px 16px', background: JUNTO.bgSoft, borderRadius: 12, cursor: 'pointer'
+                        }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 10, background: JUNTO.tealSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>👥</div>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: 14, color: JUNTO.ink }}>Inviter depuis mes contacts</strong>
+                            <span style={{ fontSize: 12, color: JUNTO.gray }}>Joueurs favoris, récents</span>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                    {match.clubs?.id && (
+                      <Link href={`/clubs/${match.clubs.id}`} style={{ textDecoration: 'none' }}>
+                        <div className="quick-action" style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '14px 16px', background: JUNTO.bgSoft, borderRadius: 12, cursor: 'pointer'
+                        }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 10, background: JUNTO.amberSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🗺️</div>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: 14, color: JUNTO.ink }}>Voir le club</strong>
+                            <span style={{ fontSize: 12, color: JUNTO.gray }}>Itinéraire, infos</span>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Organisateur */}
+            <div style={{
+              display: 'flex',
+              background: JUNTO.white,
+              borderRadius: 20,
+              border: `2px solid ${JUNTO.border}`,
+              overflow: 'hidden',
+              marginBottom: 20
+            }}>
+              <div style={{ width: 5, background: JUNTO.amber, flexShrink: 0 }} />
+              <div style={{ flex: 1, padding: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: JUNTO.ink, marginBottom: 16 }}>
+                  👑 Organisateur
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                  <Avatar player={{ profiles: match.profiles }} size={56} index={0} />
+                  <div>
+                    <strong style={{ display: 'block', fontSize: 16, color: JUNTO.ink }}>{match.profiles?.name}</strong>
+                    <span style={{ fontSize: 13, color: JUNTO.gray }}>Niveau {match.profiles?.level || '?'}</span>
+                  </div>
+                </div>
+                {!isOrganizer() && match.profiles?.phone && (
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <a href={`tel:${match.profiles.phone}`} style={{
+                      flex: 1, padding: 12, background: JUNTO.bgSoft, border: `1px solid ${JUNTO.border}`,
+                      borderRadius: 12, fontSize: 13, fontWeight: 600, color: JUNTO.gray, textAlign: 'center', textDecoration: 'none'
+                    }}>📱 Appeler</a>
+                    <a href={`sms:${match.profiles.phone}`} style={{
+                      flex: 1, padding: 12, background: JUNTO.bgSoft, border: `1px solid ${JUNTO.border}`,
+                      borderRadius: 12, fontSize: 13, fontWeight: 600, color: JUNTO.gray, textAlign: 'center', textDecoration: 'none'
+                    }}>💬 Message</a>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
+
+            {/* Zone Danger */}
+            {(isOrganizer() || isParticipant()) && (
+              <div style={{
+                display: 'flex',
+                background: JUNTO.white,
+                borderRadius: 20,
+                border: `2px solid ${JUNTO.coral}`,
+                overflow: 'hidden'
+              }}>
+                <div style={{ width: 5, background: JUNTO.coral, flexShrink: 0 }} />
+                <div style={{ flex: 1, padding: 20 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: JUNTO.coral, marginBottom: 16 }}>
+                    ⚠️ Zone danger
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {isOrganizer() && (
+                      <button onClick={() => setModal('cancel')} style={{
+                        padding: 14, background: JUNTO.coralSoft, color: JUNTO.coral,
+                        border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'center'
+                      }}>❌ Annuler la partie</button>
+                    )}
+                    {isParticipant() && !isOrganizer() && (
+                      <button onClick={() => setModal('leave')} style={{
+                        padding: 14, background: JUNTO.bgSoft, color: JUNTO.gray,
+                        border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'center'
+                      }}>🚪 Quitter la partie</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </aside>
         </div>
-
-        {/* ============================================ */}
-        {/* SIDEBAR DESKTOP                             */}
-        {/* ============================================ */}
-        <aside className="sidebar-desktop">
-          {getSpotsLeft() > 0 && match.status === 'open' && (
-            <div style={{ background: GREEN_GRADIENT, borderRadius: 14, padding: 18, color: '#fff', textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 24, marginBottom: 6 }}>📤</div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Il manque {getSpotsLeft()} joueur{getSpotsLeft() > 1 ? 's' : ''}</div>
-              <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 14 }}>Partage pour compléter</div>
-              <button onClick={() => setShowShareModal(true)} style={{ width: '100%', padding: '11px', background: '#fff', color: '#16a34a', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                Partager la partie
-              </button>
-            </div>
-          )}
-
-          <div style={{ background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #e5e7eb', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 12px', color: DARK }}>⚡ Actions rapides</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <button onClick={copyLink} style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>📋</span> Copier le lien
-              </button>
-              <button onClick={addToCalendar} style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>📅</span> Ajouter au calendrier
-              </button>
-              {isOrganizer() && (
-                <>
-                  <Link href={`/dashboard/matches/edit/${matchId}`} style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit' }}>
-                    <span>✏️</span> Modifier la partie
-                  </Link>
-                  <button onClick={() => setModal('result')} style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>🏆</span> Saisir le résultat
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div style={{ background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #e5e7eb', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 12px', color: DARK }}>👑 Organisateur</h3>
-            <div onClick={() => handlePlayerClick(orgaPlayer)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-              <Avatar name={match.profiles?.name} size={44} avatarUrl={match.profiles?.avatar_url} />
-              <div>
-                <div style={{ fontWeight: 600, color: DARK, fontSize: 14 }}>{match.profiles?.name || 'Organisateur'}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Niveau {match.profiles?.level || '?'}</div>
-              </div>
-            </div>
-          </div>
-
-          {isOrganizer() && (
-            <div style={{ background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #fecaca' }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 10px', color: '#dc2626' }}>⚠️ Zone danger</h3>
-              <button onClick={cancelMatch} style={{ width: '100%', padding: '10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12, color: '#dc2626', cursor: 'pointer' }}>
-                Annuler cette partie
-              </button>
-            </div>
-          )}
-
-          {isParticipant() && !isOrganizer() && (
-            <div style={{ background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #fecaca' }}>
-              <button onClick={leaveMatch} style={{ width: '100%', padding: '10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12, color: '#dc2626', cursor: 'pointer' }}>
-                Quitter cette partie
-              </button>
-            </div>
-          )}
-        </aside>
       </div>
 
-      {/* ============================================ */}
-      {/* CTA FIXE (pour rejoindre)                   */}
-      {/* ============================================ */}
-      {canJoin && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #e5e7eb', padding: 16, zIndex: 100 }}>
-          <div style={{ maxWidth: 600, margin: '0 auto' }}>
-            <button onClick={() => setModal('join')} style={{ width: '100%', padding: 16, background: GREEN_GRADIENT, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
-              🎾 Rejoindre cette partie
-            </button>
-          </div>
-        </div>
-      )}
+      {/* ======================== */}
+      {/* MODALS */}
+      {/* ======================== */}
 
-      {/* ============================================ */}
-      {/* MODAL PROFIL JOUEUR                         */}
-      {/* ============================================ */}
-      {showPlayerModal && (
-        <div onClick={() => setShowPlayerModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, maxWidth: 340, width: '100%', padding: 24, textAlign: 'center' }}>
-            {(() => {
-              const p = showPlayerModal.profiles || showPlayerModal
-              return (
-                <>
-                  <Avatar name={p?.name} size={72} avatarUrl={p?.avatar_url} />
-                  <h3 style={{ fontSize: 20, fontWeight: 700, margin: '16px 0 4px', color: DARK }}>
-                    {p?.name || 'Joueur'}
-                    {showPlayerModal.isOrganizer && <span style={{ marginLeft: 6 }}>👑</span>}
-                  </h3>
-                  <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 16px' }}>
-                    Niveau {p?.level || '?'} · {p?.position || 'Position ?'}
-                  </p>
-                  <button onClick={() => setShowPlayerModal(null)} style={{ width: '100%', padding: '12px', background: DARK, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                    Fermer
-                  </button>
-                </>
-              )
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* ============================================ */}
-      {/* MODAL PARTAGE                               */}
-      {/* ============================================ */}
-      {showShareModal && (
-        <div onClick={() => setShowShareModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, maxWidth: 480, width: '100%', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: DARK }}>📤 Partager</h3>
-                <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
-              </div>
-            </div>
-
-            <div style={{ padding: 20 }}>
-              <ShareCard match={match} allPlayers={allPlayers} spotsLeft={getSpotsLeft()} />
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16 }}>
-                <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Rejoins notre partie de padel ! ${window.location.origin}/join/${matchId}`)}`, '_blank') }} style={{ padding: '13px', background: '#25D366', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>WhatsApp</button>
-                <button onClick={() => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/join/${matchId}`)}`, '_blank') }} style={{ padding: '13px', background: '#1877F2', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Facebook</button>
-                <button onClick={() => { copyLink(); setShowShareModal(false) }} style={{ padding: '13px', background: '#f1f5f9', color: DARK, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>📋 Copier</button>
-                <button onClick={() => { window.open(`mailto:?subject=Partie de padel&body=${encodeURIComponent(`Rejoins notre partie ! ${window.location.origin}/join/${matchId}`)}`, '_blank') }} style={{ padding: '13px', background: '#f1f5f9', color: DARK, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>📧 Email</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================ */}
-      {/* MODAL REJOINDRE                             */}
-      {/* ============================================ */}
+      {/* Modal Rejoindre */}
       {modal === 'join' && (
-        <div onClick={() => setModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, maxWidth: 400, width: '100%', padding: 24 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 16px', color: DARK }}>🎾 Rejoindre la partie</h3>
-
-            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 16 }}>Dans quelle équipe souhaites-tu jouer ?</p>
-
-            <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-              <button onClick={() => setJoinTeam('A')} style={{ flex: 1, padding: 16, background: joinTeam === 'A' ? 'rgba(59,130,246,0.1)' : '#f8fafc', border: `2px solid ${joinTeam === 'A' ? '#3b82f6' : '#e5e7eb'}`, borderRadius: 12, cursor: 'pointer' }}>
-                <div style={{ fontWeight: 700, color: '#3b82f6', marginBottom: 4 }}>Équipe A</div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>{teamA.length}/2 joueurs</div>
-              </button>
-              <button onClick={() => setJoinTeam('B')} style={{ flex: 1, padding: 16, background: joinTeam === 'B' ? 'rgba(249,115,22,0.1)' : '#f8fafc', border: `2px solid ${joinTeam === 'B' ? '#f97316' : '#e5e7eb'}`, borderRadius: 12, cursor: 'pointer' }}>
-                <div style={{ fontWeight: 700, color: '#f97316', marginBottom: 4 }}>Équipe B</div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>{teamB.length}/2 joueurs</div>
-              </button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: JUNTO.white, borderRadius: 28, padding: 28, width: '100%', maxWidth: 380 }}>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 20px', color: JUNTO.ink, textAlign: 'center' }}>🎾 Rejoindre la partie</h3>
+            <p style={{ fontSize: 14, color: JUNTO.gray, marginBottom: 20, textAlign: 'center' }}>Choisis ton équipe préférée</p>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+              {['A', 'B'].map(team => (
+                <button key={team} onClick={() => setJoinTeam(team)} style={{
+                  flex: 1, padding: 18,
+                  background: joinTeam === team ? (team === 'A' ? JUNTO.coral : JUNTO.amber) : JUNTO.bgSoft,
+                  color: joinTeam === team ? JUNTO.white : JUNTO.gray,
+                  border: `2px solid ${joinTeam === team ? (team === 'A' ? JUNTO.coral : JUNTO.amber) : JUNTO.border}`,
+                  borderRadius: 16, fontSize: 16, fontWeight: 700, cursor: 'pointer'
+                }}>Équipe {team}</button>
+              ))}
             </div>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setModal(null)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>Annuler</button>
-              <button onClick={requestToJoin} style={{ flex: 1, padding: '12px', background: GREEN_GRADIENT, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Envoyer ma demande</button>
-            </div>
+            <button onClick={requestToJoin} style={{ width: '100%', padding: 18, background: JUNTO.teal, color: JUNTO.white, border: 'none', borderRadius: 100, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+              Envoyer ma demande
+            </button>
+            <button onClick={() => setModal(null)} style={{ width: '100%', marginTop: 12, background: 'none', border: 'none', color: JUNTO.muted, fontSize: 14, cursor: 'pointer' }}>Annuler</button>
           </div>
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* STYLES                                      */}
-      {/* ============================================ */}
-      <style>{`
-        .page-container { max-width: 1100px; margin: 0 auto; display: flex; gap: 24px; }
-        .main-column { flex: 1; min-width: 0; padding-bottom: ${canJoin ? '100px' : '24px'}; }
-        .sidebar-desktop { width: 280px; flex-shrink: 0; display: none; }
-        .sidebar-mobile { display: block; }
-        .match-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-        @media (min-width: 900px) { .sidebar-desktop { display: block; } .sidebar-mobile { display: none; } }
-        @media (max-width: 500px) { .match-header { flex-direction: column; gap: 8px; } .match-header > div { flex: none !important; } }
+      {/* Modal Partager */}
+      {modal === 'share' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: JUNTO.white, borderRadius: 28, padding: 28, width: '100%', maxWidth: 400 }}>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px', color: JUNTO.ink, textAlign: 'center' }}>📤 Inviter des joueurs</h3>
+            <p style={{ fontSize: 14, color: JUNTO.gray, marginBottom: 24, textAlign: 'center' }}>Partage ce lien pour inviter des joueurs</p>
+            
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+              <div style={{
+                flex: 1, padding: '14px 18px',
+                background: JUNTO.bgSoft, border: `1px solid ${JUNTO.border}`,
+                borderRadius: 12, fontSize: 13, color: JUNTO.gray,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+              }}>
+                {getShareUrl()}
+              </div>
+              <button onClick={copyShareLink} style={{
+                padding: '14px 20px', background: JUNTO.ink, color: JUNTO.white,
+                border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: 'pointer'
+              }}>
+                {copied ? '✓' : 'Copier'}
+              </button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+              {[
+                { icon: '💬', label: 'WhatsApp', color: '#25D366', action: () => shareVia('whatsapp') },
+                { icon: '✉️', label: 'SMS', color: JUNTO.teal, action: () => shareVia('sms') },
+                { icon: '📧', label: 'Email', color: JUNTO.slate, action: () => shareVia('email') }
+              ].map((opt, i) => (
+                <button key={i} onClick={opt.action} style={{
+                  padding: 16, background: JUNTO.bgSoft, border: `1px solid ${JUNTO.border}`,
+                  borderRadius: 14, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6
+                }}>
+                  <span style={{ fontSize: 28 }}>{opt.icon}</span>
+                  <span style={{ fontSize: 12, color: JUNTO.gray }}>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+            
+            {isOrganizer() && (
+              <Link href={`/dashboard/joueurs?match=${matchId}`} style={{
+                display: 'block', padding: 16, background: JUNTO.teal, color: JUNTO.white,
+                borderRadius: 100, fontSize: 15, fontWeight: 700, textDecoration: 'none', textAlign: 'center', marginBottom: 12
+              }}>
+                👥 Inviter depuis mes contacts
+              </Link>
+            )}
+            
+            <button onClick={() => setModal(null)} style={{ width: '100%', padding: 14, background: JUNTO.bgSoft, color: JUNTO.gray, border: 'none', borderRadius: 100, fontSize: 14, cursor: 'pointer' }}>Fermer</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Annuler */}
+      {modal === 'cancel' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: JUNTO.white, borderRadius: 28, padding: 28, width: '100%', maxWidth: 380, textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 12px', color: JUNTO.ink }}>Annuler cette partie ?</h3>
+            <p style={{ fontSize: 14, color: JUNTO.gray, marginBottom: 24 }}>Les participants seront notifiés de l'annulation.</p>
+            <button onClick={cancelMatch} style={{ width: '100%', padding: 16, background: JUNTO.coral, color: JUNTO.white, border: 'none', borderRadius: 100, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>Oui, annuler</button>
+            <button onClick={() => setModal(null)} style={{ width: '100%', padding: 14, background: JUNTO.bgSoft, color: JUNTO.gray, border: 'none', borderRadius: 100, fontSize: 14, cursor: 'pointer' }}>Non, garder</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Quitter */}
+      {modal === 'leave' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: JUNTO.white, borderRadius: 28, padding: 28, width: '100%', maxWidth: 380, textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>👋</div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 12px', color: JUNTO.ink }}>Quitter cette partie ?</h3>
+            <p style={{ fontSize: 14, color: JUNTO.gray, marginBottom: 24 }}>Ta place sera libérée pour un autre joueur.</p>
+            <button onClick={leaveMatch} style={{ width: '100%', padding: 16, background: JUNTO.coral, color: JUNTO.white, border: 'none', borderRadius: 100, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>Oui, quitter</button>
+            <button onClick={() => setModal(null)} style={{ width: '100%', padding: 14, background: JUNTO.bgSoft, color: JUNTO.gray, border: 'none', borderRadius: 100, fontSize: 14, cursor: 'pointer' }}>Non, rester</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Profil Joueur */}
+      {selectedPlayer && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setSelectedPlayer(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: JUNTO.white, borderRadius: 28, padding: 28, width: '100%', maxWidth: 340, textAlign: 'center' }}>
+            <Avatar player={{ profiles: selectedPlayer }} size={80} index={0} />
+            <h3 style={{ fontSize: 20, fontWeight: 700, margin: '16px 0 8px', color: JUNTO.ink }}>{selectedPlayer.name}</h3>
+            <div style={{ fontSize: 14, color: JUNTO.gray, marginBottom: 8 }}>⭐ Niveau {selectedPlayer.level || '?'}</div>
+            {selectedPlayer.position && (
+              <div style={{ fontSize: 13, color: JUNTO.muted, marginBottom: 20 }}>
+                {POSITION_LABELS[selectedPlayer.position]?.icon} {POSITION_LABELS[selectedPlayer.position]?.label}
+              </div>
+            )}
+            <Link href={`/player/${selectedPlayer.id}`} style={{ display: 'block', padding: 16, background: JUNTO.coral, color: JUNTO.white, borderRadius: 100, fontSize: 15, fontWeight: 700, textDecoration: 'none', marginBottom: 12 }}>Voir le profil</Link>
+            <button onClick={() => setSelectedPlayer(null)} style={{ width: '100%', padding: 14, background: JUNTO.bgSoft, color: JUNTO.gray, border: 'none', borderRadius: 100, fontSize: 14, cursor: 'pointer' }}>Fermer</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Invite (pour organisateur) */}
+      {modal === 'invite' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: JUNTO.white, borderRadius: 28, padding: 28, width: '100%', maxWidth: 400 }}>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 20px', color: JUNTO.ink, textAlign: 'center' }}>👥 Ajouter un joueur</h3>
+            
+            <Link href={`/dashboard/joueurs?match=${matchId}`} style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: 16, background: JUNTO.bgSoft, borderRadius: 14,
+              textDecoration: 'none', marginBottom: 12
+            }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: JUNTO.tealSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>⭐</div>
+              <div>
+                <strong style={{ display: 'block', fontSize: 15, color: JUNTO.ink }}>Mes joueurs favoris</strong>
+                <span style={{ fontSize: 13, color: JUNTO.gray }}>Invite tes partenaires habituels</span>
+              </div>
+            </Link>
+            
+            <button onClick={() => { setModal('share') }} style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+              padding: 16, background: JUNTO.bgSoft, borderRadius: 14,
+              border: 'none', cursor: 'pointer', marginBottom: 12, textAlign: 'left'
+            }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: JUNTO.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>📤</div>
+              <div>
+                <strong style={{ display: 'block', fontSize: 15, color: JUNTO.ink }}>Partager un lien</strong>
+                <span style={{ fontSize: 13, color: JUNTO.gray }}>WhatsApp, SMS, Email...</span>
+              </div>
+            </button>
+            
+            <button onClick={() => setModal(null)} style={{ width: '100%', padding: 14, background: 'none', border: 'none', color: JUNTO.muted, fontSize: 14, cursor: 'pointer', marginTop: 8 }}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @keyframes junto-breathe {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.3); opacity: 0.7; }
+        }
+        .junto-dot { animation: junto-breathe 3s ease-in-out infinite; }
+        .junto-dot:nth-child(1) { animation-delay: 0s; }
+        .junto-dot:nth-child(2) { animation-delay: 0.15s; }
+        .junto-dot:nth-child(3) { animation-delay: 0.3s; }
+        .junto-dot:nth-child(4) { animation-delay: 0.45s; }
+        
+        @keyframes junto-loading {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-12px); }
+        }
+        .junto-loading-dot { animation: junto-loading 1.4s ease-in-out infinite; }
+        .junto-loading-dot:nth-child(1) { animation-delay: 0s; }
+        .junto-loading-dot:nth-child(2) { animation-delay: 0.1s; }
+        .junto-loading-dot:nth-child(3) { animation-delay: 0.2s; }
+        .junto-loading-dot:nth-child(4) { animation-delay: 0.3s; }
+
+        .page-container {
+          max-width: 1100px;
+          margin: 0 auto;
+        }
+        
+        .page-layout {
+          display: grid;
+          grid-template-columns: 1fr 340px;
+          gap: 28px;
+          align-items: start;
+        }
+        
+        .main-column { min-width: 0; }
+        .sidebar { display: flex; flex-direction: column; }
+        
+        .teams-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 40px;
+        }
+        
+        .player-card:hover {
+          background: rgba(255,255,255,0.12) !important;
+          border-color: rgba(255,255,255,0.25) !important;
+        }
+        
+        .player-card-empty:hover {
+          background: rgba(255,255,255,0.06) !important;
+          border-color: rgba(255,255,255,0.3) !important;
+        }
+        
+        .quick-action:hover {
+          background: ${JUNTO.border} !important;
+        }
+        
+        input:focus {
+          border-color: ${JUNTO.coral} !important;
+          outline: none;
+        }
+        
+        /* MOBILE RESPONSIVE */
+        @media (max-width: 900px) {
+          .page-layout {
+            grid-template-columns: 1fr;
+          }
+          .sidebar {
+            order: 1;
+          }
+        }
+        
+        @media (max-width: 600px) {
+          .teams-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+          
+          .pending-item, .invite-item {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+          
+          .pending-actions {
+            width: 100%;
+            display: flex;
+            gap: 8px;
+          }
+          
+          .pending-actions button {
+            flex: 1;
+          }
+        }
       `}</style>
     </div>
   )
