@@ -2,15 +2,19 @@
 
 /**
  * ============================================
- * PAGE MA CARTE - Profil et partage
+ * PAGE MA CARTE - Version 2.0
  * ============================================
  * 
- * Sections:
- * - Carte visuelle du joueur (grande)
- * - Boutons de partage
- * - Stats
- * - Badges
- * - Paramètres
+ * Architecture :
+ * 1. HERO CARTE (above the fold) - effet wow, viralité
+ * 2. TABS: Stats / Badges / Parrainage
+ * 3. RÉGLAGES (toujours visibles en bas)
+ * 
+ * Objectifs :
+ * - Maximiser les partages (bouton ultra-visible)
+ * - Valoriser le joueur (badges, stats)
+ * - Pousser le parrainage (section dédiée)
+ * - Accès rapide aux paramètres
  * 
  * ============================================
  */
@@ -19,7 +23,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { COLORS, RADIUS, SHADOWS, getAvatarColor, AMBIANCE_CONFIG } from '@/app/lib/design-tokens'
+import { COLORS, RADIUS, SHADOWS, getAvatarColor, AMBIANCE_CONFIG, POSITION_CONFIG } from '@/app/lib/design-tokens'
 import { getBadgeById } from '@/app/lib/badges'
 
 export default function MaCartePage() {
@@ -29,6 +33,9 @@ export default function MaCartePage() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  
+  // Tabs
+  const [activeTab, setActiveTab] = useState('stats')
   
   // Actions
   const [showTournamentMode, setShowTournamentMode] = useState(false)
@@ -41,11 +48,14 @@ export default function MaCartePage() {
     wins: 0,
     losses: 0,
     winRate: 0,
-    organized: 0
+    organized: 0,
+    partners: 0,
+    favorites: 0
   })
   
   // Badges
   const [userBadges, setUserBadges] = useState([])
+  const [allBadgesCount, setAllBadgesCount] = useState(15)
 
   useEffect(() => {
     loadData()
@@ -101,12 +111,35 @@ export default function MaCartePage() {
       .select('id', { count: 'exact', head: true })
       .eq('organizer_id', session.user.id)
 
+    // Favoris
+    const { count: favoritesCount } = await supabase
+      .from('player_favorites')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', session.user.id)
+
+    // Partenaires uniques (joueurs avec qui on a joué)
+    let partnersCount = 0
+    if (participations?.length > 0) {
+      const matchIds = participations.map(p => p.match_id)
+      const { data: coPlayers } = await supabase
+        .from('match_participants')
+        .select('user_id')
+        .in('match_id', matchIds)
+        .neq('user_id', session.user.id)
+        .eq('status', 'confirmed')
+      
+      const uniquePartners = new Set((coPlayers || []).map(p => p.user_id))
+      partnersCount = uniquePartners.size
+    }
+
     setStats({
       matchesPlayed,
       wins,
       losses,
       winRate,
-      organized: organized || 0
+      organized: organized || 0,
+      partners: partnersCount,
+      favorites: favoritesCount || 0
     })
 
     // === BADGES ===
@@ -117,6 +150,14 @@ export default function MaCartePage() {
       .order('earned_at', { ascending: false })
 
     setUserBadges(badges || [])
+
+    // Total badges disponibles
+    const { count: totalBadges } = await supabase
+      .from('badge_definitions')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true)
+
+    setAllBadgesCount(totalBadges || 15)
 
     setLoading(false)
   }
@@ -195,18 +236,36 @@ export default function MaCartePage() {
     router.push('/auth')
   }
 
-  // === CONFIG ===
-  
-  const positionConfig = {
-    left: { emoji: '⬅️', label: 'Gauche' },
-    right: { emoji: '➡️', label: 'Droite' },
-    both: { emoji: '↔️', label: 'Polyvalent' }
+  // Lien de parrainage
+  const referralLink = typeof window !== 'undefined' 
+    ? `${window.location.origin}/join?ref=${user?.id?.slice(0, 8)}` 
+    : ''
+
+  async function shareReferral() {
+    const text = `🎾 Rejoins-moi sur PadelMatch, l'app pour organiser des parties de padel entre potes !
+
+👉 ${referralLink}`
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Rejoins PadelMatch !',
+          text: text,
+          url: referralLink
+        })
+        return
+      } catch (err) {}
+    }
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
+  // === CONFIG ===
+  
   const avatarColor = getAvatarColor(profile?.name)
   const badge = profile?.badge ? getBadgeById(profile.badge) : null
   const ambiance = AMBIANCE_CONFIG[profile?.ambiance] || AMBIANCE_CONFIG.mix
-  const position = positionConfig[profile?.position] || positionConfig.both
+  const position = POSITION_CONFIG[profile?.position] || POSITION_CONFIG.both
 
   // === RENDER ===
 
@@ -230,8 +289,9 @@ export default function MaCartePage() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+          background: '#000',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 9999,
@@ -244,93 +304,86 @@ export default function MaCartePage() {
           borderRadius: 24,
           padding: 32,
           width: '100%',
-          maxWidth: 350,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          maxWidth: 320,
           textAlign: 'center'
         }}>
           {/* Avatar grand */}
           <div style={{
-            width: 120,
-            height: 120,
-            borderRadius: '50%',
+            width: 100,
+            height: 100,
+            borderRadius: 20,
             background: profile?.avatar_url ? 'transparent' : avatarColor,
             margin: '0 auto 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 48,
+            fontSize: 42,
             fontWeight: 700,
             color: '#fff',
             border: '4px solid rgba(255,255,255,0.2)',
             overflow: 'hidden'
           }}>
             {profile?.avatar_url 
-              ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
               : profile?.name?.[0]?.toUpperCase()
             }
           </div>
 
           {/* Nom */}
-          <h1 style={{ 
-            fontSize: 28, 
-            fontWeight: 700, 
-            color: '#fff', 
-            margin: '0 0 8px'
-          }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#fff', margin: '0 0 24px' }}>
             {profile?.name}
           </h1>
 
-          {/* Niveau grand */}
+          {/* NIVEAU GÉANT */}
           <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '12px 24px',
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: 50,
-            marginBottom: 20
+            background: 'rgba(34, 197, 94, 0.15)',
+            border: '3px solid #22c55e',
+            borderRadius: 20,
+            padding: '24px 40px',
+            marginBottom: 24
           }}>
-            <span style={{ fontSize: 24 }}>⭐</span>
-            <span style={{ fontSize: 32, fontWeight: 700, color: '#fff' }}>
+            <div style={{ fontSize: 72, fontWeight: 900, color: '#4ade80', lineHeight: 1 }}>
               {profile?.level || '?'}
+            </div>
+            <div style={{ fontSize: 14, color: '#4ade80', marginTop: 8, fontWeight: 600, letterSpacing: 2 }}>
+              NIVEAU
+            </div>
+          </div>
+
+          {/* Position & Ambiance */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 20 }}>
+            <span style={{ background: 'rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: 10, color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>
+              {position.emoji} {position.label}
+            </span>
+            <span style={{ background: `${ambiance.color}30`, padding: '8px 16px', borderRadius: 10, color: ambiance.color, fontSize: 14 }}>
+              {ambiance.emoji} {ambiance.label}
             </span>
           </div>
 
-          {/* Infos */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            gap: 20,
-            color: 'rgba(255,255,255,0.7)',
-            fontSize: 16
-          }}>
-            <span>{position.emoji} {position.label}</span>
-            <span>{ambiance.emoji} {ambiance.label}</span>
-          </div>
-
-          {/* Badge */}
-          {badge && (
-            <div style={{
-              marginTop: 20,
-              padding: 12,
-              background: 'rgba(255,255,255,0.05)',
-              borderRadius: 12
-            }}>
-              <span style={{ fontSize: 28 }}>{badge.icon}</span>
-              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
-                {badge.name}
-              </div>
+          {/* Badges */}
+          {userBadges.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+              {userBadges.slice(0, 4).map(ub => {
+                const b = getBadgeById(ub.badge_id)
+                if (!b) return null
+                return (
+                  <div key={ub.badge_id} style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                    {b.icon || '🏅'}
+                  </div>
+                )
+              })}
             </div>
           )}
+        </div>
 
-          {/* Hint */}
-          <div style={{ 
-            marginTop: 24, 
-            fontSize: 13, 
-            color: 'rgba(255,255,255,0.4)' 
-          }}>
-            Touche pour fermer
-          </div>
+        {/* Logo */}
+        <div style={{ marginTop: 32, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>
+          🎾 PadelMatch
+        </div>
+
+        {/* Instruction */}
+        <div style={{ marginTop: 16, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
+          Tap pour fermer
         </div>
       </div>
     )
@@ -338,447 +391,566 @@ export default function MaCartePage() {
 
   // === PAGE NORMALE ===
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', padding: '0 16px 100px' }}>
+    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 100 }}>
       
-      {/* Header */}
-      <div style={{ padding: '20px 0' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>
-          🎴 Ma carte
-        </h1>
-      </div>
-
       {/* ============================================ */}
-      {/* CARTE PRINCIPALE                            */}
+      {/* HERO - CARTE GÉANTE                         */}
       {/* ============================================ */}
-      <div
-        ref={cardRef}
-        style={{
-          background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
-          borderRadius: RADIUS.xl,
-          padding: 24,
-          marginBottom: 16,
-          boxShadow: SHADOWS.lg
-        }}
-      >
-        {/* Header carte */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-          {/* Avatar */}
-          <div style={{
-            width: 80,
-            height: 80,
-            borderRadius: '50%',
-            background: profile?.avatar_url ? 'transparent' : avatarColor,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 32,
-            fontWeight: 700,
-            color: '#fff',
-            border: '3px solid rgba(255,255,255,0.2)',
-            overflow: 'hidden',
-            flexShrink: 0
-          }}>
-            {profile?.avatar_url 
-              ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : profile?.name?.[0]?.toUpperCase()
-            }
-          </div>
+      <div style={{
+        background: 'linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%)',
+        padding: '20px 16px 28px',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Pattern terrain subtil */}
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.03, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, background: '#fff', transform: 'translateX(-50%)' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 2, background: '#fff' }} />
+        </div>
 
-          {/* Infos */}
-          <div style={{ flex: 1 }}>
-            <h2 style={{ 
-              fontSize: 22, 
-              fontWeight: 700, 
-              color: '#fff', 
-              margin: '0 0 6px'
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, position: 'relative', zIndex: 1 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            🎴 Ma Carte
+          </h1>
+          <Link
+            href="/dashboard/profile/edit"
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              borderRadius: RADIUS.md,
+              padding: '8px 14px',
+              color: 'rgba(255,255,255,0.8)',
+              fontSize: 13,
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            ✏️ Modifier
+          </Link>
+        </div>
+
+        {/* Carte principale */}
+        <div
+          ref={cardRef}
+          style={{
+            background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
+            borderRadius: RADIUS.xl,
+            padding: 24,
+            position: 'relative',
+            zIndex: 1,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+          }}
+        >
+          {/* Avatar centré */}
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{
+              width: 100,
+              height: 100,
+              borderRadius: RADIUS.xl,
+              background: profile?.avatar_url ? 'transparent' : avatarColor,
+              margin: '0 auto 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 42,
+              fontWeight: 700,
+              color: '#fff',
+              border: '4px solid rgba(255,255,255,0.2)',
+              overflow: 'hidden'
             }}>
+              {profile?.avatar_url 
+                ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                : profile?.name?.[0]?.toUpperCase()
+              }
+            </div>
+            
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#fff', margin: '0 0 4px' }}>
               {profile?.name}
             </h2>
             
-            {/* Niveau */}
-            <div style={{
-              display: 'inline-flex',
+            {profile?.city && (
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>
+                📍 {profile.city} {profile?.signup_number && `· Membre #${profile.signup_number}`}
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ background: 'rgba(34,197,94,0.2)', color: '#4ade80', padding: '6px 14px', borderRadius: RADIUS.full, fontSize: 14, fontWeight: 700 }}>
+                ⭐ {profile?.level || '?'}
+              </span>
+              <span style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)', padding: '6px 14px', borderRadius: RADIUS.full, fontSize: 13 }}>
+                {position.emoji} {position.label}
+              </span>
+              <span style={{ background: `${ambiance.color}30`, color: ambiance.color, padding: '6px 14px', borderRadius: RADIUS.full, fontSize: 13 }}>
+                {ambiance.emoji} {ambiance.label}
+              </span>
+            </div>
+          </div>
+
+          {/* Badges mini (sur la carte) */}
+          {userBadges.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              {userBadges.slice(0, 4).map(ub => {
+                const b = getBadgeById(ub.badge_id)
+                return (
+                  <div key={ub.badge_id} style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                    {b?.icon || '🏅'}
+                  </div>
+                )
+              })}
+              {userBadges.length > 4 && (
+                <div style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                  +{userBadges.length - 4}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stats rapides */}
+          <div style={{ display: 'flex', justifyContent: 'space-around', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>{stats.matchesPlayed}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Parties</div>
+            </div>
+            <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#4ade80' }}>{stats.winRate}%</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Win rate</div>
+            </div>
+            <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#fbbf24' }}>{stats.favorites}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Favoris</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Boutons partage - TRÈS VISIBLES */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16, position: 'relative', zIndex: 1 }}>
+          <button
+            onClick={handleShare}
+            style={{
+              padding: 16,
+              background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDark})`,
+              border: 'none',
+              borderRadius: RADIUS.md,
+              fontSize: 15,
+              fontWeight: 700,
+              color: '#fff',
+              cursor: 'pointer',
+              display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
+              justifyContent: 'center',
+              gap: 8,
+              boxShadow: '0 4px 12px rgba(34,197,94,0.4)'
+            }}
+          >
+            📤 Partager
+          </button>
+          <button
+            onClick={() => setShowTournamentMode(true)}
+            style={{
+              padding: 16,
               background: 'rgba(255,255,255,0.1)',
-              borderRadius: 20,
-              marginBottom: 8
-            }}>
-              <span style={{ fontSize: 16 }}>⭐</span>
-              <span style={{ fontWeight: 700, color: '#fff' }}>
-                Niveau {profile?.level || '?'}
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: RADIUS.md,
+              fontSize: 15,
+              fontWeight: 600,
+              color: '#fff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8
+            }}
+          >
+            🏆 Mode Tournoi
+          </button>
+        </div>
+
+        {/* Actions secondaires */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 14, position: 'relative', zIndex: 1 }}>
+          <button
+            onClick={downloadCard}
+            disabled={downloading}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: 12,
+              cursor: downloading ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            {downloading ? '⏳' : '📷'} Télécharger
+          </button>
+          <button
+            onClick={copyLink}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: copied ? COLORS.accent : 'rgba(255,255,255,0.6)',
+              fontSize: 12,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            {copied ? '✓ Copié !' : '🔗 Copier lien'}
+          </button>
+        </div>
+      </div>
+
+      {/* ============================================ */}
+      {/* TABS                                        */}
+      {/* ============================================ */}
+      <div style={{ padding: '0 16px' }}>
+        <div style={{ display: 'flex', gap: 8, margin: '20px 0 16px', overflowX: 'auto' }}>
+          {[
+            { id: 'stats', label: '📊 Stats' },
+            { id: 'badges', label: '🏅 Badges', badge: `${userBadges.length}/${allBadgesCount}` },
+            { id: 'referral', label: '🎁 Parrainage' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: '10px 16px',
+                background: activeTab === tab.id ? COLORS.text : COLORS.card,
+                color: activeTab === tab.id ? '#fff' : COLORS.textMuted,
+                border: `1px solid ${activeTab === tab.id ? 'transparent' : COLORS.border}`,
+                borderRadius: RADIUS.md,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              {tab.label}
+              {tab.badge && (
+                <span style={{ 
+                  fontSize: 11, 
+                  opacity: 0.8,
+                  background: activeTab === tab.id ? 'rgba(255,255,255,0.2)' : COLORS.bg,
+                  padding: '2px 6px',
+                  borderRadius: 6
+                }}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ============================================ */}
+        {/* TAB: STATS                                  */}
+        {/* ============================================ */}
+        {activeTab === 'stats' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Historique de jeu */}
+            <div style={{ background: COLORS.card, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, margin: '0 0 12px' }}>🎾 Historique de jeu</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                {[
+                  { label: 'Parties', value: stats.matchesPlayed, color: COLORS.text },
+                  { label: 'Victoires', value: stats.wins, color: COLORS.accent },
+                  { label: 'Défaites', value: stats.losses, color: COLORS.danger },
+                  { label: 'Organisées', value: stats.organized, color: COLORS.info }
+                ].map(stat => (
+                  <div key={stat.label} style={{ textAlign: 'center', padding: 12, background: COLORS.bg, borderRadius: RADIUS.md }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                    <div style={{ fontSize: 10, color: COLORS.textMuted }}>{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Réseau */}
+            <div style={{ background: COLORS.card, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, margin: '0 0 12px' }}>👥 Mon réseau padel</h3>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1, textAlign: 'center', padding: 12, background: COLORS.warningLight, borderRadius: RADIUS.md }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.warning }}>{stats.favorites}</div>
+                  <div style={{ fontSize: 10, color: '#92400e' }}>⭐ Favoris</div>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center', padding: 12, background: COLORS.bg, borderRadius: RADIUS.md }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text }}>{stats.partners}</div>
+                  <div style={{ fontSize: 10, color: COLORS.textMuted }}>Partenaires</div>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center', padding: 12, background: COLORS.accentLight, borderRadius: RADIUS.md }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.accentDark }}>{profile?.referral_count || 0}</div>
+                  <div style={{ fontSize: 10, color: COLORS.accentDark }}>🎁 Parrainés</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================ */}
+        {/* TAB: BADGES                                 */}
+        {/* ============================================ */}
+        {activeTab === 'badges' && (
+          <div style={{ background: COLORS.card, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, margin: 0 }}>🏅 Ma collection</h3>
+              <span style={{ background: COLORS.accentLight, color: COLORS.accentDark, padding: '4px 10px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 600 }}>
+                {userBadges.length}/{allBadgesCount}
               </span>
             </div>
 
-            {/* Ville */}
-            {profile?.city && (
-              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>
-                📍 {profile.city}
-              </div>
-            )}
-          </div>
-        </div>
+            {userBadges.length > 0 ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                  {userBadges.slice(0, 8).map(ub => {
+                    const b = getBadgeById(ub.badge_id)
+                    return (
+                      <div key={ub.badge_id} style={{ textAlign: 'center', padding: 10, background: COLORS.accentLight, borderRadius: RADIUS.md }}>
+                        <div style={{ fontSize: 28, marginBottom: 4 }}>{b?.icon || '🏅'}</div>
+                        <div style={{ fontSize: 9, color: COLORS.accentDark, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {b?.name || 'Badge'}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
 
-        {/* Tags */}
-        <div style={{ 
-          display: 'flex', 
-          gap: 8, 
-          marginTop: 16,
-          flexWrap: 'wrap'
-        }}>
-          <div style={{
-            padding: '6px 12px',
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: 20,
-            fontSize: 13,
-            color: 'rgba(255,255,255,0.8)'
-          }}>
-            {position.emoji} {position.label}
-          </div>
-          <div style={{
-            padding: '6px 12px',
-            background: `${ambiance.color}30`,
-            borderRadius: 20,
-            fontSize: 13,
-            color: ambiance.color
-          }}>
-            {ambiance.emoji} {ambiance.label}
-          </div>
-        </div>
-
-        {/* Badges sur la carte */}
-        {userBadges.length > 0 && (
-          <div style={{ 
-            display: 'flex', 
-            gap: 8, 
-            marginTop: 16,
-            paddingTop: 16,
-            borderTop: '1px solid rgba(255,255,255,0.1)'
-          }}>
-            {userBadges.slice(0, 4).map(ub => {
-              const b = getBadgeById(ub.badge_id)
-              if (!b) return null
-              return (
-                <div
-                  key={ub.badge_id}
-                  title={b.name}
+                <Link
+                  href="/dashboard/me/badges"
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 18
+                    display: 'block',
+                    width: '100%',
+                    marginTop: 16,
+                    padding: 12,
+                    background: COLORS.bg,
+                    border: 'none',
+                    borderRadius: RADIUS.md,
+                    fontSize: 13,
+                    color: COLORS.text,
+                    textDecoration: 'none',
+                    textAlign: 'center',
+                    fontWeight: 500
                   }}
                 >
-                  {b.icon}
+                  Voir tous les badges →
+                </Link>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: 24, color: COLORS.textMuted }}>
+                <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>🏅</div>
+                <div style={{ fontSize: 14, marginBottom: 8 }}>Pas encore de badges</div>
+                <div style={{ fontSize: 12, color: COLORS.textLight }}>
+                  Joue des parties, invite des amis, et débloque des badges !
                 </div>
-              )
-            })}
-            {userBadges.length > 4 && (
-              <div style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                color: 'rgba(255,255,255,0.6)'
-              }}>
-                +{userBadges.length - 4}
               </div>
             )}
           </div>
         )}
-      </div>
 
-      {/* ============================================ */}
-      {/* BOUTONS DE PARTAGE                          */}
-      {/* ============================================ */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: 10, 
-        marginBottom: 24 
-      }}>
-        <button
-          onClick={handleShare}
-          style={{
-            padding: 14,
-            background: `linear-gradient(135deg, ${COLORS.accent}, #16a34a)`,
-            border: 'none',
-            borderRadius: RADIUS.md,
-            fontSize: 14,
-            fontWeight: 700,
-            color: '#fff',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8
-          }}
-        >
-          📤 Partager
-        </button>
-
-        <button
-          onClick={() => setShowTournamentMode(true)}
-          style={{
-            padding: 14,
-            background: COLORS.card,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: RADIUS.md,
-            fontSize: 14,
-            fontWeight: 600,
-            color: COLORS.text,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8
-          }}
-        >
-          🏆 Mode Tournoi
-        </button>
-
-        <button
-          onClick={copyLink}
-          style={{
-            padding: 14,
-            background: COLORS.card,
-            border: `1px solid ${copied ? COLORS.accent : COLORS.border}`,
-            borderRadius: RADIUS.md,
-            fontSize: 14,
-            fontWeight: 600,
-            color: copied ? COLORS.accent : COLORS.text,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8
-          }}
-        >
-          {copied ? '✓ Copié !' : '📋 Copier lien'}
-        </button>
-
-        <button
-          onClick={downloadCard}
-          disabled={downloading}
-          style={{
-            padding: 14,
-            background: COLORS.card,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: RADIUS.md,
-            fontSize: 14,
-            fontWeight: 600,
-            color: COLORS.text,
-            cursor: downloading ? 'not-allowed' : 'pointer',
-            opacity: downloading ? 0.7 : 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8
-          }}
-        >
-          {downloading ? '⏳...' : '📷 Image'}
-        </button>
-      </div>
-
-      {/* Modifier profil */}
-      <Link
-        href="/dashboard/profile/edit"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          padding: 14,
-          background: COLORS.bg,
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: RADIUS.md,
-          fontSize: 14,
-          fontWeight: 600,
-          color: COLORS.text,
-          textDecoration: 'none',
-          marginBottom: 32
-        }}
-      >
-        ✏️ Modifier mon profil
-      </Link>
-
-      {/* ============================================ */}
-      {/* STATISTIQUES                                */}
-      {/* ============================================ */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>
-          📊 Mes statistiques
-        </h2>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(3, 1fr)', 
-          gap: 10 
-        }}>
-          <div style={{
-            background: COLORS.card,
-            borderRadius: RADIUS.md,
-            padding: 16,
-            textAlign: 'center',
-            border: `1px solid ${COLORS.border}`
-          }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.text }}>
-              {stats.matchesPlayed}
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted }}>Parties</div>
-          </div>
-          <div style={{
-            background: COLORS.card,
-            borderRadius: RADIUS.md,
-            padding: 16,
-            textAlign: 'center',
-            border: `1px solid ${COLORS.border}`
-          }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.accent }}>
-              {stats.wins}
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted }}>Victoires</div>
-          </div>
-          <div style={{
-            background: COLORS.card,
-            borderRadius: RADIUS.md,
-            padding: 16,
-            textAlign: 'center',
-            border: `1px solid ${COLORS.border}`
-          }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.text }}>
-              {stats.winRate}%
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted }}>Win rate</div>
-          </div>
-        </div>
-      </div>
-
-      {/* ============================================ */}
-      {/* BADGES                                      */}
-      {/* ============================================ */}
-      {userBadges.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>
-            🏅 Mes badges
-          </h2>
-          <div style={{ 
-            display: 'flex', 
-            gap: 10,
-            flexWrap: 'wrap'
-          }}>
-            {userBadges.map(ub => {
-              const b = getBadgeById(ub.badge_id)
-              if (!b) return null
-              return (
-                <div
-                  key={ub.badge_id}
-                  style={{
-                    background: COLORS.card,
-                    borderRadius: RADIUS.md,
-                    padding: 12,
-                    textAlign: 'center',
-                    border: `1px solid ${COLORS.border}`,
-                    minWidth: 80
-                  }}
-                >
-                  <div style={{ fontSize: 28, marginBottom: 4 }}>{b.icon}</div>
-                  <div style={{ fontSize: 11, color: COLORS.textMuted }}>{b.name}</div>
+        {/* ============================================ */}
+        {/* TAB: PARRAINAGE                             */}
+        {/* ============================================ */}
+        {activeTab === 'referral' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Hero parrainage */}
+            <div style={{
+              background: `linear-gradient(135deg, ${COLORS.accentLight}, #bbf7d0)`,
+              borderRadius: RADIUS.xl,
+              padding: 20,
+              border: `1px solid ${COLORS.accent}`,
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🎁</div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: COLORS.accentDark, margin: '0 0 8px' }}>
+                Invite tes potes !
+              </h3>
+              <p style={{ fontSize: 13, color: '#166534', marginBottom: 16, lineHeight: 1.5 }}>
+                Plus tu invites, plus tu débloques de badges exclusifs et tu fais grandir la communauté padel 🎾
+              </p>
+              
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 20 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: COLORS.accentDark }}>
+                    {profile?.referral_count || 0}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#166534' }}>Amis invités</div>
                 </div>
-              )
-            })}
+              </div>
+
+              <button
+                onClick={shareReferral}
+                style={{
+                  width: '100%',
+                  padding: 16,
+                  background: COLORS.accent,
+                  border: 'none',
+                  borderRadius: RADIUS.md,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 12px rgba(34,197,94,0.3)'
+                }}
+              >
+                📤 Partager mon lien
+              </button>
+            </div>
+
+            {/* Badges de parrainage */}
+            <div style={{ background: COLORS.card, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+              <h4 style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, margin: '0 0 12px' }}>🏅 Badges à débloquer</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { name: 'Ambassadeur', goal: 1, emoji: '📢', desc: '1 ami invité' },
+                  { name: 'Recruteur', goal: 5, emoji: '🎯', desc: '5 amis invités' },
+                  { name: 'Influenceur', goal: 10, emoji: '⭐', desc: '10 amis invités' },
+                  { name: 'Légende', goal: 25, emoji: '👑', desc: '25 amis invités' }
+                ].map(badge => {
+                  const current = profile?.referral_count || 0
+                  const progress = Math.min(100, Math.round((current / badge.goal) * 100))
+                  const isEarned = current >= badge.goal
+                  
+                  return (
+                    <div key={badge.name} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: 12,
+                      background: isEarned ? COLORS.accentLight : COLORS.bg,
+                      borderRadius: RADIUS.md,
+                      opacity: isEarned ? 1 : 0.8
+                    }}>
+                      <div style={{ fontSize: 28, filter: isEarned ? 'none' : 'grayscale(1)' }}>{badge.emoji}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: isEarned ? COLORS.accentDark : COLORS.text }}>
+                          {badge.name}
+                          {isEarned && <span style={{ marginLeft: 6, fontSize: 11 }}>✓</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: COLORS.textMuted }}>{badge.desc}</div>
+                        {!isEarned && (
+                          <div style={{ marginTop: 6 }}>
+                            <div style={{ height: 4, background: COLORS.border, borderRadius: 2, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${progress}%`, background: COLORS.accent, borderRadius: 2 }} />
+                            </div>
+                            <div style={{ fontSize: 10, color: COLORS.textLight, marginTop: 2 }}>{current}/{badge.goal}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================ */}
+        {/* RÉGLAGES - TOUJOURS VISIBLES               */}
+        {/* ============================================ */}
+        <div style={{ marginTop: 24 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            ⚙️ Réglages
+          </h3>
+          
+          <div style={{ background: COLORS.card, borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
+            <Link href="/dashboard/profile/edit" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>✏️</span>
+                  <span style={{ fontSize: 14, color: COLORS.text }}>Modifier mon profil</span>
+                </div>
+                <span style={{ color: COLORS.textLight }}>›</span>
+              </div>
+            </Link>
+            
+            <Link href="/dashboard/settings/notifications" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${COLORS.borderLight}`, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>🔔</span>
+                  <span style={{ fontSize: 14, color: COLORS.text }}>Notifications</span>
+                </div>
+                <span style={{ color: COLORS.textLight }}>›</span>
+              </div>
+            </Link>
+            
+            <Link href="/dashboard/settings/privacy" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${COLORS.borderLight}`, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>🔐</span>
+                  <span style={{ fontSize: 14, color: COLORS.text }}>Confidentialité</span>
+                </div>
+                <span style={{ color: COLORS.textLight }}>›</span>
+              </div>
+            </Link>
+            
+            <Link href="/dashboard/settings/help" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${COLORS.borderLight}`, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>❓</span>
+                  <span style={{ fontSize: 14, color: COLORS.text }}>Aide & FAQ</span>
+                </div>
+                <span style={{ color: COLORS.textLight }}>›</span>
+              </div>
+            </Link>
+            
+            <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${COLORS.borderLight}`, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>💡</span>
+                  <span style={{ fontSize: 14, color: COLORS.text }}>Proposer une idée</span>
+                </div>
+                <span style={{ color: COLORS.textLight }}>›</span>
+              </div>
+            </Link>
+            
+            <Link href="/terms" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${COLORS.borderLight}`, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>📄</span>
+                  <span style={{ fontSize: 14, color: COLORS.text }}>CGU & Mentions légales</span>
+                </div>
+                <span style={{ color: COLORS.textLight }}>›</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Déconnexion */}
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%',
+              marginTop: 16,
+              padding: 14,
+              background: 'transparent',
+              border: `1px solid ${COLORS.danger}`,
+              borderRadius: RADIUS.md,
+              fontSize: 14,
+              fontWeight: 600,
+              color: COLORS.danger,
+              cursor: 'pointer'
+            }}
+          >
+            🚪 Déconnexion
+          </button>
+
+          {/* Version */}
+          <div style={{ textAlign: 'center', padding: '24px 0', color: COLORS.textLight, fontSize: 11 }}>
+            PadelMatch v1.0 · Made with 🎾 in France
           </div>
         </div>
-      )}
-
-      {/* ============================================ */}
-      {/* PARAMÈTRES                                  */}
-      {/* ============================================ */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>
-          ⚙️ Paramètres
-        </h2>
-        <div style={{
-          background: COLORS.card,
-          borderRadius: RADIUS.md,
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
-        }}>
-          <Link
-            href="/dashboard/settings"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 14,
-              borderBottom: `1px solid ${COLORS.border}`,
-              textDecoration: 'none',
-              color: COLORS.text
-            }}
-          >
-            <span>⚙️ Paramètres du compte</span>
-            <span style={{ color: COLORS.textMuted }}>→</span>
-          </Link>
-          <Link
-            href="/dashboard/notifications"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 14,
-              borderBottom: `1px solid ${COLORS.border}`,
-              textDecoration: 'none',
-              color: COLORS.text
-            }}
-          >
-            <span>🔔 Notifications</span>
-            <span style={{ color: COLORS.textMuted }}>→</span>
-          </Link>
-          <Link
-            href="/help"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 14,
-              textDecoration: 'none',
-              color: COLORS.text
-            }}
-          >
-            <span>❓ Aide</span>
-            <span style={{ color: COLORS.textMuted }}>→</span>
-          </Link>
-        </div>
       </div>
-
-      {/* ============================================ */}
-      {/* DÉCONNEXION                                 */}
-      {/* ============================================ */}
-      <button
-        onClick={handleLogout}
-        style={{
-          width: '100%',
-          padding: 14,
-          background: 'transparent',
-          border: `1px solid #ef4444`,
-          borderRadius: RADIUS.md,
-          fontSize: 14,
-          fontWeight: 600,
-          color: '#ef4444',
-          cursor: 'pointer'
-        }}
-      >
-        🚪 Déconnexion
-      </button>
-
     </div>
   )
 }
