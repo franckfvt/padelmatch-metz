@@ -25,7 +25,7 @@ import { COLORS, RADIUS, getAvatarColor } from '@/app/lib/design-tokens'
 export default function JoueursPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const inviteToMatch = searchParams.get('invite') // Si on vient de "Inviter" depuis une partie
+  const preselectedMatchId = searchParams.get('match') // Si on vient de "Inviter" depuis une partie
   
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -46,6 +46,7 @@ export default function JoueursPage() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [myOpenMatches, setMyOpenMatches] = useState([])
+  const [preselectedMatch, setPreselectedMatch] = useState(null)
   const [inviting, setInviting] = useState(false)
 
   useEffect(() => {
@@ -161,6 +162,14 @@ export default function JoueursPage() {
       .limit(5)
 
     setMyOpenMatches(openMatches || [])
+
+    // Si un match est pré-sélectionné (vient de "Inviter" sur une partie)
+    if (preselectedMatchId) {
+      const match = (openMatches || []).find(m => m.id === preselectedMatchId)
+      if (match) {
+        setPreselectedMatch(match)
+      }
+    }
 
     setLoading(false)
   }
@@ -380,9 +389,64 @@ export default function JoueursPage() {
     )
   }
 
+  // Helper pour afficher la date
+  function formatMatchDate(dateStr, timeStr) {
+    if (!dateStr) return 'Date flexible'
+    const date = new Date(dateStr)
+    const today = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    
+    let dateText = date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+    if (date.toDateString() === today.toDateString()) dateText = "Aujourd'hui"
+    if (date.toDateString() === tomorrow.toDateString()) dateText = 'Demain'
+    
+    return `${dateText}${timeStr ? ' à ' + timeStr.slice(0,5) : ''}`
+  }
+
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', padding: '0 16px 100px' }}>
       
+      {/* Bandeau contexte si match pré-sélectionné */}
+      {preselectedMatch && (
+        <div style={{
+          background: COLORS.accentLight,
+          borderRadius: RADIUS.md,
+          padding: 16,
+          marginBottom: 16,
+          border: `1px solid ${COLORS.accent}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12
+        }}>
+          <div>
+            <div style={{ fontWeight: 700, color: COLORS.accent, fontSize: 14, marginBottom: 2 }}>
+              🎯 Invite des joueurs pour ta partie
+            </div>
+            <div style={{ fontSize: 13, color: COLORS.accentText }}>
+              {formatMatchDate(preselectedMatch.match_date, preselectedMatch.match_time)} • {preselectedMatch.clubs?.name || preselectedMatch.city || 'Lieu à définir'}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setPreselectedMatch(null)
+              router.replace('/dashboard/joueurs')
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: 18,
+              cursor: 'pointer',
+              color: COLORS.accent,
+              padding: 4
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ padding: '20px 0' }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>
@@ -649,13 +713,55 @@ export default function JoueursPage() {
             </div>
 
             {/* Parties disponibles */}
-            {myOpenMatches.length > 0 && (
+            {(preselectedMatch || myOpenMatches.length > 0) && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 10 }}>
-                  Tes parties avec des places :
+                  {preselectedMatch ? 'Ajouter à ta partie :' : 'Tes parties avec des places :'}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {myOpenMatches.map(match => (
+                  {/* Match pré-sélectionné en premier */}
+                  {preselectedMatch && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: 12,
+                        background: COLORS.accentLight,
+                        borderRadius: RADIUS.md,
+                        border: `2px solid ${COLORS.accent}`
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.accent }}>
+                          {formatMatchDate(preselectedMatch.match_date, preselectedMatch.match_time)}
+                        </div>
+                        <div style={{ fontSize: 12, color: COLORS.accentText }}>
+                          {preselectedMatch.clubs?.name || preselectedMatch.city || 'Lieu à définir'} • {preselectedMatch.spots_available} place{preselectedMatch.spots_available > 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => inviteToExistingMatch(preselectedMatch.id)}
+                        disabled={inviting}
+                        style={{
+                          padding: '10px 16px',
+                          background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDark})`,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: RADIUS.sm,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: inviting ? 'not-allowed' : 'pointer',
+                          opacity: inviting ? 0.7 : 1
+                        }}
+                      >
+                        + Ajouter
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Autres matchs */}
+                  {myOpenMatches.filter(m => m.id !== preselectedMatch?.id).map(match => (
                     <div
                       key={match.id}
                       style={{
@@ -670,7 +776,7 @@ export default function JoueursPage() {
                     >
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>
-                          {formatDate(match.match_date)} • {match.match_time?.slice(0,5)}
+                          {formatMatchDate(match.match_date, match.match_time)}
                         </div>
                         <div style={{ fontSize: 12, color: COLORS.textMuted }}>
                           {match.clubs?.name || match.city || 'Lieu à définir'} • {match.spots_available} place{match.spots_available > 1 ? 's' : ''}
@@ -700,7 +806,7 @@ export default function JoueursPage() {
             )}
 
             {/* Séparateur */}
-            {myOpenMatches.length > 0 && (
+            {(preselectedMatch || myOpenMatches.length > 0) && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
