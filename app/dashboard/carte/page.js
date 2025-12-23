@@ -174,31 +174,19 @@ export default function MaCartePage() {
     ? `${window.location.origin}/player/${user?.id}` 
     : ''
 
-  // Générer le QR code
-  async function generateQRCode() {
-    if (qrCodeUrl) return qrCodeUrl // Déjà généré
+  // Générer le QR code via API externe (pas besoin de librairie)
+  function generateQRCode() {
+    if (qrCodeUrl || !profileUrl) return qrCodeUrl
     
-    try {
-      const QRCode = (await import('qrcode')).default
-      const url = await QRCode.toDataURL(profileUrl, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: '#1e293b',
-          light: '#ffffff'
-        }
-      })
-      setQrCodeUrl(url)
-      return url
-    } catch (err) {
-      console.error('Erreur QR code:', err)
-      return null
-    }
+    // Utilise l'API QR Server (gratuite, pas de clé requise)
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(profileUrl)}&bgcolor=ffffff&color=1e293b&margin=10`
+    setQrCodeUrl(qrApiUrl)
+    return qrApiUrl
   }
 
   // Ouvrir la modale de partage
-  async function handleShare() {
-    await generateQRCode()
+  function handleShare() {
+    generateQRCode()
     setShowShareModal(true)
   }
 
@@ -771,8 +759,8 @@ export default function MaCartePage() {
             📤 Partager
           </button>
           <button
-            onClick={async () => {
-              await generateQRCode()
+            onClick={() => {
+              generateQRCode()
               setShowTournamentMode(true)
             }}
             style={{
