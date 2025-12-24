@@ -114,13 +114,33 @@ export default function JoinMatchPage() {
       setMatch(matchData)
 
       // Charger les participants
-      const { data: participantsData } = await supabase
+      const { data: participantsData, error: participantsError } = await supabase
         .from('match_participants')
-        .select(`*, profiles (id, name, level, position, avatar_url)`)
+        .select(`*`)
         .eq('match_id', matchId)
         .in('status', ['confirmed', 'pending'])
-
-      setParticipants(participantsData || [])
+      
+      console.log('🔍 Participants bruts:', participantsData, participantsError) // DEBUG
+      
+      // Charger les profils des participants
+      if (participantsData && participantsData.length > 0) {
+        const userIds = participantsData.map(p => p.user_id)
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, name, level, position, avatar_url')
+          .in('id', userIds)
+        
+        // Associer les profils aux participants
+        const participantsWithProfiles = participantsData.map(p => ({
+          ...p,
+          profiles: profilesData?.find(pr => pr.id === p.user_id) || null
+        }))
+        
+        console.log('🔍 Participants avec profils:', participantsWithProfiles) // DEBUG
+        setParticipants(participantsWithProfiles)
+      } else {
+        setParticipants([])
+      }
 
       // Charger les invités en attente
       const { data: invitesData } = await supabase
@@ -238,6 +258,8 @@ export default function JoinMatchPage() {
   const organizer = match?.profiles
   const confirmedParticipants = participants.filter(p => p.status === 'confirmed')
   
+  console.log('🔍 confirmedParticipants:', confirmedParticipants) // DEBUG
+  
   const allPlayers = [
     ...(organizer ? [{ 
       isOrganizer: true, 
@@ -252,8 +274,12 @@ export default function JoinMatchPage() {
     }))
   ]
   
+  console.log('🔍 allPlayers:', allPlayers) // DEBUG
+  
   const teamA = allPlayers.filter(p => p.team === 'A')
   const teamB = allPlayers.filter(p => p.team === 'B')
+  
+  console.log('🔍 teamA:', teamA, 'teamB:', teamB) // DEBUG
   const spotsLeft = match?.spots_available || 0
   const ambiance = AMBIANCE_CONFIG[match?.ambiance] || AMBIANCE_CONFIG.mix
 
