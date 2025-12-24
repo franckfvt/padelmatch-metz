@@ -12,7 +12,7 @@
  */
 
 import Link from 'next/link'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { COLORS, FOUR_DOTS } from '@/app/lib/design-tokens'
 
 // ============================================
@@ -31,32 +31,6 @@ function FourDots({ size = 8, gap = 4, className = '' }) {
           background: color 
         }} />
       ))}
-    </div>
-  )
-}
-
-// Avatar joueur animé
-function PlayerAvatar({ color, initial, delay = 0, size = 56 }) {
-  return (
-    <div 
-      className="player-avatar"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: color,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#fff',
-        fontWeight: 700,
-        fontSize: size * 0.35,
-        border: '3px solid #fff',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        animationDelay: `${delay}s`
-      }}
-    >
-      {initial}
     </div>
   )
 }
@@ -219,40 +193,6 @@ function JuntoSolution() {
   )
 }
 
-// Stats counter animé
-function AnimatedCounter({ end, suffix = '', duration = 2000 }) {
-  const [count, setCount] = useState(0)
-  const ref = useRef(null)
-  const [hasAnimated, setHasAnimated] = useState(false)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
-          setHasAnimated(true)
-          let start = 0
-          const increment = end / (duration / 16)
-          const timer = setInterval(() => {
-            start += increment
-            if (start >= end) {
-              setCount(end)
-              clearInterval(timer)
-            } else {
-              setCount(Math.floor(start))
-            }
-          }, 16)
-        }
-      },
-      { threshold: 0.5 }
-    )
-    
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [end, duration, hasAnimated])
-
-  return <span ref={ref}>{count}{suffix}</span>
-}
-
 // ============================================
 // PAGE PRINCIPALE
 // ============================================
@@ -273,41 +213,6 @@ export default function HomePage() {
     }, 4000)
     return () => clearInterval(timer)
   }, [])
-
-  const features = [
-    {
-      id: 0,
-      color: COLORS.player1,
-      title: "Ton profil, ta réputation",
-      desc: "Niveau, stats, fiabilité. Les autres savent avec qui ils jouent.",
-      icon: "👤",
-      gradient: `linear-gradient(135deg, ${COLORS.primarySoft} 0%, #fff 100%)`
-    },
-    {
-      id: 1,
-      color: COLORS.player2,
-      title: "15 secondes chrono",
-      desc: "Crée ta partie en 3 clics. Pas de formulaire interminable.",
-      icon: "⚡",
-      gradient: `linear-gradient(135deg, ${COLORS.secondarySoft} 0%, #fff 100%)`
-    },
-    {
-      id: 2,
-      color: COLORS.player3,
-      title: "Partage, c'est tout",
-      desc: "Un lien. WhatsApp, Insta, SMS. Les joueurs s'inscrivent.",
-      icon: "🔗",
-      gradient: `linear-gradient(135deg, ${COLORS.amberSoft} 0%, #fff 100%)`
-    },
-    {
-      id: 3,
-      color: COLORS.player4,
-      title: "Fiabilité garantie",
-      desc: "98% de présence ? Tu le sais avant. Fini les annulations.",
-      icon: "✓",
-      gradient: `linear-gradient(135deg, ${COLORS.tealSoft} 0%, #fff 100%)`
-    }
-  ]
 
   return (
     <div className="landing-page">
@@ -485,69 +390,9 @@ export default function HomePage() {
       </section>
 
       {/* ============================================ */}
-      {/* SECTION 4 RAISONS - Les 4 points            */}
-      {/* ============================================ */}
-      <section id="features" className="features-section">
-        <div className="features-container">
-          <div className="features-header">
-            <div className="features-dots">
-              {FOUR_DOTS.colors.map((c, i) => (
-                <div 
-                  key={i}
-                  className={`feature-dot junto-dot ${activeFeature === i ? 'active' : ''}`}
-                  style={{ 
-                    background: c,
-                    transform: activeFeature === i ? 'scale(1.5)' : 'scale(1)',
-                    boxShadow: activeFeature === i ? `0 0 20px ${c}` : 'none'
-                  }}
-                  onClick={() => setActiveFeature(i)}
-                />
-              ))}
-            </div>
-            <h2 className="section-title">
-              4 joueurs. <span className="gradient-text">4 raisons.</span>
-            </h2>
-            <p className="section-subtitle">
-              Comme sur le terrain, tout fonctionne ensemble.
-            </p>
-          </div>
-
-          <div className="features-grid">
-            {features.map((feature, i) => (
-              <div 
-                key={i}
-                className={`feature-card ${activeFeature === i ? 'active' : ''}`}
-                onClick={() => setActiveFeature(i)}
-                style={{
-                  '--accent-color': feature.color,
-                  '--accent-soft': `${feature.color}15`
-                }}
-              >
-                <div className="feature-number" style={{ color: feature.color }}>
-                  0{i + 1}
-                </div>
-                <div 
-                  className="feature-icon"
-                  style={{ background: `${feature.color}15` }}
-                >
-                  <span>{feature.icon}</span>
-                </div>
-                <h3 className="feature-title">{feature.title}</h3>
-                <p className="feature-desc">{feature.desc}</p>
-                <div 
-                  className="feature-bar"
-                  style={{ background: feature.color }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================ */}
       {/* SECTION TERRAIN - Animation 4 joueurs       */}
       {/* ============================================ */}
-      <section className="court-section">
+      <section id="features" className="court-section">
         <div className="court-container">
           <div className="court-content">
             <h2 className="section-title light">
@@ -570,30 +415,205 @@ export default function HomePage() {
       </section>
 
       {/* ============================================ */}
-      {/* SECTION STATS - Preuve sociale              */}
+      {/* SECTION FONCTIONNALITÉS DÉTAILLÉES          */}
       {/* ============================================ */}
-      <section className="stats-section">
-        <div className="stats-container">
-          <div className="stats-grid">
-            <div className="stat-item">
-              <div className="stat-value" style={{ color: COLORS.primary }}>
-                <AnimatedCounter end={15} suffix="s" />
-              </div>
-              <div className="stat-label">Pour créer une partie</div>
+      <section className="features-section">
+        <div className="features-container">
+          <div className="features-header">
+            <div className="features-dots">
+              {FOUR_DOTS.colors.map((c, i) => (
+                <div 
+                  key={i}
+                  className={`feature-dot junto-dot ${activeFeature === i ? 'active' : ''}`}
+                  style={{ 
+                    background: c,
+                    transform: activeFeature === i ? 'scale(1.5)' : 'scale(1)',
+                    boxShadow: activeFeature === i ? `0 0 20px ${c}` : 'none'
+                  }}
+                  onClick={() => setActiveFeature(i)}
+                />
+              ))}
             </div>
-            <div className="stat-divider" />
-            <div className="stat-item">
-              <div className="stat-value" style={{ color: COLORS.teal }}>
-                <AnimatedCounter end={98} suffix="%" />
+            <h2 className="section-title">
+              Comment ça <span className="gradient-text">fonctionne</span>
+            </h2>
+            <p className="section-subtitle">
+              Tout ce dont tu as besoin pour organiser tes parties
+            </p>
+          </div>
+
+          <div className="features-detailed">
+            {/* Feature 1 - Création rapide */}
+            <div className="feature-row">
+              <div className="feature-content">
+                <div className="feature-tag" style={{ background: `${COLORS.primary}15`, color: COLORS.primary }}>
+                  <span className="tag-dot" style={{ background: COLORS.primary }} />
+                  Création express
+                </div>
+                <h3 className="feature-heading">Crée ta partie en quelques secondes</h3>
+                <p className="feature-text">
+                  Fini les formulaires interminables. Choisis une date, un créneau, un lieu — et c'est parti. 
+                  L'app retient tes préférences pour aller encore plus vite la prochaine fois.
+                </p>
+                <ul className="feature-list">
+                  <li><span className="check">✓</span> 3 étapes maximum</li>
+                  <li><span className="check">✓</span> Ton club favori mémorisé</li>
+                  <li><span className="check">✓</span> Niveau de jeu pré-rempli</li>
+                </ul>
               </div>
-              <div className="stat-label">Taux de présence moyen</div>
+              <div className="feature-visual">
+                <div className="visual-card creation-card">
+                  <div className="creation-step active">
+                    <span className="step-num">1</span>
+                    <span className="step-label">Quand ?</span>
+                    <div className="step-pills">
+                      <span className="pill active">Samedi</span>
+                      <span className="pill">Dimanche</span>
+                    </div>
+                  </div>
+                  <div className="creation-step">
+                    <span className="step-num">2</span>
+                    <span className="step-label">Où ?</span>
+                    <div className="step-club">📍 Club des Lilas</div>
+                  </div>
+                  <div className="creation-step">
+                    <span className="step-num">3</span>
+                    <span className="step-label">Niveau ?</span>
+                    <div className="step-level">
+                      <span>4</span>
+                      <div className="level-bar"><div className="level-fill" /></div>
+                      <span>6</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="stat-divider" />
-            <div className="stat-item">
-              <div className="stat-value" style={{ color: COLORS.amber }}>
-                <AnimatedCounter end={0} suffix="€" />
+
+            {/* Feature 2 - Profils joueurs */}
+            <div className="feature-row reverse">
+              <div className="feature-content">
+                <div className="feature-tag" style={{ background: `${COLORS.player2}15`, color: COLORS.player2 }}>
+                  <span className="tag-dot" style={{ background: COLORS.player2 }} />
+                  Profils joueurs
+                </div>
+                <h3 className="feature-heading">Sache avec qui tu joues avant de réserver</h3>
+                <p className="feature-text">
+                  Chaque joueur a un profil avec son niveau, sa position préférée et son style de jeu. 
+                  Plus de mauvaises surprises sur le terrain, tu sais exactement à quoi t'attendre.
+                </p>
+                <ul className="feature-list">
+                  <li><span className="check">✓</span> Niveau affiché (échelle 1-10)</li>
+                  <li><span className="check">✓</span> Position préférée (gauche/droite)</li>
+                  <li><span className="check">✓</span> Style de jeu (détente/compétitif)</li>
+                </ul>
               </div>
-              <div className="stat-label">Pour toujours</div>
+              <div className="feature-visual">
+                <div className="visual-card profile-cards">
+                  {[
+                    { color: COLORS.player1, name: 'Marie L.', level: '5.5', pos: 'Droite', style: '😎 Détente' },
+                    { color: COLORS.player2, name: 'Thomas R.', level: '5.0', pos: 'Gauche', style: '⚡ Équilibré' },
+                  ].map((p, i) => (
+                    <div key={i} className="mini-profile" style={{ animationDelay: `${i * 0.2}s` }}>
+                      <div className="mp-avatar" style={{ background: p.color }}>{p.name[0]}</div>
+                      <div className="mp-info">
+                        <span className="mp-name">{p.name}</span>
+                        <span className="mp-level">Niveau {p.level}</span>
+                      </div>
+                      <div className="mp-tags">
+                        <span className="mp-tag">{p.pos}</span>
+                        <span className="mp-tag">{p.style}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 3 - Fiabilité */}
+            <div className="feature-row">
+              <div className="feature-content">
+                <div className="feature-tag" style={{ background: `${COLORS.teal}15`, color: COLORS.teal }}>
+                  <span className="tag-dot" style={{ background: COLORS.teal }} />
+                  Score de fiabilité
+                </div>
+                <h3 className="feature-heading">Fini les annulations de dernière minute</h3>
+                <p className="feature-text">
+                  Chaque joueur a un score de fiabilité basé sur ses présences confirmées. 
+                  Tu vois d'un coup d'œil si quelqu'un est du genre à annuler ou à toujours être là.
+                </p>
+                <ul className="feature-list">
+                  <li><span className="check">✓</span> Score calculé automatiquement</li>
+                  <li><span className="check">✓</span> Badges de fiabilité visibles</li>
+                  <li><span className="check">✓</span> Historique de présences</li>
+                </ul>
+              </div>
+              <div className="feature-visual">
+                <div className="visual-card reliability-demo">
+                  <div className="reliability-player good">
+                    <div className="rp-avatar" style={{ background: COLORS.teal }}>M</div>
+                    <div className="rp-info">
+                      <span className="rp-name">Marie L.</span>
+                      <div className="rp-score">
+                        <div className="score-bar"><div className="score-fill" style={{ width: '95%', background: COLORS.teal }} /></div>
+                        <span className="score-value" style={{ color: COLORS.teal }}>95%</span>
+                      </div>
+                    </div>
+                    <span className="rp-badge" style={{ background: COLORS.tealSoft, color: COLORS.teal }}>✓ Très fiable</span>
+                  </div>
+                  <div className="reliability-player warning">
+                    <div className="rp-avatar" style={{ background: COLORS.amber }}>P</div>
+                    <div className="rp-info">
+                      <span className="rp-name">Paul D.</span>
+                      <div className="rp-score">
+                        <div className="score-bar"><div className="score-fill" style={{ width: '62%', background: COLORS.amber }} /></div>
+                        <span className="score-value" style={{ color: COLORS.amber }}>62%</span>
+                      </div>
+                    </div>
+                    <span className="rp-badge" style={{ background: COLORS.amberSoft, color: COLORS.amber }}>⚠ Variable</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 4 - Partage */}
+            <div className="feature-row reverse">
+              <div className="feature-content">
+                <div className="feature-tag" style={{ background: `${COLORS.amber}15`, color: COLORS.amber }}>
+                  <span className="tag-dot" style={{ background: COLORS.amber }} />
+                  Partage facile
+                </div>
+                <h3 className="feature-heading">Un lien, et tes potes s'inscrivent</h3>
+                <p className="feature-text">
+                  Partage ta partie sur WhatsApp, Instagram, par SMS ou où tu veux. 
+                  Tes amis voient une belle carte avec tous les détails et peuvent rejoindre en un clic.
+                </p>
+                <ul className="feature-list">
+                  <li><span className="check">✓</span> Lien unique par partie</li>
+                  <li><span className="check">✓</span> Preview visuelle sur les réseaux</li>
+                  <li><span className="check">✓</span> Inscription sans compte requise</li>
+                </ul>
+              </div>
+              <div className="feature-visual">
+                <div className="visual-card share-demo">
+                  <div className="share-card">
+                    <div className="share-accent" />
+                    <div className="share-content">
+                      <div className="share-title">🎾 Padel du samedi</div>
+                      <div className="share-meta">Sam 28 déc · 18h · Club des Lilas</div>
+                      <div className="share-avatars">
+                        {[COLORS.player1, COLORS.player2, COLORS.player3].map((c, i) => (
+                          <div key={i} className="share-avatar" style={{ background: c }}>{['M', 'T', 'J'][i]}</div>
+                        ))}
+                        <div className="share-avatar empty">+1</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="share-buttons">
+                    <div className="share-btn whatsapp">WhatsApp</div>
+                    <div className="share-btn copy">Copier le lien</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1481,7 +1501,7 @@ export default function HomePage() {
         }
 
         /* ========================================
-           FEATURES SECTION
+           FEATURES SECTION (DETAILED)
            ======================================== */
         .features-section {
           padding: 120px 24px;
@@ -1495,7 +1515,7 @@ export default function HomePage() {
         
         .features-header {
           text-align: center;
-          margin-bottom: 64px;
+          margin-bottom: 80px;
         }
         
         .features-dots {
@@ -1526,80 +1546,430 @@ export default function HomePage() {
           background-clip: text;
         }
         
-        .features-grid {
+        .features-detailed {
+          display: flex;
+          flex-direction: column;
+          gap: 100px;
+        }
+        
+        .feature-row {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 24px;
+          grid-template-columns: 1fr 1fr;
+          gap: 80px;
+          align-items: center;
         }
         
-        .feature-card {
-          background: ${COLORS.white};
-          border-radius: 24px;
-          padding: 32px 24px;
-          border: 2px solid ${COLORS.border};
-          cursor: pointer;
-          transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-          position: relative;
-          overflow: hidden;
+        .feature-row.reverse {
+          direction: rtl;
         }
         
-        .feature-card:hover,
-        .feature-card.active {
-          border-color: var(--accent-color);
-          transform: translateY(-8px);
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        .feature-row.reverse > * {
+          direction: ltr;
         }
         
-        .feature-number {
-          font-size: 14px;
-          font-weight: 700;
-          margin-bottom: 16px;
-          opacity: 0.6;
+        .feature-content {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
         }
         
-        .feature-icon {
-          width: 56px;
-          height: 56px;
-          border-radius: 16px;
+        .feature-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border-radius: 100px;
+          font-size: 13px;
+          font-weight: 600;
+          width: fit-content;
+        }
+        
+        .tag-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+        
+        .feature-heading {
+          font-size: clamp(24px, 3vw, 32px);
+          font-weight: 800;
+          color: ${COLORS.ink};
+          line-height: 1.2;
+          letter-spacing: -1px;
+        }
+        
+        .feature-text {
+          font-size: 17px;
+          color: ${COLORS.gray};
+          line-height: 1.7;
+        }
+        
+        .feature-list {
+          list-style: none;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-top: 8px;
+        }
+        
+        .feature-list li {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 15px;
+          color: ${COLORS.dark};
+          font-weight: 500;
+        }
+        
+        .feature-list .check {
+          width: 24px;
+          height: 24px;
+          background: ${COLORS.tealSoft};
+          color: ${COLORS.teal};
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 24px;
-          margin-bottom: 20px;
+          font-size: 12px;
+          font-weight: 700;
         }
         
-        .feature-title {
+        .feature-visual {
+          display: flex;
+          justify-content: center;
+        }
+        
+        .visual-card {
+          background: ${COLORS.white};
+          border-radius: 24px;
+          padding: 32px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+          border: 1px solid ${COLORS.border};
+          width: 100%;
+          max-width: 400px;
+        }
+        
+        /* Creation Card */
+        .creation-card {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        .creation-step {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 16px;
+          border-radius: 16px;
+          background: ${COLORS.bgSoft};
+          opacity: 0.6;
+          transition: all 0.3s ease;
+        }
+        
+        .creation-step.active {
+          opacity: 1;
+          background: ${COLORS.primarySoft};
+          border: 2px solid ${COLORS.primary};
+        }
+        
+        .step-num {
+          width: 32px;
+          height: 32px;
+          background: ${COLORS.primary};
+          color: #fff;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        
+        .step-label {
+          font-weight: 600;
+          color: ${COLORS.ink};
+          flex: 1;
+        }
+        
+        .step-pills {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .pill {
+          padding: 6px 14px;
+          border-radius: 100px;
+          font-size: 13px;
+          font-weight: 600;
+          background: ${COLORS.white};
+          color: ${COLORS.gray};
+          border: 1px solid ${COLORS.border};
+        }
+        
+        .pill.active {
+          background: ${COLORS.primary};
+          color: #fff;
+          border-color: ${COLORS.primary};
+        }
+        
+        .step-club {
+          font-size: 13px;
+          color: ${COLORS.gray};
+          background: ${COLORS.white};
+          padding: 6px 12px;
+          border-radius: 8px;
+        }
+        
+        .step-level {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 14px;
+          font-weight: 600;
+          color: ${COLORS.ink};
+        }
+        
+        .level-bar {
+          width: 80px;
+          height: 6px;
+          background: ${COLORS.border};
+          border-radius: 3px;
+          overflow: hidden;
+        }
+        
+        .level-fill {
+          width: 50%;
+          height: 100%;
+          background: linear-gradient(90deg, ${COLORS.primary}, ${COLORS.amber});
+          border-radius: 3px;
+        }
+        
+        /* Profile Cards */
+        .profile-cards {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        
+        .mini-profile {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 16px;
+          background: ${COLORS.bgSoft};
+          border-radius: 16px;
+          animation: slideIn 0.5s ease-out both;
+        }
+        
+        .mp-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          font-weight: 700;
           font-size: 18px;
+        }
+        
+        .mp-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        
+        .mp-name {
           font-weight: 700;
           color: ${COLORS.ink};
-          margin-bottom: 10px;
-          line-height: 1.3;
+          font-size: 15px;
         }
         
-        .feature-desc {
-          font-size: 14px;
+        .mp-level {
+          font-size: 13px;
           color: ${COLORS.gray};
-          line-height: 1.6;
         }
         
-        .feature-bar {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
+        .mp-tags {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          align-items: flex-end;
+        }
+        
+        .mp-tag {
+          font-size: 11px;
+          padding: 4px 10px;
+          background: ${COLORS.white};
+          border-radius: 100px;
+          color: ${COLORS.gray};
+          font-weight: 500;
+        }
+        
+        /* Reliability Demo */
+        .reliability-demo {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        .reliability-player {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 16px;
+          background: ${COLORS.bgSoft};
+          border-radius: 16px;
+        }
+        
+        .rp-avatar {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          font-weight: 700;
+          font-size: 16px;
+        }
+        
+        .rp-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        
+        .rp-name {
+          font-weight: 600;
+          font-size: 14px;
+          color: ${COLORS.ink};
+        }
+        
+        .rp-score {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        
+        .score-bar {
+          flex: 1;
+          height: 6px;
+          background: ${COLORS.border};
+          border-radius: 3px;
+          overflow: hidden;
+        }
+        
+        .score-fill {
+          height: 100%;
+          border-radius: 3px;
+          transition: width 1s ease;
+        }
+        
+        .score-value {
+          font-size: 14px;
+          font-weight: 700;
+        }
+        
+        .rp-badge {
+          padding: 6px 12px;
+          border-radius: 100px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+        
+        /* Share Demo */
+        .share-demo {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        .share-card {
+          background: ${COLORS.bgSoft};
+          border-radius: 16px;
+          overflow: hidden;
+        }
+        
+        .share-accent {
           height: 4px;
-          transform: scaleX(0);
-          transform-origin: left;
-          transition: transform 0.4s ease;
+          background: linear-gradient(90deg, ${COLORS.primary}, ${COLORS.amber});
         }
         
-        .feature-card:hover .feature-bar,
-        .feature-card.active .feature-bar {
-          transform: scaleX(1);
+        .share-content {
+          padding: 20px;
+        }
+        
+        .share-title {
+          font-weight: 700;
+          font-size: 16px;
+          color: ${COLORS.ink};
+          margin-bottom: 6px;
+        }
+        
+        .share-meta {
+          font-size: 13px;
+          color: ${COLORS.gray};
+          margin-bottom: 16px;
+        }
+        
+        .share-avatars {
+          display: flex;
+        }
+        
+        .share-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          font-weight: 700;
+          font-size: 13px;
+          border: 2px solid ${COLORS.white};
+          margin-left: -8px;
+        }
+        
+        .share-avatar:first-child {
+          margin-left: 0;
+        }
+        
+        .share-avatar.empty {
+          background: ${COLORS.teal};
+        }
+        
+        .share-buttons {
+          display: flex;
+          gap: 12px;
+        }
+        
+        .share-btn {
+          flex: 1;
+          padding: 14px;
+          border-radius: 12px;
+          text-align: center;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        
+        .share-btn.whatsapp {
+          background: #25d366;
+          color: #fff;
+        }
+        
+        .share-btn.copy {
+          background: ${COLORS.bgSoft};
+          color: ${COLORS.ink};
+          border: 1px solid ${COLORS.border};
         }
 
         /* ========================================
-           COURT SECTION
+           STATS SECTION (removed)
            ======================================== */
         .court-section {
           padding: 120px 24px;
@@ -1954,8 +2324,17 @@ export default function HomePage() {
            RESPONSIVE
            ======================================== */
         @media (max-width: 1024px) {
-          .features-grid {
-            grid-template-columns: repeat(2, 1fr);
+          .feature-row {
+            grid-template-columns: 1fr;
+            gap: 48px;
+          }
+          
+          .feature-row.reverse {
+            direction: ltr;
+          }
+          
+          .feature-visual {
+            order: -1;
           }
           
           .court-container {
@@ -2018,22 +2397,28 @@ export default function HomePage() {
             height: 2px;
           }
           
-          .features-grid {
-            grid-template-columns: 1fr;
+          .features-detailed {
+            gap: 80px;
+          }
+          
+          .feature-content {
+            text-align: center;
+          }
+          
+          .feature-tag {
+            margin: 0 auto;
+          }
+          
+          .feature-list {
+            align-items: center;
           }
           
           .features-dots {
             gap: 12px;
           }
           
-          .stats-grid {
-            flex-direction: column;
-            gap: 32px;
-          }
-          
-          .stat-divider {
-            width: 60px;
-            height: 1px;
+          .visual-card {
+            max-width: 100%;
           }
           
           .footer-grid {
@@ -2073,6 +2458,23 @@ export default function HomePage() {
           .whatsapp-chaos,
           .junto-solution {
             min-height: 320px;
+          }
+          
+          .feature-heading {
+            font-size: 22px;
+          }
+          
+          .creation-step {
+            flex-wrap: wrap;
+          }
+          
+          .step-pills {
+            width: 100%;
+            margin-top: 8px;
+          }
+          
+          .mp-tags {
+            display: none;
           }
         }
       `}</style>
