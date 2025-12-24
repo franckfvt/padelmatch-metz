@@ -56,6 +56,7 @@ export default function CreateMatchPage() {
   const [playerSearch, setPlayerSearch] = useState('')
   const [playerResults, setPlayerResults] = useState([])
   const [manualPartnerName, setManualPartnerName] = useState('')
+  const [manualPartnerEmail, setManualPartnerEmail] = useState('')
   
   // Formulaire
   const [formData, setFormData] = useState({
@@ -308,6 +309,8 @@ export default function CreateMatchPage() {
     const newPartner = {
       id: `manual-${Date.now()}`,
       name: manualPartnerName.trim(),
+      email: manualPartnerEmail.trim() || null,
+      inviteToken: crypto.randomUUID(),
       team: formData.organizer_team,
       isManual: true
     }
@@ -317,6 +320,7 @@ export default function CreateMatchPage() {
       partners: [...formData.partners, newPartner]
     })
     setManualPartnerName('')
+    setManualPartnerEmail('')
   }
   
   function removePartner(partnerId) {
@@ -430,17 +434,48 @@ export default function CreateMatchPage() {
         )
       }
       
-      // Ajouter les partenaires manuels
+      // Ajouter les partenaires manuels dans pending_invites
       const manualPartners = formData.partners.filter(p => p.isManual)
       if (manualPartners.length > 0) {
-        await supabase.from('match_manual_players').insert(
-          manualPartners.map(p => ({
-            match_id: match.id,
-            name: p.name,
-            team: p.team || 'A',
-            added_by: user.id
-          }))
-        )
+        // Créer les invitations
+        const invitesData = manualPartners.map(p => ({
+          match_id: match.id,
+          inviter_id: user.id,
+          invitee_name: p.name,
+          invitee_email: p.email || null,
+          team: p.team || 'A',
+          status: 'pending',
+          invite_token: p.inviteToken || crypto.randomUUID()
+        }))
+        
+        await supabase.from('pending_invites').insert(invitesData)
+        
+        // Envoyer les emails pour ceux qui ont un email
+        const emailInvites = manualPartners.filter(p => p.email)
+        for (const partner of emailInvites) {
+          try {
+            const response = await fetch('/api/send-invite', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                inviteToken: partner.inviteToken,
+                inviteeName: partner.name,
+                inviteeContact: partner.email,
+                inviterName: profile?.name || 'Un joueur',
+                matchDate: formData.date || null,
+                matchTime: formData.time || null,
+                clubName: formData.club_name || formData.city || 'À définir'
+              })
+            })
+            
+            const result = await response.json()
+            if (result.success) {
+              console.log(`✅ Email envoyé à ${partner.email}`)
+            }
+          } catch (err) {
+            console.error(`❌ Erreur envoi email à ${partner.email}:`, err)
+          }
+        }
       }
       
       setMatchCreated(match)
@@ -1096,36 +1131,46 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
-                    padding: 12,
-                    background: partner.isManual ? COLORS.warningLight : COLORS.bg,
+                    padding: 14,
+                    background: partner.isManual ? '#fffbeb' : COLORS.bg,
                     borderRadius: 16,
-                    marginBottom: 8
+                    marginBottom: 10,
+                    border: partner.isManual ? '2px solid #fcd34d' : '2px solid transparent'
                   }}
                 >
                   <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
                     background: partner.isManual 
-                      ? COLORS.warning 
+                      ? '#fef3c7'
                       : (partner.avatar_url ? 'transparent' : getAvatarColor(partner.name)),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 16,
-                    color: '#fff',
+                    fontSize: partner.isManual ? 20 : 16,
+                    color: partner.isManual ? '#92400e' : '#fff',
                     overflow: 'hidden'
                   }}>
-                    {partner.isManual ? '✏️' : (
+                    {partner.isManual ? (partner.email ? '✉️' : '👤') : (
                       partner.avatar_url 
                         ? <img src={partner.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : partner.name?.[0]?.toUpperCase()
                     )}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{partner.name}</div>
-                    <div style={{ fontSize: 12, color: COLORS.textMuted }}>
-                      {partner.isManual ? '⏳ Pas encore inscrit' : `Niveau ${partner.level}/10`}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.text }}>{partner.name}</div>
+                    <div style={{ fontSize: 12, color: COLORS.textMuted, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      {partner.isManual ? (
+                        <>
+                          <span style={{ color: '#f59e0b', fontWeight: 600 }}>⏳ Pas encore sur l'app</span>
+                          {partner.email && (
+                            <span style={{ color: '#0891b2' }}>· {partner.email}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span>Niveau {partner.level}/10 · ✓ Sur l'app</span>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 4 }}>
@@ -1134,25 +1179,25 @@ Rejoins-nous ! 👉 ${matchUrl}`
                         key={team}
                         onClick={() => setPartnerTeam(partner.id, team)}
                         style={{
-                          padding: '6px 10px',
+                          padding: '8px 12px',
                           border: 'none',
-                          borderRadius: 6,
+                          borderRadius: 8,
                           background: partner.team === team
-                            ? (team === 'A' ? COLORS.primary : COLORS.info)
-                            : COLORS.card,
+                            ? (team === 'A' ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'linear-gradient(135deg, #3b82f6, #2563eb)')
+                            : '#f1f5f9',
                           color: partner.team === team ? '#fff' : COLORS.textMuted,
                           fontSize: 11,
                           fontWeight: 700,
                           cursor: 'pointer'
                         }}
                       >
-                        {team}
+                        {team === 'A' ? '🅰️' : '🅱️'}
                       </button>
                     ))}
                   </div>
                   <button
                     onClick={() => removePartner(partner.id)}
-                    style={{ background: 'none', border: 'none', color: COLORS.textMuted, fontSize: 18, cursor: 'pointer' }}
+                    style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 20, cursor: 'pointer', padding: 4 }}
                   >
                     ×
                   </button>
@@ -1262,39 +1307,61 @@ Rejoins-nous ! 👉 ${matchUrl}`
               
               {/* Ajout manuel */}
               <div style={{
-                background: COLORS.bg,
+                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
                 borderRadius: 16,
-                padding: 16,
-                marginTop: 16
+                padding: 20,
+                marginTop: 16,
+                border: '2px solid #e2e8f0'
               }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 8, display: 'block' }}>
-                  Quelqu'un pas encore sur l'app ?
+                <label style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  ✉️ Inviter quelqu'un
                 </label>
-                <div style={{ display: 'flex', gap: 8 }}>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                   <input
                     type="text"
                     value={manualPartnerName}
                     onChange={e => setManualPartnerName(e.target.value)}
-                    placeholder="Prénom"
-                    style={{ ...inputStyle, flex: 1 }}
-                    onKeyPress={e => e.key === 'Enter' && addManualPartner()}
+                    placeholder="Prénom *"
+                    style={{ ...inputStyle, padding: '14px 16px', borderRadius: 12 }}
                   />
-                  <button
-                    onClick={addManualPartner}
-                    disabled={!manualPartnerName.trim()}
-                    style={{
-                      padding: '0 20px',
-                      background: manualPartnerName.trim() ? COLORS.primary : COLORS.border,
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 16,
-                      fontWeight: 700,
-                      cursor: manualPartnerName.trim() ? 'pointer' : 'not-allowed'
-                    }}
-                  >
-                    +
-                  </button>
+                  <input
+                    type="email"
+                    value={manualPartnerEmail}
+                    onChange={e => setManualPartnerEmail(e.target.value)}
+                    placeholder="Email"
+                    style={{ ...inputStyle, padding: '14px 16px', borderRadius: 12 }}
+                  />
                 </div>
+                
+                <button
+                  onClick={addManualPartner}
+                  disabled={!manualPartnerName.trim()}
+                  style={{
+                    width: '100%',
+                    padding: '14px 20px',
+                    background: manualPartnerName.trim() 
+                      ? (manualPartnerEmail.trim() ? '#00b8a9' : COLORS.primary)
+                      : COLORS.border,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: manualPartnerName.trim() ? 'pointer' : 'not-allowed',
+                    boxShadow: manualPartnerName.trim() && manualPartnerEmail.trim() 
+                      ? '0 4px 12px rgba(0, 184, 169, 0.25)' 
+                      : 'none'
+                  }}
+                >
+                  {manualPartnerEmail.trim() ? '📤 Ajouter et envoyer invitation' : '+ Ajouter à la partie'}
+                </button>
+                
+                <p style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 10, textAlign: 'center' }}>
+                  💡 {manualPartnerEmail.trim() 
+                    ? "Cette personne recevra un email pour rejoindre" 
+                    : "Ajoute un email pour envoyer une invitation automatique"}
+                </p>
               </div>
             </>
           )}
