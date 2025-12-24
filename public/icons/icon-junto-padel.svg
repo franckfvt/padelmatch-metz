@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff5a5f"/>
+      <stop offset="100%" style="stop-color:#ff8a8d"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="512" height="512" rx="112" fill="url(#bg-gradient)"/>
+  
+  <!-- Padel racket circle (simplified) -->
+  <circle cx="256" cy="220" r="100" fill="white" fill-opacity="0.95"/>
+  
+  <!-- Racket handle -->
+  <rect x="230" y="310" width="52" height="80" rx="12" fill="white" fill-opacity="0.95"/>
+  
+  <!-- Racket holes pattern -->
+  <circle cx="220" cy="190" r="12" fill="#ff5a5f"/>
+  <circle cx="256" cy="190" r="12" fill="#ff5a5f"/>
+  <circle cx="292" cy="190" r="12" fill="#ff5a5f"/>
+  <circle cx="220" cy="226" r="12" fill="#ff5a5f"/>
+  <circle cx="256" cy="226" r="12" fill="#ff5a5f"/>
+  <circle cx="292" cy="226" r="12" fill="#ff5a5f"/>
+  <circle cx="236" cy="260" r="12" fill="#ff5a5f"/>
+  <circle cx="276" cy="260" r="12" fill="#ff5a5f"/>
+  
+  <!-- 4 colored dots at bottom -->
+  <circle cx="136" cy="448" r="20" fill="#ff5a5f"/>
+  <circle cx="216" cy="448" r="20" fill="#3d4f5f"/>
+  <circle cx="296" cy="448" r="20" fill="#ffb400"/>
+  <circle cx="376" cy="448" r="20" fill="#00b8a9"/>
+</svg>

@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="128" fill="#ff5a5f"/>
+  
+  <!-- 4 dots representing players -->
+  <circle cx="176" cy="176" r="48" fill="white"/>
+  <circle cx="336" cy="176" r="48" fill="white" fill-opacity="0.8"/>
+  <circle cx="176" cy="336" r="48" fill="white" fill-opacity="0.6"/>
+  <circle cx="336" cy="336" r="48" fill="white" fill-opacity="0.4"/>
+  
+  <!-- Connection lines (optional - represents the "junto" connection) -->
+  <line x1="176" y1="176" x2="336" y2="176" stroke="white" stroke-width="8" stroke-opacity="0.3"/>
+  <line x1="176" y1="176" x2="176" y2="336" stroke="white" stroke-width="8" stroke-opacity="0.3"/>
+  <line x1="336" y1="176" x2="336" y2="336" stroke="white" stroke-width="8" stroke-opacity="0.3"/>
+  <line x1="176" y1="336" x2="336" y2="336" stroke="white" stroke-width="8" stroke-opacity="0.3"/>
+</svg>
