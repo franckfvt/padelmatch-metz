@@ -2,12 +2,13 @@
 
 /**
  * ============================================
- * PAGE MA CARTE - JUNTO BRAND v3
+ * PAGE MA CARTE - JUNTO BRAND v4
  * ============================================
  * 
- * Nouvelle architecture responsive :
- * - Desktop : 2 colonnes (carte fixe + contenu scrollable)
- * - Mobile : Stack vertical avec tabs
+ * Structure validée :
+ * - 2 colonnes desktop (carte sticky + contenu scroll)
+ * - Sections empilées visibles sans tabs
+ * - Carte simplifiée sans stats
  * 
  * ============================================
  */
@@ -37,11 +38,9 @@ const JUNTO = {
   bg: '#fafafa',
   bgSoft: '#f5f5f5',
   border: '#e5e7eb',
-  danger: '#ef4444',
 }
 
 const AVATAR_COLORS = [JUNTO.coral, JUNTO.slate, JUNTO.amber, JUNTO.teal]
-const SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
 
 const AMBIANCE_CONFIG = {
   chill: { emoji: '😌', label: 'Détente', color: JUNTO.teal },
@@ -60,19 +59,19 @@ const POSITION_CONFIG = {
 }
 
 // === COMPOSANT: Les 4 points animés ===
-function FourDots({ size = 8, gap = 4 }) {
+function FourDots({ size = 8, gap = 4, animate = true }) {
   return (
     <div style={{ display: 'flex', gap }}>
       {AVATAR_COLORS.map((c, i) => (
         <div 
           key={i} 
-          className="junto-dot" 
+          className={animate ? 'junto-dot' : ''}
           style={{ 
             width: size, 
             height: size, 
             borderRadius: '50%', 
             background: c,
-            animationDelay: `${i * 0.15}s`
+            animationDelay: animate ? `${i * 0.15}s` : undefined
           }} 
         />
       ))}
@@ -80,64 +79,63 @@ function FourDots({ size = 8, gap = 4 }) {
   )
 }
 
-// === COMPOSANT: Carte Joueur Partageable ===
-function PlayerCard({ profile, stats, badges, avatarColor, ambiance, position, forExport = false }) {
-  const cardStyle = {
-    background: `linear-gradient(145deg, #4a5d6d 0%, ${JUNTO.slate} 50%, #2a3a48 100%)`,
-    borderRadius: forExport ? 32 : 28,
-    padding: forExport ? 40 : 32,
-    position: 'relative',
-    boxShadow: forExport ? 'none' : '0 25px 60px rgba(0,0,0,0.4)',
-    border: '2px solid rgba(255,255,255,0.1)',
-    width: '100%',
-    maxWidth: forExport ? 400 : 380,
-    aspectRatio: forExport ? '1 / 1.2' : 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between'
-  }
-
+// === COMPOSANT: Carte Joueur (pour affichage ET export) ===
+function PlayerCard({ profile, avatarColor, ambiance, position, forExport = false }) {
   return (
-    <div style={cardStyle}>
-      {/* Accent bar */}
+    <div style={{
+      background: `linear-gradient(145deg, #4a5d6d 0%, ${JUNTO.slate} 100%)`,
+      borderRadius: forExport ? 32 : 24,
+      padding: forExport ? 40 : 32,
+      position: 'relative',
+      boxShadow: forExport ? 'none' : '0 20px 50px rgba(0,0,0,0.3)',
+      border: '2px solid rgba(255,255,255,0.1)',
+      width: forExport ? 400 : '100%',
+      maxWidth: forExport ? 400 : 380,
+      height: forExport ? 500 : 'auto',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      boxSizing: 'border-box'
+    }}>
+      {/* Barre latérale unie */}
       <div style={{
         position: 'absolute',
         left: 0,
         top: 28,
         bottom: 28,
         width: 6,
-        background: `linear-gradient(180deg, ${JUNTO.coral} 0%, ${JUNTO.amber} 100%)`,
+        background: JUNTO.coral,
         borderRadius: '0 4px 4px 0'
       }} />
 
-      {/* Content */}
+      {/* Contenu */}
       <div style={{ textAlign: 'center' }}>
         {/* Avatar */}
         <div style={{
-          width: forExport ? 120 : 100,
-          height: forExport ? 120 : 100,
-          borderRadius: 28,
+          width: forExport ? 110 : 100,
+          height: forExport ? 110 : 100,
+          borderRadius: 24,
           background: profile?.avatar_url ? 'transparent' : avatarColor,
           margin: '0 auto 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: forExport ? 52 : 44,
+          fontSize: forExport ? 48 : 42,
           fontWeight: 700,
           color: JUNTO.white,
           border: '4px solid rgba(255,255,255,0.2)',
           overflow: 'hidden',
-          boxShadow: '0 12px 32px rgba(0,0,0,0.3)'
+          boxShadow: '0 10px 30px rgba(0,0,0,0.25)'
         }}>
           {profile?.avatar_url 
             ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-            : profile?.name?.[0]?.toUpperCase()
+            : profile?.name?.[0]?.toUpperCase() || '?'
           }
         </div>
 
-        {/* Name */}
+        {/* Nom */}
         <h2 style={{ 
-          fontSize: forExport ? 32 : 28, 
+          fontSize: forExport ? 30 : 26, 
           fontWeight: 800, 
           color: JUNTO.white, 
           margin: '0 0 8px',
@@ -146,32 +144,29 @@ function PlayerCard({ profile, stats, badges, avatarColor, ambiance, position, f
           {profile?.name || 'Joueur'}
         </h2>
 
-        {/* Location */}
+        {/* Ville */}
         {profile?.city && (
           <div style={{ 
             fontSize: 14, 
             color: 'rgba(255,255,255,0.5)', 
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6
+            marginBottom: 24 
           }}>
             📍 {profile.city}
+            {profile?.signup_number && ` · Membre #${profile.signup_number}`}
           </div>
         )}
 
-        {/* Level badge - prominent */}
+        {/* Niveau - Badge principal */}
         <div style={{
+          display: 'inline-block',
           background: 'rgba(0, 184, 169, 0.15)',
           border: `2px solid ${JUNTO.teal}`,
           borderRadius: 20,
-          padding: '20px 32px',
-          display: 'inline-block',
-          marginBottom: 20
+          padding: '18px 36px',
+          marginBottom: 24
         }}>
           <div style={{ 
-            fontSize: forExport ? 56 : 48, 
+            fontSize: forExport ? 52 : 48, 
             fontWeight: 900, 
             color: '#4eeee0', 
             lineHeight: 1 
@@ -179,9 +174,9 @@ function PlayerCard({ profile, stats, badges, avatarColor, ambiance, position, f
             {profile?.level || '?'}
           </div>
           <div style={{ 
-            fontSize: 12, 
+            fontSize: 11, 
             color: '#4eeee0', 
-            marginTop: 6, 
+            marginTop: 8, 
             fontWeight: 600, 
             letterSpacing: 2,
             textTransform: 'uppercase'
@@ -190,12 +185,13 @@ function PlayerCard({ profile, stats, badges, avatarColor, ambiance, position, f
           </div>
         </div>
 
-        {/* Tags */}
+        {/* Tags position & ambiance */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center', 
           gap: 10, 
-          flexWrap: 'wrap' 
+          flexWrap: 'wrap',
+          marginBottom: 24
         }}>
           <span style={{ 
             background: 'rgba(255,255,255,0.1)', 
@@ -218,85 +214,25 @@ function PlayerCard({ profile, stats, badges, avatarColor, ambiance, position, f
             {ambiance.emoji} {ambiance.label}
           </span>
         </div>
-      </div>
 
-      {/* Stats row */}
-      {stats && (
-        <div style={{
-          display: 'flex',
+        {/* Logo Junto */}
+        <div style={{ 
+          display: 'flex', 
           justifyContent: 'center',
-          gap: 24,
-          marginTop: 24,
           paddingTop: 20,
           borderTop: '1px solid rgba(255,255,255,0.1)'
         }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: JUNTO.white }}>{stats.matchesPlayed}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Parties</div>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 10,
+            background: 'rgba(0,0,0,0.2)',
+            padding: '10px 20px',
+            borderRadius: 100
+          }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>junto</span>
+            <FourDots size={6} gap={3} animate={!forExport} />
           </div>
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: JUNTO.teal }}>{stats.wins}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Victoires</div>
-          </div>
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: JUNTO.amber }}>{stats.winRate}%</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Win rate</div>
-          </div>
-        </div>
-      )}
-
-      {/* Badges row */}
-      {badges && badges.length > 0 && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 8,
-          marginTop: 16
-        }}>
-          {badges.slice(0, 4).map((b, i) => (
-            <div key={i} style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              background: 'rgba(255,255,255,0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 20
-            }}>
-              {b.badge_definitions?.emoji || '🏅'}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Logo Junto */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        marginTop: 24,
-        paddingTop: 20,
-        borderTop: '1px solid rgba(255,255,255,0.1)'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 10,
-          background: 'rgba(0,0,0,0.2)',
-          padding: '10px 20px',
-          borderRadius: 100
-        }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>junto</span>
-          {!forExport && <FourDots size={6} gap={3} />}
-          {forExport && (
-            <div style={{ display: 'flex', gap: 3 }}>
-              {AVATAR_COLORS.map((c, i) => (
-                <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: c }} />
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -306,14 +242,11 @@ function PlayerCard({ profile, stats, badges, avatarColor, ambiance, position, f
 // === PAGE PRINCIPALE ===
 export default function MaCartePage() {
   const router = useRouter()
-  const cardRef = useRef(null)
-  const exportCardRef = useRef(null)
+  const exportRef = useRef(null)
   
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  
-  const [activeSection, setActiveSection] = useState('stats')
   
   const [showShareModal, setShowShareModal] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -325,9 +258,7 @@ export default function MaCartePage() {
     wins: 0,
     losses: 0,
     winRate: 0,
-    organized: 0,
-    partners: 0,
-    favorites: 0
+    organized: 0
   })
   
   const [userBadges, setUserBadges] = useState([])
@@ -356,20 +287,16 @@ export default function MaCartePage() {
 
     const today = new Date().toISOString().split('T')[0]
 
-    // Stats de jeu
+    // Stats
     const { data: participations } = await supabase
       .from('match_participants')
-      .select(`
-        match_id, team,
-        matches!inner (id, match_date, winner)
-      `)
+      .select(`match_id, team, matches!inner (id, match_date, winner)`)
       .eq('user_id', session.user.id)
       .eq('status', 'confirmed')
       .lt('matches.match_date', today)
 
     const matchesPlayed = participations?.length || 0
-    let wins = 0
-    let losses = 0
+    let wins = 0, losses = 0
 
     ;(participations || []).forEach(p => {
       if (p.matches?.winner && p.team) {
@@ -385,43 +312,12 @@ export default function MaCartePage() {
       .select('id', { count: 'exact', head: true })
       .eq('organizer_id', session.user.id)
 
-    const { count: favoritesCount } = await supabase
-      .from('player_favorites')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', session.user.id)
-
-    let partnersCount = 0
-    if (participations?.length > 0) {
-      const matchIds = participations.map(p => p.match_id)
-      const { data: coPlayers } = await supabase
-        .from('match_participants')
-        .select('user_id')
-        .in('match_id', matchIds)
-        .neq('user_id', session.user.id)
-        .eq('status', 'confirmed')
-      
-      const uniquePartners = new Set((coPlayers || []).map(p => p.user_id))
-      partnersCount = uniquePartners.size
-    }
-
-    setStats({
-      matchesPlayed,
-      wins,
-      losses,
-      winRate,
-      organized: organized || 0,
-      partners: partnersCount,
-      favorites: favoritesCount || 0
-    })
+    setStats({ matchesPlayed, wins, losses, winRate, organized: organized || 0 })
 
     // Badges
     const { data: badges } = await supabase
       .from('user_badges')
-      .select(`
-        badge_id, 
-        earned_at,
-        badge_definitions (id, name, emoji, description)
-      `)
+      .select(`badge_id, earned_at, badge_definitions (id, name, emoji, description)`)
       .eq('user_id', session.user.id)
       .order('earned_at', { ascending: false })
 
@@ -433,20 +329,17 @@ export default function MaCartePage() {
       .eq('is_active', true)
 
     setAllBadgesCount(totalBadges || 15)
-
     setLoading(false)
   }
 
   // === PARTAGE ===
-  const profileUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/player/${user?.id}` 
-    : ''
+  const profileUrl = typeof window !== 'undefined' ? `${window.location.origin}/player/${user?.id}` : ''
 
   function generateQRCode() {
     if (qrCodeUrl || !profileUrl) return qrCodeUrl
-    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(profileUrl)}&bgcolor=ffffff&color=1e293b&margin=10`
-    setQrCodeUrl(qrApiUrl)
-    return qrApiUrl
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(profileUrl)}&bgcolor=ffffff&color=1e293b&margin=10`
+    setQrCodeUrl(url)
+    return url
   }
 
   function handleShare() {
@@ -455,23 +348,14 @@ export default function MaCartePage() {
   }
 
   async function handleNativeShare() {
-    const shareText = `🎾 Mon profil Junto
-⭐ Niveau ${profile?.level || '?'}
-📍 ${profile?.city || 'France'}
-
-👉 ${profileUrl}`
+    const shareText = `🎾 Mon profil Junto\n⭐ Niveau ${profile?.level || '?'}\n📍 ${profile?.city || 'France'}\n\n👉 ${profileUrl}`
     
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: `${profile?.name} - Junto`,
-          text: shareText,
-          url: profileUrl
-        })
+        await navigator.share({ title: `${profile?.name} - Junto`, text: shareText, url: profileUrl })
         return
       } catch (err) {}
     }
-    
     window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')
   }
 
@@ -489,36 +373,46 @@ export default function MaCartePage() {
     setDownloading(true)
     
     try {
-      // Méthode 1: Utiliser html2canvas si disponible
       const html2canvas = (await import('html2canvas')).default
+      const element = exportRef.current
+      if (!element) throw new Error('Element not found')
       
-      // Créer un élément temporaire pour l'export
-      const exportElement = exportCardRef.current
-      if (!exportElement) throw new Error('Element not found')
+      // Rendre visible pour capture
+      element.style.position = 'fixed'
+      element.style.left = '0'
+      element.style.top = '0'
+      element.style.zIndex = '-9999'
+      element.style.opacity = '1'
+      element.style.pointerEvents = 'none'
+      element.style.display = 'flex'
+      element.style.alignItems = 'center'
+      element.style.justifyContent = 'center'
+      element.style.width = '400px'
+      element.style.height = '500px'
+      element.style.background = JUNTO.slate
+      element.style.padding = '0'
       
-      // Rendre visible temporairement
-      exportElement.style.display = 'block'
-      exportElement.style.position = 'fixed'
-      exportElement.style.left = '-9999px'
-      exportElement.style.top = '0'
+      // Attendre le rendu
+      await new Promise(r => setTimeout(r, 200))
       
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      const canvas = await html2canvas(exportElement, {
+      const canvas = await html2canvas(element, {
         backgroundColor: JUNTO.slate,
         scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
         width: 400,
-        height: 480
+        height: 500,
+        windowWidth: 400,
+        windowHeight: 500
       })
       
-      exportElement.style.display = 'none'
+      // Cacher à nouveau
+      element.style.display = 'none'
       
       // Télécharger
       const link = document.createElement('a')
-      link.download = `junto-${profile?.name || 'joueur'}.png`
+      link.download = `junto-${(profile?.name || 'carte').toLowerCase().replace(/\s+/g, '-')}.png`
       link.href = canvas.toDataURL('image/png', 1.0)
       document.body.appendChild(link)
       link.click()
@@ -526,9 +420,8 @@ export default function MaCartePage() {
       
     } catch (err) {
       console.error('Erreur téléchargement:', err)
-      // Fallback: copier le lien
       await copyLink()
-      alert('Le lien de ton profil a été copié ! Tu peux faire une capture d\'écran de ta carte.')
+      alert('Le lien a été copié ! Tu peux aussi faire une capture d\'écran de ta carte.')
     } finally {
       setDownloading(false)
     }
@@ -539,74 +432,71 @@ export default function MaCartePage() {
     router.push('/auth')
   }
 
-  // Lien de parrainage
-  const referralLink = typeof window !== 'undefined' 
-    ? `${window.location.origin}/join?ref=${user?.id?.slice(0, 8)}` 
-    : ''
+  const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/join?ref=${user?.id?.slice(0, 8)}` : ''
 
   async function shareReferral() {
-    const text = `🎾 Rejoins-moi sur Junto, l'app pour organiser des parties de padel entre potes !
-
-👉 ${referralLink}`
-    
+    const text = `🎾 Rejoins-moi sur Junto, l'app pour organiser des parties de padel !\n\n👉 ${referralLink}`
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'Rejoins Junto !',
-          text: text,
-          url: referralLink
-        })
+        await navigator.share({ title: 'Rejoins Junto !', text, url: referralLink })
         return
       } catch (err) {}
     }
-    
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
-  // === HELPERS ===
+  // Helpers
   function getAvatarColor(name) {
     if (!name) return JUNTO.coral
-    const index = name.charCodeAt(0) % 4
-    return AVATAR_COLORS[index]
+    return AVATAR_COLORS[name.charCodeAt(0) % 4]
   }
 
   const avatarColor = getAvatarColor(profile?.name)
   const ambiance = AMBIANCE_CONFIG[profile?.ambiance] || AMBIANCE_CONFIG.mix
   const position = POSITION_CONFIG[profile?.position] || POSITION_CONFIG.both
 
-  // === LOADING ===
+  // Loading
   if (loading) {
     return (
-      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
-            {AVATAR_COLORS.map((c, i) => (
-              <div key={i} className="junto-loading-dot" style={{ width: 14, height: 14, borderRadius: '50%', background: c }} />
-            ))}
-          </div>
-          <div style={{ color: JUNTO.gray }}>Chargement...</div>
+      <div className="loading-screen">
+        <div className="loading-dots">
+          {AVATAR_COLORS.map((c, i) => (
+            <div key={i} className="loading-dot" style={{ background: c, animationDelay: `${i * 0.1}s` }} />
+          ))}
         </div>
+        <style jsx>{`
+          .loading-screen {
+            min-height: 60vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .loading-dots {
+            display: flex;
+            gap: 8px;
+          }
+          .loading-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            animation: loadBounce 1.4s ease-in-out infinite;
+          }
+          @keyframes loadBounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-12px); }
+          }
+        `}</style>
       </div>
     )
   }
 
-  // === SECTIONS CONTENT ===
-  const sections = [
-    { id: 'stats', label: 'Stats', icon: '📊' },
-    { id: 'badges', label: 'Badges', icon: '🏅', badge: `${userBadges.length}/${allBadgesCount}` },
-    { id: 'referral', label: 'Parrainage', icon: '🎁' },
-    { id: 'settings', label: 'Réglages', icon: '⚙️' }
-  ]
-
   return (
     <div className="carte-page">
       
-      {/* Export card (hidden) */}
-      <div ref={exportCardRef} style={{ display: 'none' }}>
+      {/* Élément caché pour export */}
+      <div ref={exportRef} style={{ display: 'none' }}>
         <PlayerCard 
           profile={profile}
-          stats={stats}
-          badges={userBadges}
           avatarColor={avatarColor}
           ambiance={ambiance}
           position={position}
@@ -614,48 +504,43 @@ export default function MaCartePage() {
         />
       </div>
 
-      {/* === MODAL PARTAGE === */}
+      {/* Modal partage */}
       {showShareModal && (
         <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowShareModal(false)}>✕</button>
             
             <h2 className="modal-title">📤 Partager ma carte</h2>
             <p className="modal-subtitle">Scanne ou partage ton profil</p>
 
-            {/* QR Code */}
-            <div className="qr-container">
+            <div className="qr-box">
               {qrCodeUrl ? (
-                <img src={qrCodeUrl} alt="QR Code" className="qr-code" />
+                <img src={qrCodeUrl} alt="QR Code" className="qr-img" />
               ) : (
-                <div className="qr-placeholder">Génération...</div>
+                <div className="qr-loading">Génération...</div>
               )}
             </div>
 
-            {/* Mini profil */}
-            <div className="share-profile">
-              <div className="share-avatar" style={{ background: profile?.avatar_url ? 'transparent' : avatarColor }}>
+            <div className="modal-profile">
+              <div className="modal-avatar" style={{ background: profile?.avatar_url ? 'transparent' : avatarColor }}>
                 {profile?.avatar_url 
                   ? <img src={profile.avatar_url} alt="" />
                   : profile?.name?.[0]?.toUpperCase()
                 }
               </div>
-              <div className="share-info">
-                <div className="share-name">{profile?.name}</div>
-                <div className="share-level">⭐ Niveau {profile?.level}</div>
+              <div>
+                <div className="modal-name">{profile?.name}</div>
+                <div className="modal-level">⭐ Niveau {profile?.level}</div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="share-actions">
-              <button className="btn-share-primary" onClick={handleNativeShare}>
-                📤 Partager
-              </button>
-              <div className="share-actions-row">
-                <button className="btn-share-secondary" onClick={copyLink}>
+            <div className="modal-actions">
+              <button className="btn-coral" onClick={handleNativeShare}>📤 Partager</button>
+              <div className="modal-actions-row">
+                <button className="btn-gray" onClick={copyLink}>
                   {copied ? '✓ Copié !' : '🔗 Copier'}
                 </button>
-                <button className="btn-share-secondary" onClick={downloadCard} disabled={downloading}>
+                <button className="btn-gray" onClick={downloadCard} disabled={downloading}>
                   {downloading ? '⏳' : '📷'} Image
                 </button>
               </div>
@@ -664,44 +549,33 @@ export default function MaCartePage() {
         </div>
       )}
 
-      {/* === LAYOUT PRINCIPAL === */}
-      <div className="carte-layout">
+      {/* Layout principal */}
+      <div className="page-layout">
         
         {/* COLONNE GAUCHE: Carte */}
-        <div className="carte-column">
-          <div className="carte-sticky">
-            {/* Header */}
-            <div className="carte-header">
-              <h1 className="carte-title">
-                <span>🎴</span> Ma Carte
-              </h1>
-              <Link href="/dashboard/profile/edit" className="btn-edit">
-                ✏️ Modifier
-              </Link>
+        <div className="card-column">
+          <div className="card-sticky">
+            <div className="card-header">
+              <h1 className="page-title"><span>🎴</span> Ma Carte</h1>
+              <Link href="/dashboard/profile/edit" className="btn-edit">✏️ Modifier</Link>
             </div>
 
-            {/* Carte joueur */}
-            <div ref={cardRef} className="card-wrapper">
+            <div className="card-wrapper">
               <PlayerCard 
                 profile={profile}
-                stats={stats}
-                badges={userBadges}
                 avatarColor={avatarColor}
                 ambiance={ambiance}
                 position={position}
               />
             </div>
 
-            {/* Actions de partage */}
             <div className="card-actions">
-              <button className="btn-action-primary" onClick={handleShare}>
-                📤 Partager ma carte
-              </button>
+              <button className="btn-coral full" onClick={handleShare}>📤 Partager ma carte</button>
               <div className="card-actions-row">
-                <button className="btn-action-secondary" onClick={downloadCard} disabled={downloading}>
+                <button className="btn-outline" onClick={downloadCard} disabled={downloading}>
                   {downloading ? '⏳ ...' : '📷 Télécharger'}
                 </button>
-                <button className="btn-action-secondary" onClick={copyLink}>
+                <button className="btn-outline" onClick={copyLink}>
                   {copied ? '✓ Copié !' : '🔗 Copier lien'}
                 </button>
               </div>
@@ -712,204 +586,124 @@ export default function MaCartePage() {
         {/* COLONNE DROITE: Contenu */}
         <div className="content-column">
           
-          {/* Navigation */}
-          <nav className="content-nav">
-            {sections.map(section => (
-              <button
-                key={section.id}
-                className={`nav-item ${activeSection === section.id ? 'active' : ''}`}
-                onClick={() => setActiveSection(section.id)}
-              >
-                <span className="nav-icon">{section.icon}</span>
-                <span className="nav-label">{section.label}</span>
-                {section.badge && (
-                  <span className="nav-badge">{section.badge}</span>
-                )}
-              </button>
-            ))}
-          </nav>
-
-          {/* Contenu des sections */}
-          <div className="content-body">
-            
-            {/* STATS */}
-            {activeSection === 'stats' && (
-              <div className="section-content">
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <div className="stat-value" style={{ color: JUNTO.slate }}>{stats.matchesPlayed}</div>
-                    <div className="stat-label">Parties jouées</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-value" style={{ color: JUNTO.teal }}>{stats.wins}</div>
-                    <div className="stat-label">Victoires</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-value" style={{ color: JUNTO.coral }}>{stats.losses}</div>
-                    <div className="stat-label">Défaites</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-value" style={{ color: JUNTO.amber }}>{stats.winRate}%</div>
-                    <div className="stat-label">Win rate</div>
-                  </div>
+          {/* SECTION: Stats */}
+          <div className="content-card">
+            <div className="card-bar teal" />
+            <div className="card-body">
+              <h3 className="section-title">📊 Mes statistiques</h3>
+              <div className="stats-grid">
+                <div className="stat-item">
+                  <div className="stat-value slate">{stats.matchesPlayed}</div>
+                  <div className="stat-label">Parties</div>
                 </div>
-
-                <div className="info-cards">
-                  <div className="info-card">
-                    <div className="info-icon">🎯</div>
-                    <div className="info-content">
-                      <div className="info-value">{stats.organized}</div>
-                      <div className="info-label">Parties organisées</div>
-                    </div>
-                  </div>
-                  <div className="info-card">
-                    <div className="info-icon">🤝</div>
-                    <div className="info-content">
-                      <div className="info-value">{stats.partners}</div>
-                      <div className="info-label">Partenaires différents</div>
-                    </div>
-                  </div>
-                  <div className="info-card">
-                    <div className="info-icon">⭐</div>
-                    <div className="info-content">
-                      <div className="info-value">{stats.favorites}</div>
-                      <div className="info-label">Joueurs favoris</div>
-                    </div>
-                  </div>
+                <div className="stat-item">
+                  <div className="stat-value teal">{stats.wins}</div>
+                  <div className="stat-label">Victoires</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-value coral">{stats.losses}</div>
+                  <div className="stat-label">Défaites</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-value amber">{stats.winRate}%</div>
+                  <div className="stat-label">Win rate</div>
                 </div>
               </div>
-            )}
+            </div>
+          </div>
 
-            {/* BADGES */}
-            {activeSection === 'badges' && (
-              <div className="section-content">
-                <div className="badges-header">
-                  <h3>🏅 Ma collection</h3>
-                  <span className="badges-count">{userBadges.length}/{allBadgesCount}</span>
-                </div>
-
-                {userBadges.length > 0 ? (
+          {/* SECTION: Badges */}
+          <div className="content-card">
+            <div className="card-bar amber" />
+            <div className="card-body">
+              <div className="section-header">
+                <h3 className="section-title">🏅 Mes badges</h3>
+                <span className="section-badge">{userBadges.length}/{allBadgesCount}</span>
+              </div>
+              
+              {userBadges.length > 0 ? (
+                <>
                   <div className="badges-grid">
-                    {userBadges.map((ub, i) => (
-                      <div key={ub.badge_id} className="badge-card">
+                    {userBadges.slice(0, 5).map((ub) => (
+                      <div key={ub.badge_id} className="badge-item">
                         <div className="badge-emoji">{ub.badge_definitions?.emoji || '🏅'}</div>
                         <div className="badge-name">{ub.badge_definitions?.name || 'Badge'}</div>
-                        <div className="badge-desc">{ub.badge_definitions?.description}</div>
+                      </div>
+                    ))}
+                    {userBadges.length < 5 && Array(5 - Math.min(userBadges.length, 5)).fill(0).map((_, i) => (
+                      <div key={`locked-${i}`} className="badge-item locked">
+                        <div className="badge-emoji">🔒</div>
+                        <div className="badge-name">???</div>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="empty-state">
-                    <div className="empty-icon">🏅</div>
-                    <div className="empty-title">Pas encore de badges</div>
-                    <div className="empty-text">Joue des parties, invite des amis, et débloque des badges !</div>
-                  </div>
-                )}
+                  <Link href="/dashboard/me/badges" className="link-more">Voir tous les badges →</Link>
+                </>
+              ) : (
+                <div className="empty-badges">
+                  <div className="empty-icon">🏅</div>
+                  <div className="empty-text">Joue des parties pour débloquer des badges !</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* SECTION: Parrainage */}
+          <div className="content-card">
+            <div className="card-bar teal" />
+            <div className="card-body">
+              <h3 className="section-title">🎁 Parrainage</h3>
+              <div className="referral-box">
+                <div className="referral-count">
+                  <div className="referral-number">{profile?.referral_count || 0}</div>
+                  <div className="referral-label">amis invités</div>
+                </div>
+                <div className="referral-info">
+                  <div className="referral-title">Invite tes potes !</div>
+                  <div className="referral-text">Débloque des badges exclusifs en invitant tes amis</div>
+                </div>
+                <button className="btn-teal" onClick={shareReferral}>📤 Inviter</button>
               </div>
-            )}
+            </div>
+          </div>
 
-            {/* PARRAINAGE */}
-            {activeSection === 'referral' && (
-              <div className="section-content">
-                <div className="referral-hero">
-                  <div className="referral-icon">🎁</div>
-                  <h3 className="referral-title">Invite tes potes !</h3>
-                  <p className="referral-text">Plus tu invites, plus tu débloques de badges exclusifs</p>
-                  
-                  <div className="referral-count">
-                    <div className="referral-number">{profile?.referral_count || 0}</div>
-                    <div className="referral-label">Amis invités</div>
-                  </div>
-
-                  <button className="btn-referral" onClick={shareReferral}>
-                    📤 Partager mon lien
-                  </button>
-                </div>
-
-                <div className="referral-badges">
-                  <h4>🏅 Badges à débloquer</h4>
-                  <div className="referral-badges-list">
-                    {[
-                      { name: 'Ambassadeur', goal: 1, emoji: '📢', desc: '1 ami invité' },
-                      { name: 'Recruteur', goal: 5, emoji: '🎯', desc: '5 amis invités' },
-                      { name: 'Influenceur', goal: 10, emoji: '⭐', desc: '10 amis invités' },
-                      { name: 'Légende', goal: 25, emoji: '👑', desc: '25 amis invités' }
-                    ].map(badge => {
-                      const current = profile?.referral_count || 0
-                      const progress = Math.min(100, Math.round((current / badge.goal) * 100))
-                      const isEarned = current >= badge.goal
-                      
-                      return (
-                        <div key={badge.name} className={`referral-badge ${isEarned ? 'earned' : ''}`}>
-                          <div className="rb-emoji">{badge.emoji}</div>
-                          <div className="rb-info">
-                            <div className="rb-name">
-                              {badge.name}
-                              {isEarned && <span className="rb-check">✓</span>}
-                            </div>
-                            <div className="rb-desc">{badge.desc}</div>
-                            {!isEarned && (
-                              <div className="rb-progress">
-                                <div className="rb-bar">
-                                  <div className="rb-fill" style={{ width: `${progress}%` }} />
-                                </div>
-                                <span className="rb-count">{current}/{badge.goal}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+          {/* SECTION: Réglages */}
+          <div className="content-card">
+            <div className="card-bar slate" />
+            <div className="card-body no-padding">
+              <div className="settings-header">
+                <h3 className="section-title">⚙️ Réglages</h3>
               </div>
-            )}
-
-            {/* SETTINGS */}
-            {activeSection === 'settings' && (
-              <div className="section-content">
-                <div className="settings-list">
-                  {[
-                    { icon: '✏️', label: 'Modifier mon profil', href: '/dashboard/profile/edit' },
-                    { icon: '🔔', label: 'Notifications', href: '/dashboard/settings/notifications' },
-                    { icon: '🔐', label: 'Confidentialité', href: '/dashboard/settings/privacy' },
-                    { icon: '❓', label: 'Aide & FAQ', href: '/dashboard/settings/help' },
-                    { icon: '💡', label: 'Proposer une idée', href: '/dashboard/ideas' },
-                    { icon: '📄', label: 'CGU & Mentions légales', href: '/terms' }
-                  ].map((item, i) => (
-                    <Link key={item.href} href={item.href} className="settings-item">
-                      <span className="settings-icon">{item.icon}</span>
-                      <span className="settings-label">{item.label}</span>
-                      <span className="settings-arrow">›</span>
-                    </Link>
-                  ))}
-                </div>
-
-                <button className="btn-logout" onClick={handleLogout}>
-                  🚪 Déconnexion
-                </button>
-
-                <div className="app-version">
-                  Junto v1.0 · Made with 🎾 in France
-                </div>
+              <div className="settings-list">
+                {[
+                  { icon: '✏️', label: 'Modifier mon profil', href: '/dashboard/profile/edit' },
+                  { icon: '🔔', label: 'Notifications', href: '/dashboard/settings/notifications' },
+                  { icon: '🔐', label: 'Confidentialité', href: '/dashboard/settings/privacy' },
+                  { icon: '❓', label: 'Aide & FAQ', href: '/dashboard/settings/help' },
+                  { icon: '📄', label: 'CGU & Mentions légales', href: '/terms' }
+                ].map((item) => (
+                  <Link key={item.href} href={item.href} className="settings-item">
+                    <span className="settings-icon">{item.icon}</span>
+                    <span className="settings-label">{item.label}</span>
+                    <span className="settings-arrow">›</span>
+                  </Link>
+                ))}
               </div>
-            )}
+              <div className="settings-footer">
+                <button className="btn-logout" onClick={handleLogout}>🚪 Déconnexion</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="page-footer">
+            Junto v1.0 · Made with 🎾 in France
           </div>
         </div>
       </div>
 
       {/* === STYLES === */}
       <style jsx global>{`
-        @keyframes junto-loading {
-          0%, 80%, 100% { transform: translateY(0); }
-          40% { transform: translateY(-12px); }
-        }
-        .junto-loading-dot { animation: junto-loading 1.4s ease-in-out infinite; }
-        .junto-loading-dot:nth-child(1) { animation-delay: 0s; }
-        .junto-loading-dot:nth-child(2) { animation-delay: 0.1s; }
-        .junto-loading-dot:nth-child(3) { animation-delay: 0.2s; }
-        .junto-loading-dot:nth-child(4) { animation-delay: 0.3s; }
-        
         @keyframes junto-dot {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.3); opacity: 0.7; }
@@ -923,40 +717,42 @@ export default function MaCartePage() {
           padding-bottom: 100px;
         }
 
-        /* === LAYOUT === */
-        .carte-layout {
-          max-width: 1200px;
+        /* Layout */
+        .page-layout {
+          max-width: 1100px;
           margin: 0 auto;
-          padding: 24px;
+          padding: 32px 24px;
           display: grid;
-          grid-template-columns: 420px 1fr;
-          gap: 40px;
+          grid-template-columns: 400px 1fr;
+          gap: 48px;
           align-items: start;
         }
 
-        .carte-column {
+        .card-column {
           position: relative;
         }
 
-        .carte-sticky {
+        .card-sticky {
           position: sticky;
-          top: 24px;
+          top: 32px;
         }
 
         .content-column {
-          min-height: 600px;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
         }
 
-        /* === CARTE HEADER === */
-        .carte-header {
+        /* Card header */
+        .card-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 20px;
         }
 
-        .carte-title {
-          font-size: 24px;
+        .page-title {
+          font-size: 22px;
           font-weight: 700;
           color: ${JUNTO.ink};
           margin: 0;
@@ -966,7 +762,7 @@ export default function MaCartePage() {
         }
 
         .btn-edit {
-          background: ${JUNTO.bgSoft};
+          background: ${JUNTO.white};
           border: 2px solid ${JUNTO.border};
           border-radius: 100px;
           padding: 10px 18px;
@@ -982,13 +778,12 @@ export default function MaCartePage() {
           color: ${JUNTO.coral};
         }
 
-        /* === CARD WRAPPER === */
         .card-wrapper {
           display: flex;
           justify-content: center;
         }
 
-        /* === CARD ACTIONS === */
+        /* Card actions */
         .card-actions {
           margin-top: 20px;
           display: flex;
@@ -996,27 +791,24 @@ export default function MaCartePage() {
           gap: 12px;
         }
 
-        .btn-action-primary {
-          width: 100%;
-          padding: 16px;
+        .btn-coral {
           background: ${JUNTO.coral};
-          border: none;
-          border-radius: 16px;
-          font-size: 16px;
-          font-weight: 700;
           color: ${JUNTO.white};
+          border: none;
+          padding: 16px;
+          border-radius: 14px;
+          font-size: 15px;
+          font-weight: 700;
           cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
           box-shadow: 0 8px 24px ${JUNTO.coralGlow};
-          transition: all 0.3s ${SPRING};
+          transition: all 0.2s;
         }
 
-        .btn-action-primary:hover {
+        .btn-coral.full { width: 100%; }
+
+        .btn-coral:hover {
           transform: translateY(-2px);
-          box-shadow: 0 12px 32px ${JUNTO.coralGlow};
+          box-shadow: 0 12px 28px ${JUNTO.coralGlow};
         }
 
         .card-actions-row {
@@ -1025,236 +817,162 @@ export default function MaCartePage() {
           gap: 12px;
         }
 
-        .btn-action-secondary {
-          padding: 14px;
+        .btn-outline {
           background: ${JUNTO.white};
+          color: ${JUNTO.gray};
           border: 2px solid ${JUNTO.border};
-          border-radius: 14px;
+          padding: 12px;
+          border-radius: 12px;
           font-size: 14px;
           font-weight: 600;
-          color: ${JUNTO.gray};
           cursor: pointer;
           transition: all 0.2s;
         }
 
-        .btn-action-secondary:hover {
+        .btn-outline:hover {
           border-color: ${JUNTO.ink};
           color: ${JUNTO.ink};
         }
 
-        .btn-action-secondary:disabled {
+        .btn-outline:disabled {
           opacity: 0.6;
           cursor: wait;
         }
 
-        /* === CONTENT NAV === */
-        .content-nav {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 24px;
-          padding-bottom: 16px;
-          border-bottom: 2px solid ${JUNTO.border};
-          flex-wrap: wrap;
-        }
-
-        .nav-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
+        /* Content cards */
+        .content-card {
           background: ${JUNTO.white};
-          border: 2px solid ${JUNTO.border};
-          border-radius: 14px;
-          font-size: 14px;
-          font-weight: 600;
-          color: ${JUNTO.gray};
-          cursor: pointer;
-          transition: all 0.2s ${SPRING};
-        }
-
-        .nav-item:hover {
-          border-color: ${JUNTO.ink};
-          color: ${JUNTO.ink};
-        }
-
-        .nav-item.active {
-          background: ${JUNTO.ink};
-          border-color: ${JUNTO.ink};
-          color: ${JUNTO.white};
-        }
-
-        .nav-icon {
-          font-size: 16px;
-        }
-
-        .nav-badge {
-          font-size: 11px;
-          background: rgba(255,255,255,0.2);
-          padding: 3px 10px;
-          border-radius: 8px;
-          font-weight: 700;
-        }
-
-        .nav-item:not(.active) .nav-badge {
-          background: ${JUNTO.bgSoft};
-        }
-
-        /* === SECTION CONTENT === */
-        .section-content {
-          animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* === STATS === */
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-          margin-bottom: 24px;
-        }
-
-        .stat-card {
-          background: ${JUNTO.white};
-          border: 2px solid ${JUNTO.border};
           border-radius: 20px;
-          padding: 24px 16px;
-          text-align: center;
-          transition: all 0.3s ${SPRING};
-        }
-
-        .stat-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px rgba(0,0,0,0.06);
-        }
-
-        .stat-value {
-          font-size: 32px;
-          font-weight: 800;
-          margin-bottom: 4px;
-        }
-
-        .stat-label {
-          font-size: 12px;
-          color: ${JUNTO.muted};
-          font-weight: 500;
-        }
-
-        .info-cards {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .info-card {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          background: ${JUNTO.white};
           border: 2px solid ${JUNTO.border};
-          border-radius: 16px;
-          padding: 18px 20px;
+          overflow: hidden;
         }
 
-        .info-icon {
-          font-size: 28px;
+        .card-bar {
+          height: 4px;
+        }
+        .card-bar.teal { background: ${JUNTO.teal}; }
+        .card-bar.amber { background: ${JUNTO.amber}; }
+        .card-bar.coral { background: ${JUNTO.coral}; }
+        .card-bar.slate { background: ${JUNTO.slate}; }
+
+        .card-body {
+          padding: 24px;
         }
 
-        .info-value {
-          font-size: 20px;
-          font-weight: 700;
-          color: ${JUNTO.ink};
+        .card-body.no-padding {
+          padding: 0;
         }
 
-        .info-label {
-          font-size: 13px;
-          color: ${JUNTO.gray};
-        }
-
-        /* === BADGES === */
-        .badges-header {
+        .section-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 20px;
-        }
-
-        .badges-header h3 {
-          font-size: 18px;
-          font-weight: 700;
-          color: ${JUNTO.ink};
-          margin: 0;
-        }
-
-        .badges-count {
-          background: ${JUNTO.tealSoft};
-          color: ${JUNTO.teal};
-          padding: 6px 16px;
-          border-radius: 100px;
-          font-size: 14px;
-          font-weight: 700;
-        }
-
-        .badges-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 16px;
-        }
-
-        .badge-card {
-          background: ${JUNTO.white};
-          border: 2px solid ${JUNTO.border};
-          border-radius: 20px;
-          padding: 24px 16px;
-          text-align: center;
-          transition: all 0.3s ${SPRING};
-        }
-
-        .badge-card:hover {
-          transform: translateY(-4px);
-          border-color: ${JUNTO.amber};
-        }
-
-        .badge-emoji {
-          font-size: 40px;
-          margin-bottom: 12px;
-        }
-
-        .badge-name {
-          font-size: 14px;
-          font-weight: 700;
-          color: ${JUNTO.ink};
-          margin-bottom: 4px;
-        }
-
-        .badge-desc {
-          font-size: 11px;
-          color: ${JUNTO.muted};
-          line-height: 1.4;
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: 60px 24px;
-          background: ${JUNTO.white};
-          border: 2px solid ${JUNTO.border};
-          border-radius: 24px;
-        }
-
-        .empty-icon {
-          font-size: 48px;
-          opacity: 0.3;
           margin-bottom: 16px;
         }
 
-        .empty-title {
+        .section-title {
           font-size: 16px;
-          font-weight: 600;
+          font-weight: 700;
           color: ${JUNTO.ink};
+          margin: 0;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .section-badge {
+          background: ${JUNTO.tealSoft};
+          color: ${JUNTO.teal};
+          padding: 4px 12px;
+          border-radius: 100px;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        /* Stats */
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 14px;
+          margin-top: 16px;
+        }
+
+        .stat-item {
+          text-align: center;
+          padding: 20px 12px;
+          background: ${JUNTO.bgSoft};
+          border-radius: 14px;
+        }
+
+        .stat-value {
+          font-size: 28px;
+          font-weight: 800;
+        }
+        .stat-value.slate { color: ${JUNTO.slate}; }
+        .stat-value.teal { color: ${JUNTO.teal}; }
+        .stat-value.coral { color: ${JUNTO.coral}; }
+        .stat-value.amber { color: ${JUNTO.amber}; }
+
+        .stat-label {
+          font-size: 11px;
+          color: ${JUNTO.muted};
+          margin-top: 4px;
+          font-weight: 500;
+        }
+
+        /* Badges */
+        .badges-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 12px;
+          margin-top: 16px;
+        }
+
+        .badge-item {
+          text-align: center;
+          padding: 16px 8px;
+          background: ${JUNTO.amberSoft};
+          border-radius: 14px;
+        }
+
+        .badge-item.locked {
+          background: ${JUNTO.bgSoft};
+          opacity: 0.5;
+        }
+
+        .badge-emoji {
+          font-size: 28px;
           margin-bottom: 8px;
+        }
+
+        .badge-name {
+          font-size: 11px;
+          color: ${JUNTO.gray};
+          font-weight: 500;
+        }
+
+        .link-more {
+          display: block;
+          text-align: center;
+          margin-top: 16px;
+          color: ${JUNTO.gray};
+          font-size: 14px;
+          text-decoration: none;
+        }
+
+        .link-more:hover {
+          color: ${JUNTO.ink};
+        }
+
+        .empty-badges {
+          text-align: center;
+          padding: 32px;
+        }
+
+        .empty-icon {
+          font-size: 40px;
+          opacity: 0.3;
+          margin-bottom: 12px;
         }
 
         .empty-text {
@@ -1262,174 +980,80 @@ export default function MaCartePage() {
           color: ${JUNTO.gray};
         }
 
-        /* === REFERRAL === */
-        .referral-hero {
+        /* Referral */
+        .referral-box {
+          display: flex;
+          align-items: center;
+          gap: 20px;
           background: linear-gradient(135deg, ${JUNTO.tealSoft} 0%, #d1fae5 100%);
           border: 2px solid ${JUNTO.teal};
-          border-radius: 24px;
-          padding: 32px;
-          text-align: center;
-          margin-bottom: 24px;
-        }
-
-        .referral-icon {
-          font-size: 56px;
-          margin-bottom: 16px;
-        }
-
-        .referral-title {
-          font-size: 24px;
-          font-weight: 700;
-          color: ${JUNTO.teal};
-          margin: 0 0 8px;
-        }
-
-        .referral-text {
-          font-size: 15px;
-          color: #047857;
-          margin: 0 0 24px;
+          border-radius: 16px;
+          padding: 20px 24px;
+          margin-top: 16px;
         }
 
         .referral-count {
-          margin-bottom: 24px;
+          text-align: center;
         }
 
         .referral-number {
-          font-size: 48px;
+          font-size: 36px;
           font-weight: 800;
           color: ${JUNTO.teal};
         }
 
         .referral-label {
+          font-size: 12px;
+          color: #047857;
+        }
+
+        .referral-info {
+          flex: 1;
+        }
+
+        .referral-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: ${JUNTO.teal};
+          margin-bottom: 4px;
+        }
+
+        .referral-text {
           font-size: 13px;
           color: #047857;
         }
 
-        .btn-referral {
-          width: 100%;
-          padding: 16px;
+        .btn-teal {
           background: ${JUNTO.teal};
-          border: none;
-          border-radius: 16px;
-          font-size: 16px;
-          font-weight: 700;
           color: ${JUNTO.white};
+          border: none;
+          padding: 14px 24px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 700;
           cursor: pointer;
-          box-shadow: 0 8px 24px ${JUNTO.tealGlow};
+          white-space: nowrap;
+          box-shadow: 0 4px 16px ${JUNTO.tealGlow};
         }
 
-        .referral-badges {
-          background: ${JUNTO.white};
-          border: 2px solid ${JUNTO.border};
-          border-radius: 24px;
-          padding: 24px;
+        /* Settings */
+        .settings-header {
+          padding: 20px 24px 12px;
         }
 
-        .referral-badges h4 {
-          font-size: 16px;
-          font-weight: 600;
-          color: ${JUNTO.ink};
-          margin: 0 0 20px;
-        }
-
-        .referral-badges-list {
+        .settings-list {
           display: flex;
           flex-direction: column;
-          gap: 12px;
-        }
-
-        .referral-badge {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          padding: 16px;
-          background: ${JUNTO.bgSoft};
-          border-radius: 16px;
-        }
-
-        .referral-badge.earned {
-          background: ${JUNTO.tealSoft};
-        }
-
-        .rb-emoji {
-          font-size: 32px;
-        }
-
-        .rb-info {
-          flex: 1;
-        }
-
-        .rb-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: ${JUNTO.ink};
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .referral-badge.earned .rb-name {
-          color: ${JUNTO.teal};
-        }
-
-        .rb-check {
-          font-size: 12px;
-        }
-
-        .rb-desc {
-          font-size: 12px;
-          color: ${JUNTO.gray};
-          margin-top: 2px;
-        }
-
-        .rb-progress {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-top: 8px;
-        }
-
-        .rb-bar {
-          flex: 1;
-          height: 6px;
-          background: ${JUNTO.border};
-          border-radius: 3px;
-          overflow: hidden;
-        }
-
-        .rb-fill {
-          height: 100%;
-          background: ${JUNTO.teal};
-          border-radius: 3px;
-          transition: width 0.3s ease;
-        }
-
-        .rb-count {
-          font-size: 11px;
-          color: ${JUNTO.muted};
-        }
-
-        /* === SETTINGS === */
-        .settings-list {
-          background: ${JUNTO.white};
-          border: 2px solid ${JUNTO.border};
-          border-radius: 20px;
-          overflow: hidden;
-          margin-bottom: 16px;
         }
 
         .settings-item {
           display: flex;
           align-items: center;
-          padding: 18px 20px;
+          padding: 16px 24px;
+          border-top: 1px solid ${JUNTO.border};
           text-decoration: none;
           color: ${JUNTO.ink};
-          border-top: 1px solid ${JUNTO.border};
           transition: background 0.2s;
-        }
-
-        .settings-item:first-child {
-          border-top: none;
         }
 
         .settings-item:hover {
@@ -1447,24 +1071,24 @@ export default function MaCartePage() {
         }
 
         .settings-arrow {
-          font-size: 20px;
           color: ${JUNTO.muted};
+          font-size: 20px;
+        }
+
+        .settings-footer {
+          padding: 16px 24px 24px;
         }
 
         .btn-logout {
           width: 100%;
-          padding: 16px;
           background: transparent;
+          color: ${JUNTO.coral};
           border: 2px solid ${JUNTO.coral};
-          border-radius: 16px;
+          padding: 14px;
+          border-radius: 14px;
           font-size: 15px;
           font-weight: 600;
-          color: ${JUNTO.coral};
           cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
           transition: all 0.2s;
         }
 
@@ -1472,14 +1096,14 @@ export default function MaCartePage() {
           background: ${JUNTO.coralSoft};
         }
 
-        .app-version {
+        .page-footer {
           text-align: center;
-          padding: 32px 0;
+          padding: 24px 0;
           color: ${JUNTO.muted};
           font-size: 13px;
         }
 
-        /* === MODAL === */
+        /* Modal */
         .modal-overlay {
           position: fixed;
           inset: 0;
@@ -1491,12 +1115,12 @@ export default function MaCartePage() {
           padding: 24px;
         }
 
-        .modal-content {
+        .modal-box {
           background: ${JUNTO.white};
-          border-radius: 28px;
+          border-radius: 24px;
           padding: 32px;
           width: 100%;
-          max-width: 400px;
+          max-width: 380px;
           position: relative;
         }
 
@@ -1515,7 +1139,7 @@ export default function MaCartePage() {
         }
 
         .modal-title {
-          font-size: 22px;
+          font-size: 20px;
           font-weight: 700;
           color: ${JUNTO.ink};
           margin: 0 0 4px;
@@ -1529,96 +1153,83 @@ export default function MaCartePage() {
           text-align: center;
         }
 
-        .qr-container {
+        .qr-box {
           background: ${JUNTO.white};
           border: 2px solid ${JUNTO.border};
-          border-radius: 20px;
+          border-radius: 16px;
           padding: 24px;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
           display: flex;
           justify-content: center;
         }
 
-        .qr-code {
-          width: 180px;
-          height: 180px;
+        .qr-img {
+          width: 160px;
+          height: 160px;
         }
 
-        .qr-placeholder {
-          width: 180px;
-          height: 180px;
+        .qr-loading {
+          width: 160px;
+          height: 160px;
           display: flex;
           align-items: center;
           justify-content: center;
           color: ${JUNTO.muted};
         }
 
-        .share-profile {
+        .modal-profile {
           display: flex;
           align-items: center;
           gap: 14px;
-          padding: 16px;
+          padding: 14px;
           background: ${JUNTO.bgSoft};
-          border-radius: 16px;
-          margin-bottom: 24px;
+          border-radius: 14px;
+          margin-bottom: 20px;
         }
 
-        .share-avatar {
-          width: 52px;
-          height: 52px;
-          border-radius: 14px;
+        .modal-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 22px;
+          font-size: 20px;
           font-weight: 700;
           color: ${JUNTO.white};
           overflow: hidden;
         }
 
-        .share-avatar img {
+        .modal-avatar img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
 
-        .share-name {
+        .modal-name {
           font-size: 16px;
           font-weight: 600;
           color: ${JUNTO.ink};
         }
 
-        .share-level {
+        .modal-level {
           font-size: 13px;
           color: ${JUNTO.muted};
         }
 
-        .share-actions {
+        .modal-actions {
           display: flex;
           flex-direction: column;
           gap: 12px;
         }
 
-        .btn-share-primary {
-          width: 100%;
-          padding: 16px;
-          background: ${JUNTO.coral};
-          border: none;
-          border-radius: 14px;
-          font-size: 16px;
-          font-weight: 700;
-          color: ${JUNTO.white};
-          cursor: pointer;
-          box-shadow: 0 4px 16px ${JUNTO.coralGlow};
-        }
-
-        .share-actions-row {
+        .modal-actions-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 12px;
         }
 
-        .btn-share-secondary {
+        .btn-gray {
           padding: 14px;
           background: ${JUNTO.bgSoft};
           border: 2px solid ${JUNTO.border};
@@ -1629,77 +1240,72 @@ export default function MaCartePage() {
           cursor: pointer;
         }
 
-        .btn-share-secondary:disabled {
+        .btn-gray:disabled {
           opacity: 0.6;
           cursor: wait;
         }
 
-        /* === RESPONSIVE === */
-        @media (max-width: 1024px) {
-          .carte-layout {
+        /* Responsive */
+        @media (max-width: 900px) {
+          .page-layout {
             grid-template-columns: 1fr;
-            gap: 24px;
-            max-width: 600px;
+            gap: 32px;
           }
 
-          .carte-sticky {
+          .card-sticky {
             position: relative;
             top: 0;
           }
 
-          .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-
-        @media (max-width: 640px) {
-          .carte-layout {
-            padding: 16px;
+          .card-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
           }
 
-          .content-nav {
-            overflow-x: auto;
-            flex-wrap: nowrap;
-            padding-bottom: 12px;
-            margin-bottom: 16px;
+          .card-header {
+            width: 100%;
+            max-width: 380px;
           }
 
-          .nav-item {
-            padding: 10px 16px;
-            font-size: 13px;
-          }
-
-          .nav-label {
-            display: none;
-          }
-
-          .nav-icon {
-            font-size: 18px;
+          .card-actions {
+            width: 100%;
+            max-width: 380px;
           }
 
           .stats-grid {
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-          }
-
-          .stat-card {
-            padding: 20px 12px;
-          }
-
-          .stat-value {
-            font-size: 26px;
           }
 
           .badges-grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(4, 1fr);
           }
 
-          .referral-hero {
-            padding: 24px;
+          .referral-box {
+            flex-direction: column;
+            text-align: center;
           }
 
-          .referral-number {
-            font-size: 40px;
+          .referral-info {
+            order: -1;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .page-layout {
+            padding: 20px 16px;
+          }
+
+          .badges-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+
+          .referral-box {
+            padding: 20px 16px;
+          }
+
+          .btn-teal {
+            width: 100%;
           }
         }
       `}</style>
