@@ -84,43 +84,45 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
   return (
     <div style={{
       background: `linear-gradient(145deg, #4a5d6d 0%, ${JUNTO.slate} 100%)`,
-      borderRadius: forExport ? 32 : 24,
-      padding: forExport ? 40 : 32,
+      borderRadius: forExport ? 0 : 24,
+      padding: forExport ? '48px 40px' : 32,
       position: 'relative',
       boxShadow: forExport ? 'none' : '0 20px 50px rgba(0,0,0,0.3)',
-      border: '2px solid rgba(255,255,255,0.1)',
+      border: forExport ? 'none' : '2px solid rgba(255,255,255,0.1)',
       width: forExport ? 400 : '100%',
       maxWidth: forExport ? 400 : 380,
-      height: forExport ? 500 : 'auto',
+      minHeight: forExport ? 540 : 'auto',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       boxSizing: 'border-box'
     }}>
       {/* Barre latérale unie */}
-      <div style={{
-        position: 'absolute',
-        left: 0,
-        top: 28,
-        bottom: 28,
-        width: 6,
-        background: JUNTO.coral,
-        borderRadius: '0 4px 4px 0'
-      }} />
+      {!forExport && (
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          top: 28,
+          bottom: 28,
+          width: 6,
+          background: JUNTO.coral,
+          borderRadius: '0 4px 4px 0'
+        }} />
+      )}
 
       {/* Contenu */}
       <div style={{ textAlign: 'center' }}>
         {/* Avatar */}
         <div style={{
-          width: forExport ? 110 : 100,
-          height: forExport ? 110 : 100,
+          width: forExport ? 100 : 100,
+          height: forExport ? 100 : 100,
           borderRadius: 24,
           background: profile?.avatar_url ? 'transparent' : avatarColor,
-          margin: '0 auto 20px',
+          margin: forExport ? '0 auto 24px' : '0 auto 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: forExport ? 48 : 42,
+          fontSize: forExport ? 44 : 42,
           fontWeight: 700,
           color: JUNTO.white,
           border: '4px solid rgba(255,255,255,0.2)',
@@ -135,7 +137,7 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
 
         {/* Nom */}
         <h2 style={{ 
-          fontSize: forExport ? 30 : 26, 
+          fontSize: forExport ? 28 : 26, 
           fontWeight: 800, 
           color: JUNTO.white, 
           margin: '0 0 8px',
@@ -145,16 +147,18 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
         </h2>
 
         {/* Ville */}
-        {profile?.city && (
-          <div style={{ 
-            fontSize: 14, 
-            color: 'rgba(255,255,255,0.5)', 
-            marginBottom: 24 
-          }}>
-            📍 {profile.city}
-            {profile?.signup_number && ` · Membre #${profile.signup_number}`}
-          </div>
-        )}
+        <div style={{ 
+          fontSize: 14, 
+          color: 'rgba(255,255,255,0.5)', 
+          marginBottom: forExport ? 28 : 24,
+          minHeight: 20
+        }}>
+          {profile?.city ? (
+            <>📍 {profile.city}{profile?.signup_number && ` · Membre #${profile.signup_number}`}</>
+          ) : (
+            forExport ? '🎾 Joueur Junto' : null
+          )}
+        </div>
 
         {/* Niveau - Badge principal */}
         <div style={{
@@ -162,11 +166,11 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
           background: 'rgba(0, 184, 169, 0.15)',
           border: `2px solid ${JUNTO.teal}`,
           borderRadius: 20,
-          padding: '18px 36px',
-          marginBottom: 24
+          padding: forExport ? '20px 40px' : '18px 36px',
+          marginBottom: forExport ? 28 : 24
         }}>
           <div style={{ 
-            fontSize: forExport ? 52 : 48, 
+            fontSize: forExport ? 48 : 48, 
             fontWeight: 900, 
             color: '#4eeee0', 
             lineHeight: 1 
@@ -191,7 +195,7 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
           justifyContent: 'center', 
           gap: 10, 
           flexWrap: 'wrap',
-          marginBottom: 24
+          marginBottom: forExport ? 28 : 24
         }}>
           <span style={{ 
             background: 'rgba(255,255,255,0.1)', 
@@ -219,7 +223,7 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center',
-          paddingTop: 20,
+          paddingTop: forExport ? 24 : 20,
           borderTop: '1px solid rgba(255,255,255,0.1)'
         }}>
           <div style={{ 
@@ -227,11 +231,11 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
             alignItems: 'center', 
             gap: 10,
             background: 'rgba(0,0,0,0.2)',
-            padding: '10px 20px',
+            padding: forExport ? '12px 24px' : '10px 20px',
             borderRadius: 100
           }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>junto</span>
-            <FourDots size={6} gap={3} animate={!forExport} />
+            <span style={{ fontSize: forExport ? 18 : 16, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>junto</span>
+            <FourDots size={forExport ? 7 : 6} gap={forExport ? 4 : 3} animate={!forExport} />
           </div>
         </div>
       </div>
@@ -384,16 +388,15 @@ export default function MaCartePage() {
       element.style.zIndex = '-9999'
       element.style.opacity = '1'
       element.style.pointerEvents = 'none'
-      element.style.display = 'flex'
-      element.style.alignItems = 'center'
-      element.style.justifyContent = 'center'
+      element.style.display = 'block'
       element.style.width = '400px'
-      element.style.height = '500px'
+      element.style.height = '540px'
       element.style.background = JUNTO.slate
       element.style.padding = '0'
+      element.style.overflow = 'hidden'
       
       // Attendre le rendu
-      await new Promise(r => setTimeout(r, 200))
+      await new Promise(r => setTimeout(r, 300))
       
       const canvas = await html2canvas(element, {
         backgroundColor: JUNTO.slate,
@@ -402,9 +405,9 @@ export default function MaCartePage() {
         allowTaint: true,
         logging: false,
         width: 400,
-        height: 500,
+        height: 540,
         windowWidth: 400,
-        windowHeight: 500
+        windowHeight: 540
       })
       
       // Cacher à nouveau

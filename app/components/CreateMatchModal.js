@@ -286,23 +286,28 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
   }
 
   // Nouvelle fonction pour ajouter un partenaire manuellement
-  function addManualPartner() {
+  async function addManualPartner() {
     if (!manualPartnerName.trim()) return
     if (formData.partners.length >= 3) return
     
+    const email = formData.manualPartnerEmail?.trim() || null
+    const inviteToken = crypto.randomUUID()
+    
     const newPartner = {
-      id: `manual_${Date.now()}`, // ID temporaire unique
+      id: `manual_${Date.now()}`,
       name: manualPartnerName.trim(),
-      email: formData.manualPartnerEmail?.trim() || null,
+      email: email,
+      inviteToken: inviteToken,
       level: null,
       team: null,
-      isManual: true
+      isManual: true,
+      emailSent: false
     }
     
     setFormData({
       ...formData,
       partners: [...formData.partners, newPartner],
-      manualPartnerEmail: '' // Reset email
+      manualPartnerEmail: ''
     })
     setManualPartnerName('')
   }
@@ -445,24 +450,47 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
           invitee_email: p.email || null,
           team: p.team || null,
           status: 'pending',
-          invite_token: crypto.randomUUID()
+          invite_token: p.inviteToken || crypto.randomUUID()
         }))
         
         console.log('Adding manual partners:', invitesData)
         
-        const { error: inviteError } = await supabase
+        const { data: insertedInvites, error: inviteError } = await supabase
           .from('pending_invites')
           .insert(invitesData)
+          .select()
         
         if (inviteError) {
           console.error('Error adding invites:', inviteError)
-          // Ne pas faire échouer la création du match pour ça
         }
         
-        // Log pour les invitations avec email (à implémenter côté backend)
+        // Envoyer les emails d'invitation
         const emailInvites = manualPartners.filter(p => p.email)
-        if (emailInvites.length > 0) {
-          console.log('📧 Email invites to send:', emailInvites.map(p => ({ name: p.name, email: p.email })))
+        for (const partner of emailInvites) {
+          try {
+            const response = await fetch('/api/send-invite', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                inviteToken: partner.inviteToken,
+                inviteeName: partner.name,
+                inviteeContact: partner.email,
+                inviterName: profile?.name || 'Un joueur',
+                matchDate: formData.date || null,
+                matchTime: formData.time || null,
+                clubName: formData.club_name || formData.city || 'À définir'
+              })
+            })
+            
+            const result = await response.json()
+            if (result.success) {
+              console.log(`✅ Email envoyé à ${partner.email}`)
+            } else {
+              console.error(`❌ Erreur envoi email à ${partner.email}:`, result.error)
+            }
+          } catch (err) {
+            console.error(`❌ Erreur envoi email à ${partner.email}:`, err)
+          }
         }
       }
 
@@ -1299,77 +1327,82 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
-                      padding: 12,
+                      padding: 14,
                       background: partner.isManual ? '#fffbeb' : '#f9f9f9',
-                      borderRadius: 10,
-                      marginBottom: 8,
-                      border: partner.isManual ? '1px solid #fcd34d' : 'none'
+                      borderRadius: 14,
+                      marginBottom: 10,
+                      border: partner.isManual ? '2px solid #fcd34d' : '2px solid transparent'
                     }}>
                       <div style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        background: partner.isManual ? '#fef3c7' : '#ddd',
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: partner.isManual ? '#fef3c7' : '#e5e7eb',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 16,
+                        fontSize: partner.isManual ? 20 : 16,
+                        fontWeight: 700,
+                        color: partner.isManual ? '#92400e' : '#374151',
                         overflow: 'hidden'
                       }}>
                         {partner.isManual 
-                          ? '✏️'
+                          ? (partner.email ? '✉️' : '👤')
                           : partner.avatar_url
-                            ? <img src={partner.avatar_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                            ? <img src={partner.avatar_url} alt="" style={{ width: 44, height: 44, objectFit: 'cover' }} />
                             : partner.name?.[0] || '?'
                         }
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '600', fontSize: 14 }}>{partner.name}</div>
-                        <div style={{ fontSize: 12, color: '#888' }}>
-                          {partner.isManual ? '⏳ Pas encore sur l\'app' : `Niveau ${partner.level}/10`}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: '600', fontSize: 15, color: '#1a1a1a' }}>{partner.name}</div>
+                        <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          {partner.isManual ? (
+                            <>
+                              <span style={{ color: '#f59e0b', fontWeight: 600 }}>⏳ Pas encore sur l'app</span>
+                              {partner.email && (
+                                <span style={{ color: '#0891b2' }}>· {partner.email}</span>
+                              )}
+                            </>
+                          ) : (
+                            <span>Niveau {partner.level}/10 · ✓ Sur l'app</span>
+                          )}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                         <button
                           onClick={() => setPartnerTeam(partner.id, 'A')}
                           style={{
-                            padding: '8px 14px',
+                            padding: '8px 12px',
                             border: 'none',
                             borderRadius: 8,
                             background: partner.team === 'A' ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#f1f5f9',
                             color: partner.team === 'A' ? '#fff' : '#64748b',
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: '700',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4
+                            cursor: 'pointer'
                           }}
                         >
-                          🅰️ Équipe A
+                          🅰️
                         </button>
                         <button
                           onClick={() => setPartnerTeam(partner.id, 'B')}
                           style={{
-                            padding: '8px 14px',
+                            padding: '8px 12px',
                             border: 'none',
                             borderRadius: 8,
                             background: partner.team === 'B' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : '#f1f5f9',
                             color: partner.team === 'B' ? '#fff' : '#64748b',
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: '700',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4
+                            cursor: 'pointer'
                           }}
                         >
-                          🅱️ Équipe B
+                          🅱️
                         </button>
                       </div>
                       <button
                         onClick={() => removePartner(partner.id)}
-                        style={{ background: 'none', border: 'none', color: '#999', fontSize: 18, cursor: 'pointer', padding: 4 }}
+                        style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 20, cursor: 'pointer', padding: 4 }}
                       >
                         ×
                       </button>
@@ -1432,54 +1465,94 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess, profile, 
                   )}
 
                   {/* Séparateur */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
                     <div style={{ flex: 1, height: 1, background: '#e5e5e5' }}></div>
-                    <span style={{ fontSize: 12, color: '#888' }}>ou</span>
+                    <span style={{ fontSize: 12, color: '#888' }}>ou inviter quelqu'un</span>
                     <div style={{ flex: 1, height: 1, background: '#e5e5e5' }}></div>
                   </div>
 
                   {/* Ajout manuel avec email */}
-                  <div style={{ marginBottom: 16, padding: 16, background: '#f8fafc', borderRadius: 12 }}>
-                    <label style={{ fontSize: 13, fontWeight: '600', color: '#1a1a2e', display: 'block', marginBottom: 12 }}>
-                      ✉️ Inviter quelqu'un qui n'est pas sur l'app
+                  <div style={{ 
+                    padding: 20, 
+                    background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', 
+                    borderRadius: 16,
+                    border: '2px solid #e2e8f0'
+                  }}>
+                    <label style={{ 
+                      fontSize: 14, 
+                      fontWeight: '700', 
+                      color: '#1a1a2e', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 8,
+                      marginBottom: 16 
+                    }}>
+                      ✉️ Inviter par email
                     </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <input
-                        type="text"
-                        value={manualPartnerName}
-                        onChange={e => setManualPartnerName(e.target.value)}
-                        placeholder="Nom ou pseudo *"
-                        style={{ ...inputStyle }}
-                      />
-                      <input
-                        type="email"
-                        value={formData.manualPartnerEmail || ''}
-                        onChange={e => setFormData({...formData, manualPartnerEmail: e.target.value})}
-                        placeholder="Email (optionnel - pour l'inviter)"
-                        style={{ ...inputStyle }}
-                      />
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <input
+                          type="text"
+                          value={manualPartnerName}
+                          onChange={e => setManualPartnerName(e.target.value)}
+                          placeholder="Prénom *"
+                          style={{ 
+                            ...inputStyle,
+                            padding: '14px 16px',
+                            borderRadius: 12
+                          }}
+                        />
+                        <input
+                          type="email"
+                          value={formData.manualPartnerEmail || ''}
+                          onChange={e => setFormData({...formData, manualPartnerEmail: e.target.value})}
+                          placeholder="Email"
+                          style={{ 
+                            ...inputStyle,
+                            padding: '14px 16px',
+                            borderRadius: 12
+                          }}
+                        />
+                      </div>
+                      
                       <button
                         onClick={addManualPartner}
                         disabled={!manualPartnerName.trim()}
                         style={{
-                          padding: '12px 16px',
-                          background: manualPartnerName.trim() ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#e5e5e5',
+                          padding: '14px 20px',
+                          background: manualPartnerName.trim() 
+                            ? (formData.manualPartnerEmail ? '#00b8a9' : '#1a1a1a')
+                            : '#e5e5e5',
                           color: manualPartnerName.trim() ? '#fff' : '#999',
                           border: 'none',
-                          borderRadius: 10,
-                          fontWeight: '600',
+                          borderRadius: 12,
+                          fontWeight: '700',
+                          fontSize: 14,
                           cursor: manualPartnerName.trim() ? 'pointer' : 'not-allowed',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: 8
+                          gap: 8,
+                          boxShadow: manualPartnerName.trim() && formData.manualPartnerEmail 
+                            ? '0 4px 12px rgba(0, 184, 169, 0.25)' 
+                            : 'none'
                         }}
                       >
-                        {formData.manualPartnerEmail ? '✉️ Ajouter et envoyer invitation' : '+ Ajouter à la partie'}
+                        {formData.manualPartnerEmail ? '📤 Ajouter et envoyer invitation' : '+ Ajouter à la partie'}
                       </button>
                     </div>
-                    <p style={{ fontSize: 11, color: '#64748b', marginTop: 8, textAlign: 'center' }}>
-                      💡 Si tu ajoutes un email, cette personne recevra une invitation pour rejoindre
+                    
+                    <p style={{ 
+                      fontSize: 12, 
+                      color: '#64748b', 
+                      marginTop: 12, 
+                      textAlign: 'center',
+                      lineHeight: 1.5
+                    }}>
+                      💡 {formData.manualPartnerEmail 
+                        ? "Cette personne recevra un email pour rejoindre ta partie" 
+                        : "Ajoute un email pour envoyer une invitation automatique"}
                     </p>
                   </div>
 
