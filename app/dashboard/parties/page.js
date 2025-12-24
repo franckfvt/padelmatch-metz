@@ -690,12 +690,17 @@ export default function PartiesPage() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 16, fontWeight: 700
                   }}>
-                    {inv.invited_name?.[0]?.toUpperCase() || '?'}
+                    {(inv.invitee_name || inv.invited_name)?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div style={{ flex: 1 }}>
                     <strong style={{ display: 'block', fontSize: 14, color: JUNTO.ink }}>
-                      {inv.invited_name || inv.invited_phone || 'Invité'} n'a pas répondu
+                      {inv.invitee_name || inv.invited_name || 'Invité'} n'a pas répondu
                     </strong>
+                    {inv.invitee_email && (
+                      <span style={{ fontSize: 11, color: JUNTO.teal, display: 'block' }}>
+                        ✉️ {inv.invitee_email}
+                      </span>
+                    )}
                     <span style={{ fontSize: 12, color: JUNTO.gray }}>
                       Invité il y a {inv.daysSince} jours · {formatDate(inv.matches?.match_date)}
                     </span>
