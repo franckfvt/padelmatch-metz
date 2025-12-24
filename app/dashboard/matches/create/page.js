@@ -362,6 +362,34 @@ export default function CreateMatchPage() {
     return new Date().toISOString().split('T')[0]
   }
 
+  function getNextDays(count) {
+    const days = []
+    const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+    
+    for (let i = 0; i < count; i++) {
+      const date = new Date()
+      date.setDate(date.getDate() + i)
+      days.push({
+        value: date.toISOString().split('T')[0],
+        dayShort: dayNames[date.getDay()],
+        dayNum: date.getDate(),
+        monthShort: monthNames[date.getMonth()]
+      })
+    }
+    return days
+  }
+
+  function formatDateDisplay(dateStr) {
+    if (!dateStr) return ''
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    })
+  }
+
   // ============================================
   // SOUMISSION
   // ============================================
@@ -933,9 +961,9 @@ Rejoins-nous ! 👉 ${matchUrl}`
             <div style={{
               display: 'flex',
               background: COLORS.bg,
-              borderRadius: 16,
+              borderRadius: 14,
               padding: 4,
-              marginBottom: 20
+              marginBottom: 24
             }}>
               {['precise', 'flexible'].map(type => (
                 <button
@@ -945,7 +973,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                     flex: 1,
                     padding: 12,
                     border: 'none',
-                    borderRadius: 12,
+                    borderRadius: 10,
                     background: formData.dateType === type ? COLORS.card : 'transparent',
                     color: formData.dateType === type ? COLORS.text : COLORS.textMuted,
                     fontWeight: 600,
@@ -960,40 +988,185 @@ Rejoins-nous ! 👉 ${matchUrl}`
             </div>
           )}
           
-          {/* Date précise */}
+          {/* Date précise - Nouveau design */}
           {(formData.hasBooked || formData.dateType === 'precise') && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, display: 'block' }}>
-                  Date
+            <>
+              {/* Carrousel des 7 prochains jours */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 10, display: 'block' }}>
+                  📅 Choisis un jour
                 </label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  min={getMinDate()}
-                  onChange={e => setFormData({ ...formData, date: e.target.value })}
-                  style={inputStyle}
-                />
+                <div style={{ 
+                  display: 'flex', 
+                  gap: 10, 
+                  overflowX: 'auto', 
+                  paddingBottom: 8,
+                  marginBottom: 8
+                }}>
+                  {getNextDays(7).map((day, idx) => {
+                    const isSelected = formData.date === day.value
+                    const isToday = idx === 0
+                    return (
+                      <button
+                        key={day.value}
+                        onClick={() => setFormData({ ...formData, date: day.value })}
+                        style={{
+                          flexShrink: 0,
+                          width: 72,
+                          padding: '14px 10px',
+                          border: `2px solid ${isSelected ? COLORS.primary : isToday ? '#00b8a9' : COLORS.border}`,
+                          borderRadius: 16,
+                          background: isSelected ? '#fff0f0' : COLORS.card,
+                          cursor: 'pointer',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <div style={{ 
+                          fontSize: 11, 
+                          color: isSelected ? COLORS.primary : COLORS.textMuted, 
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5,
+                          marginBottom: 2
+                        }}>
+                          {isToday ? 'Auj.' : day.dayShort}
+                        </div>
+                        <div style={{ 
+                          fontSize: 24, 
+                          fontWeight: 800, 
+                          color: isSelected ? COLORS.primary : COLORS.text,
+                          lineHeight: 1.2
+                        }}>
+                          {day.dayNum}
+                        </div>
+                        <div style={{ 
+                          fontSize: 11, 
+                          color: isSelected ? COLORS.primary : COLORS.textMuted
+                        }}>
+                          {day.monthShort}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+                
+                {/* Bouton voir plus */}
+                <button
+                  onClick={() => {
+                    const input = document.createElement('input')
+                    input.type = 'date'
+                    input.min = getMinDate()
+                    input.value = formData.date || getMinDate()
+                    input.onchange = (e) => setFormData({ ...formData, date: e.target.value })
+                    input.showPicker()
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    background: COLORS.bg,
+                    border: 'none',
+                    borderRadius: 12,
+                    color: COLORS.textMuted,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  📆 Voir plus de dates
+                </button>
               </div>
               
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, display: 'block' }}>
-                  Heure
+              {/* Créneaux horaires */}
+              <div style={{ 
+                marginTop: 24, 
+                paddingTop: 24, 
+                borderTop: `1px solid ${COLORS.border}` 
+              }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 12, display: 'block' }}>
+                  🕐 À quelle heure ?
                 </label>
-                <input
-                  type="time"
-                  value={formData.time}
-                  onChange={e => setFormData({ ...formData, time: e.target.value })}
-                  style={inputStyle}
-                />
+                
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gap: 10,
+                  marginBottom: 14
+                }}>
+                  {['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'].map(time => {
+                    const isSelected = formData.time === time
+                    return (
+                      <button
+                        key={time}
+                        onClick={() => setFormData({ ...formData, time })}
+                        style={{
+                          padding: '14px 8px',
+                          border: `2px solid ${isSelected ? COLORS.primary : COLORS.border}`,
+                          borderRadius: 12,
+                          background: isSelected ? COLORS.primary : COLORS.card,
+                          color: isSelected ? '#fff' : COLORS.text,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {time.slice(0, 2)}h
+                      </button>
+                    )
+                  })}
+                </div>
+                
+                {/* Heure personnalisée */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: 14,
+                  background: COLORS.bg,
+                  borderRadius: 12
+                }}>
+                  <span style={{ fontSize: 13, color: COLORS.textMuted }}>ou</span>
+                  <input
+                    type="time"
+                    value={formData.time}
+                    onChange={e => setFormData({ ...formData, time: e.target.value })}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      border: `2px solid ${COLORS.border}`,
+                      borderRadius: 10,
+                      fontSize: 16,
+                      fontWeight: 600,
+                      textAlign: 'center'
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+              
+              {/* Résumé */}
+              {formData.date && formData.time && (
+                <div style={{
+                  marginTop: 24,
+                  padding: 16,
+                  background: '#e5f9f7',
+                  borderRadius: 14,
+                  border: '2px solid #00b8a9',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#00b8a9' }}>
+                    ✓ {formatDateDisplay(formData.date)} à {formData.time.slice(0, 5)}
+                  </div>
+                </div>
+              )}
+            </>
           )}
           
           {/* Date flexible */}
           {!formData.hasBooked && formData.dateType === 'flexible' && (
             <>
-              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 8, display: 'block' }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 10, display: 'block' }}>
                 Quels jours te conviennent ?
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
@@ -1007,7 +1180,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                       setFormData({ ...formData, flexibleDays: days })
                     }}
                     style={{
-                      padding: '10px 16px',
+                      padding: '12px 18px',
                       border: 'none',
                       borderRadius: 12,
                       background: formData.flexibleDays.includes(day) 
@@ -1015,7 +1188,7 @@ Rejoins-nous ! 👉 ${matchUrl}`
                         : COLORS.bg,
                       color: formData.flexibleDays.includes(day) ? '#fff' : COLORS.text,
                       fontWeight: 600,
-                      fontSize: 13,
+                      fontSize: 14,
                       cursor: 'pointer'
                     }}
                   >
@@ -1024,33 +1197,32 @@ Rejoins-nous ! 👉 ${matchUrl}`
                 ))}
               </div>
               
-              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 8, display: 'block' }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 10, display: 'block' }}>
                 Quel moment de la journée ?
               </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                 {[
-                  { id: 'morning', label: '🌅 Matin' },
-                  { id: 'noon', label: '☀️ Midi' },
-                  { id: 'afternoon', label: '🌤️ Après-midi' },
-                  { id: 'evening', label: '🌙 Soir' }
+                  { id: 'morning', label: '🌅 Matin', desc: '8h-12h' },
+                  { id: 'noon', label: '☀️ Midi', desc: '12h-14h' },
+                  { id: 'afternoon', label: '🌤️ Après-midi', desc: '14h-18h' },
+                  { id: 'evening', label: '🌙 Soir', desc: '18h-22h' }
                 ].map(period => (
                   <button
                     key={period.id}
                     onClick={() => setFormData({ ...formData, flexiblePeriod: period.id })}
                     style={{
-                      padding: '10px 16px',
-                      border: 'none',
-                      borderRadius: 12,
+                      padding: 16,
+                      border: `2px solid ${formData.flexiblePeriod === period.id ? COLORS.primary : COLORS.border}`,
+                      borderRadius: 14,
                       background: formData.flexiblePeriod === period.id 
-                        ? COLORS.primary 
-                        : COLORS.bg,
-                      color: formData.flexiblePeriod === period.id ? '#fff' : COLORS.text,
-                      fontWeight: 600,
-                      fontSize: 13,
-                      cursor: 'pointer'
+                        ? '#fff0f0' 
+                        : COLORS.card,
+                      cursor: 'pointer',
+                      textAlign: 'center'
                     }}
                   >
-                    {period.label}
+                    <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>{period.label}</div>
+                    <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>{period.desc}</div>
                   </button>
                 ))}
               </div>

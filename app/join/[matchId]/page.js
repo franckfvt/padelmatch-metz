@@ -2,12 +2,11 @@
 
 /**
  * ============================================
- * PAGE PUBLIQUE REJOINDRE UN MATCH
+ * PAGE PUBLIQUE REJOINDRE UN MATCH - JUNTO
  * ============================================
  * 
  * Page d'arrivée via lien partagé.
- * Affiche les équipes A/B, permet de choisir
- * son équipe et de s'inscrire seul ou en duo.
+ * Style Junto avec équipes A/B.
  * 
  * ============================================
  */
@@ -16,6 +15,62 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+
+// === JUNTO DESIGN TOKENS ===
+const JUNTO = {
+  coral: '#ff5a5f',
+  coralSoft: '#fff0f0',
+  coralGlow: 'rgba(255, 90, 95, 0.25)',
+  slate: '#3d4f5f',
+  slateDark: '#2a3a48',
+  amber: '#ffb400',
+  amberSoft: '#fff8e5',
+  teal: '#00b8a9',
+  tealSoft: '#e5f9f7',
+  tealGlow: '#4eeee0',
+  ink: '#1a1a1a',
+  gray: '#6b7280',
+  muted: '#9ca3af',
+  white: '#ffffff',
+  bg: '#fafafa',
+  border: '#e5e7eb',
+  teamA: '#22c55e',
+  teamABg: '#f0fdf4',
+  teamB: '#3b82f6',
+  teamBBg: '#eff6ff',
+}
+
+const AVATAR_COLORS = [JUNTO.coral, JUNTO.slate, JUNTO.amber, JUNTO.teal]
+
+const AMBIANCE_CONFIG = {
+  loisir: { label: 'Détente', emoji: '😌' },
+  chill: { label: 'Détente', emoji: '😌' },
+  mix: { label: 'Équilibré', emoji: '⚡' },
+  compet: { label: 'Compétition', emoji: '🔥' },
+  competition: { label: 'Compétition', emoji: '🔥' }
+}
+
+// === COMPOSANT: Les 4 points ===
+function FourDots({ size = 8, gap = 4 }) {
+  return (
+    <div style={{ display: 'flex', gap }}>
+      {AVATAR_COLORS.map((c, i) => (
+        <div key={i} className="junto-dot" style={{ 
+          width: size, 
+          height: size, 
+          borderRadius: '50%', 
+          background: c,
+          animationDelay: `${i * 0.15}s`
+        }} />
+      ))}
+    </div>
+  )
+}
+
+function getAvatarColor(name) {
+  if (!name) return JUNTO.coral
+  return AVATAR_COLORS[name.charCodeAt(0) % 4]
+}
 
 export default function JoinMatchPage() {
   const router = useRouter()
@@ -31,24 +86,8 @@ export default function JoinMatchPage() {
   const [joining, setJoining] = useState(false)
   const [alreadyJoined, setAlreadyJoined] = useState(false)
   const [isPending, setIsPending] = useState(false)
-  
-  // Mode duo
-  const [showDuoModal, setShowDuoModal] = useState(false)
-  const [duoEmail, setDuoEmail] = useState('')
-  const [duoName, setDuoName] = useState('')
-  const [sendingDuoInvite, setSendingDuoInvite] = useState(false)
-  
-  // Nouveaux états
   const [selectedTeam, setSelectedTeam] = useState('A')
   const [showJoinModal, setShowJoinModal] = useState(false)
-  const [duoSearch, setDuoSearch] = useState('')
-  const [duoResults, setDuoResults] = useState([])
-  const [duoSelected, setDuoSelected] = useState(null)
-  
-  // Labels
-  const ambianceLabels = { 'loisir': 'Détente', 'mix': 'Équilibré', 'compet': 'Compétitif' }
-  const ambianceEmojis = { 'loisir': '😎', 'mix': '⚡', 'compet': '🏆' }
-  const positionShort = { 'left': 'G', 'right': 'D', 'both': 'P' }
 
   useEffect(() => {
     loadData()
@@ -77,10 +116,7 @@ export default function JoinMatchPage() {
       // Charger les participants
       const { data: participantsData } = await supabase
         .from('match_participants')
-        .select(`
-          *,
-          profiles (id, name, level, position, avatar_url)
-        `)
+        .select(`*, profiles (id, name, level, position, avatar_url)`)
         .eq('match_id', matchId)
         .in('status', ['confirmed', 'pending'])
 
@@ -127,9 +163,8 @@ export default function JoinMatchPage() {
     }
   }
 
-  async function joinMatch(asDuo = false) {
+  async function joinMatch() {
     if (!user) {
-      // Rediriger vers login avec retour
       sessionStorage.setItem('redirectAfterLogin', `/join/${matchId}`)
       router.push('/auth')
       return
@@ -141,15 +176,9 @@ export default function JoinMatchPage() {
       return
     }
 
-    if (asDuo && !duoSelected) {
-      setShowDuoModal(true)
-      return
-    }
-
     setJoining(true)
 
     try {
-      // Déterminer le status (auto = confirmed, approval = pending)
       const status = match.join_mode === 'approval' ? 'pending' : 'confirmed'
 
       const { error } = await supabase
@@ -158,88 +187,28 @@ export default function JoinMatchPage() {
           match_id: parseInt(matchId),
           user_id: user.id,
           status,
-          team: selectedTeam,
-          duo_with: duoSelected?.id || null
+          team: selectedTeam
         })
 
       if (error) throw error
 
-      // Si duo avec un user de l'app, créer aussi sa participation
-      if (asDuo && duoSelected) {
-        await supabase.from('match_participants').insert({
-          match_id: parseInt(matchId),
-          user_id: duoSelected.id,
-          status,
-          team: selectedTeam,
-          duo_with: user.id
-        })
-      }
-
-      // Mettre à jour les places si confirmation directe
       if (status === 'confirmed') {
-        const spotsUsed = duoSelected ? 2 : 1
         await supabase
           .from('matches')
           .update({ 
-            spots_available: match.spots_available - spotsUsed,
-            status: match.spots_available - spotsUsed <= 0 ? 'full' : 'open'
+            spots_available: match.spots_available - 1,
+            status: match.spots_available - 1 <= 0 ? 'full' : 'open'
           })
           .eq('id', matchId)
 
-        // Message dans le chat
         await supabase.from('match_messages').insert({
           match_id: parseInt(matchId),
           user_id: user.id,
-          message: duoSelected 
-            ? `👥 ${profile?.name} + ${duoSelected.name} ont rejoint la partie`
-            : `👋 ${profile?.name} a rejoint la partie`
+          message: `👋 ${profile?.name} a rejoint la partie`
         })
 
         router.push(`/dashboard/match/${matchId}`)
       } else {
-        // Mode approval: Envoyer email à l'organisateur
-        try {
-          // Récupérer l'email de l'organisateur
-          const { data: organizerData } = await supabase
-            .from('profiles')
-            .select('email, name')
-            .eq('id', match.organizer_id)
-            .single()
-
-          if (organizerData?.email) {
-            await fetch('/api/emails', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'join_request',
-                data: {
-                  organizerEmail: organizerData.email,
-                  organizerName: organizerData.name,
-                  playerName: profile?.name,
-                  playerLevel: profile?.level,
-                  playerPosition: profile?.preferred_position || 'Non spécifiée',
-                  matchId: matchId,
-                  matchDate: formatFullDate(match.match_date),
-                  matchTime: match.match_time?.slice(0, 5) || '?h',
-                  clubName: match.clubs?.name || match.city || 'Lieu à définir',
-                  team: selectedTeam
-                }
-              })
-            })
-          }
-        } catch (emailError) {
-          console.error('Erreur envoi email:', emailError)
-          // Ne pas bloquer si l'email échoue
-        }
-
-        // Message demande
-        await supabase.from('match_messages').insert({
-          match_id: parseInt(matchId),
-          user_id: user.id,
-          message: duoSelected 
-            ? `🎾 ${profile?.name} + ${duoSelected.name} demandent à rejoindre`
-            : `🎾 ${profile?.name} demande à rejoindre`
-        })
         setIsPending(true)
         setJoining(false)
         setShowJoinModal(false)
@@ -251,8 +220,7 @@ export default function JoinMatchPage() {
     }
   }
 
-  // Formater date complète
-  function formatFullDate(dateStr) {
+  function formatDate(dateStr) {
     if (!dateStr) return 'Date flexible'
     return new Date(dateStr).toLocaleDateString('fr-FR', { 
       weekday: 'long', 
@@ -261,738 +229,701 @@ export default function JoinMatchPage() {
     })
   }
 
-  // Recherche de partenaire dans l'app
-  async function searchDuoPartner(query) {
-    setDuoSearch(query)
-    if (query.length < 2) { setDuoResults([]); return }
-    
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, name, level, avatar_url')
-      .neq('id', user?.id)
-      .ilike('name', `%${query}%`)
-      .limit(5)
-    
-    setDuoResults(data || [])
-  }
-
-  async function joinAsDuo() {
-    if (!duoEmail && !duoName) {
-      alert('Indique le nom ou l\'email de ton partenaire')
-      return
-    }
-
-    setSendingDuoInvite(true)
-
-    try {
-      const status = match.join_mode === 'approval' ? 'pending' : 'confirmed'
-
-      // Chercher le partenaire par email s'il est déjà inscrit
-      let duoUserId = null
-      let duoPartnerName = duoName
-      
-      if (duoEmail) {
-        const { data: duoProfile } = await supabase
-          .from('profiles')
-          .select('id, name')
-          .eq('email', duoEmail)
-          .single()
-        
-        duoUserId = duoProfile?.id
-        if (duoProfile?.name) duoPartnerName = duoProfile.name
-      }
-
-      // Créer ma participation avec référence au duo
-      const { error: error1 } = await supabase
-        .from('match_participants')
-        .insert({
-          match_id: parseInt(matchId),
-          user_id: user.id,
-          status,
-          team: selectedTeam,
-          duo_with: duoUserId
-        })
-
-      if (error1) throw error1
-
-      // Si le partenaire est inscrit sur l'app, créer aussi sa participation
-      if (duoUserId) {
-        const { error: error2 } = await supabase
-          .from('match_participants')
-          .insert({
-            match_id: parseInt(matchId),
-            user_id: duoUserId,
-            status,
-            team: selectedTeam,
-            duo_with: user.id
-          })
-
-        // Ignorer l'erreur si déjà inscrit
-        if (error2 && !error2.message.includes('duplicate')) {
-          console.error('Duo partner error:', error2)
-        }
-      } else if (duoEmail) {
-        // Le partenaire n'est pas inscrit mais on a son email
-        // Envoyer un email d'invitation
-        try {
-          await fetch('/api/emails', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'duo_invite',
-              data: {
-                partnerEmail: duoEmail,
-                partnerName: duoName || 'Joueur',
-                inviterName: profile?.name,
-                inviterId: user.id,
-                matchId: matchId,
-                matchDate: formatFullDate(match.match_date),
-                matchTime: match.match_time?.slice(0, 5) || '?h',
-                clubName: match.clubs?.name || match.city || 'Lieu à définir',
-                team: `Équipe ${selectedTeam}`
-              }
-            })
-          })
-
-          // Créer une pending_invite pour le partenaire
-          await supabase.from('pending_invites').insert({
-            match_id: parseInt(matchId),
-            email: duoEmail,
-            name: duoName || 'Partenaire de ' + profile?.name,
-            team: selectedTeam,
-            invited_by: user.id,
-            status: 'pending'
-          })
-        } catch (emailError) {
-          console.error('Erreur envoi email duo:', emailError)
-          // Ne pas bloquer si l'email échoue
-        }
-      }
-
-      // Mettre à jour les places si confirmation directe
-      if (status === 'confirmed') {
-        const spotsUsed = duoUserId ? 2 : 1
-        await supabase
-          .from('matches')
-          .update({ 
-            spots_available: match.spots_available - spotsUsed,
-            status: match.spots_available - spotsUsed <= 0 ? 'full' : 'open'
-          })
-          .eq('id', matchId)
-
-        await supabase.from('match_messages').insert({
-          match_id: parseInt(matchId),
-          user_id: user.id,
-          message: duoUserId 
-            ? `👥 ${profile?.name} + ${duoPartnerName} ont rejoint`
-            : `👥 ${profile?.name} a rejoint (partenaire invité: ${duoName || duoEmail})`
-        })
-
-        router.push(`/dashboard/match/${matchId}`)
-      } else {
-        // Mode approval
-        if (match.join_mode === 'approval' && duoEmail && !duoUserId) {
-          // Notifier aussi l'organisateur de l'invitation duo
-          try {
-            const { data: organizerData } = await supabase
-              .from('profiles')
-              .select('email, name')
-              .eq('id', match.organizer_id)
-              .single()
-
-            if (organizerData?.email) {
-              await fetch('/api/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'join_request',
-                  data: {
-                    organizerEmail: organizerData.email,
-                    playerName: `${profile?.name} + ${duoName || 'partenaire invité'}`,
-                    playerLevel: profile?.level,
-                    playerPosition: profile?.preferred_position || 'Non spécifiée',
-                    matchId: matchId,
-                    matchDate: formatFullDate(match.match_date),
-                    matchTime: match.match_time?.slice(0, 5) || '?h',
-                    clubName: match.clubs?.name || match.city || 'Lieu à définir',
-                    team: selectedTeam
-                  }
-                })
-              })
-            }
-          } catch (e) {
-            console.error('Erreur email orga:', e)
-          }
-        }
-        
-        setIsPending(true)
-        setShowDuoModal(false)
-        setSendingDuoInvite(false)
-      }
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Erreur lors de l\'inscription en duo')
-      setSendingDuoInvite(false)
-    }
-  }
-
-  function formatDate(dateStr) {
-    if (!dateStr) return 'Date flexible'
-    const date = new Date(dateStr)
-    const today = new Date()
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-
-    if (date.toDateString() === today.toDateString()) return "Aujourd'hui"
-    if (date.toDateString() === tomorrow.toDateString()) return "Demain"
-    return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-  }
-
   function formatTime(timeStr) {
-    return timeStr?.slice(0, 5) || ''
+    if (!timeStr) return ''
+    return timeStr.slice(0, 5)
   }
 
-  function getPlayerCount() {
-    const confirmed = participants.filter(p => p.status === 'confirmed').length
-    return 1 + confirmed + pendingInvites.length // Orga + participants confirmés + invités
-  }
-
-  function getSpotsLeft() {
-    return 4 - getPlayerCount()
-  }
-
-  function getPositionLabel(position) {
-    if (position === 'left') return 'Gauche'
-    if (position === 'right') return 'Droite'
-    return 'Polyvalent'
-  }
-
-  // Préparer les équipes
-  const orgaPlayer = match ? {
-    isOrganizer: true,
-    profiles: match.profiles,
-    team: match.organizer_team || 'A',
-    status: 'confirmed'
-  } : null
-
-  const allPlayers = orgaPlayer ? [
-    orgaPlayer,
-    ...participants.filter(p => p.status === 'confirmed'),
-    ...pendingInvites.map(i => ({ ...i, isPendingInvite: true, status: 'invited' }))
-  ] : []
-
+  // === DATA ===
+  const organizer = match?.profiles
+  const confirmedParticipants = participants.filter(p => p.status === 'confirmed')
+  
+  const allPlayers = [
+    ...(organizer ? [{ 
+      isOrganizer: true, 
+      profiles: organizer, 
+      team: match?.organizer_team || 'A' 
+    }] : []),
+    ...confirmedParticipants,
+    ...pendingInvites.map(i => ({ 
+      isPendingInvite: true, 
+      profiles: { name: i.invitee_name || i.invited_name || 'Invité' }, 
+      team: i.team 
+    }))
+  ]
+  
   const teamA = allPlayers.filter(p => p.team === 'A')
   const teamB = allPlayers.filter(p => p.team === 'B')
-  const pricePerPerson = match?.price_total ? Math.round(match.price_total / 100 / 4) : 0
+  const spotsLeft = match?.spots_available || 0
+  const ambiance = AMBIANCE_CONFIG[match?.ambiance] || AMBIANCE_CONFIG.mix
 
+  // === LOADING ===
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#fafafa',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}>
+      <div style={styles.loadingPage}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
-          <div style={{ color: '#666' }}>Chargement...</div>
+          <div style={styles.loadingDots}>
+            {AVATAR_COLORS.map((c, i) => (
+              <div key={i} className="junto-loading-dot" style={{ 
+                ...styles.loadingDot, 
+                background: c, 
+                animationDelay: `${i * 0.1}s` 
+              }} />
+            ))}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>Chargement...</div>
         </div>
+        <style jsx global>{loadingStyles}</style>
       </div>
     )
   }
 
+  // === MATCH NOT FOUND ===
   if (!match) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#fafafa',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-          <h1 style={{ fontSize: 20, marginBottom: 8 }}>Partie introuvable</h1>
-          <Link href="/" style={{ color: '#2e7d32' }}>Retour à l'accueil</Link>
+      <div style={styles.errorPage}>
+        <div style={styles.errorCard}>
+          <div style={{ fontSize: 56, marginBottom: 20 }}>🎾</div>
+          <h1 style={styles.errorTitle}>Partie introuvable</h1>
+          <p style={styles.errorText}>Cette partie n'existe pas ou a été annulée.</p>
+          <Link href="/" style={styles.errorBtn}>Découvrir Junto</Link>
         </div>
       </div>
     )
   }
 
-  const isFull = getPlayerCount() >= 4 || match.status === 'full'
-  const isCancelled = match.status === 'cancelled'
-  const isCompleted = match.status === 'completed'
-  const canJoin = !isFull && !isCancelled && !isCompleted && !alreadyJoined && !isPending
-
+  // === MAIN RENDER ===
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: '16px 20px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Link href="/" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>
-          ← Retour
-        </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 18 }}>🎾</span>
-          <span style={{ fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.9)' }}>PadelMatch</span>
-        </div>
-      </div>
-
-      <div style={{ padding: '0 16px 100px', maxWidth: 500, margin: '0 auto' }}>
+    <div style={styles.page}>
+      <div style={styles.container}>
         
-        {/* Carte principale */}
-        <div style={{
-          background: '#fff',
-          borderRadius: 20,
-          overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
-        }}>
-          {/* Header lieu */}
-          <div style={{
-            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-            padding: '24px 20px',
-            color: '#fff'
-          }}>
-            <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>📍 LIEU</div>
-            <div style={{ fontSize: 22, fontWeight: '700' }}>
-              {match.clubs?.name || match.city || 'Lieu à définir'}
-            </div>
-            {match.clubs?.address && (
-              <div style={{ fontSize: 14, opacity: 0.9, marginTop: 4 }}>{match.clubs.address}</div>
-            )}
+        {/* Header Junto */}
+        <div style={styles.header}>
+          <div style={styles.logo}>
+            <span>junto</span>
+            <FourDots size={8} gap={4} />
           </div>
+        </div>
 
-          {/* Date & Heure */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #eee' }}>
-            <div style={{ padding: 16, borderRight: '1px solid #eee', textAlign: 'center' }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 4, letterSpacing: 0.5 }}>📅 DATE</div>
-              <div style={{ fontSize: 15, fontWeight: '600' }}>
-                {match.match_date
-                  ? new Date(match.match_date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-                  : match.flexible_day || 'Flexible'
+        {/* Match Card */}
+        <div style={styles.matchCard}>
+          <div style={styles.matchCardAccent} />
+          
+          {/* Date badge */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={styles.dateBadge}>
+              <span>📅 {formatDate(match.match_date)}{match.match_time && ` · ${formatTime(match.match_time)}`}</span>
+            </div>
+          </div>
+          
+          {/* Info match */}
+          <div style={styles.matchInfo}>
+            <h1 style={styles.matchTitle}>Partie de Padel 🎾</h1>
+            <div style={styles.matchLocation}>
+              📍 {match.clubs?.name || match.city || 'Lieu à définir'}
+            </div>
+          </div>
+          
+          {/* Organisateur */}
+          {organizer && (
+            <div style={styles.organizerRow}>
+              <div style={{ 
+                ...styles.organizerAvatar, 
+                background: organizer.avatar_url ? 'transparent' : getAvatarColor(organizer.name) 
+              }}>
+                {organizer.avatar_url 
+                  ? <img src={organizer.avatar_url} alt="" style={styles.avatarImg} />
+                  : organizer.name?.[0]?.toUpperCase()
                 }
               </div>
-            </div>
-            <div style={{ padding: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 4, letterSpacing: 0.5 }}>🕐 HEURE</div>
-              <div style={{ fontSize: 15, fontWeight: '600' }}>
-                {formatTime(match.match_time) || match.flexible_period || 'Flexible'}
+              <div style={styles.organizerInfo}>
+                <div style={styles.organizerName}>{organizer.name}</div>
+                <div style={styles.organizerMeta}>Niveau {organizer.level} · Organisateur</div>
               </div>
+              <div style={styles.organizerBadge}>👑 Orga</div>
             </div>
-          </div>
-
-          {/* Badges */}
-          <div style={{ padding: 14, display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', borderBottom: '1px solid #eee' }}>
-            <span style={badgeStyle}>⭐ Niveau {match.level_min || 1}-{match.level_max || 10}</span>
-            <span style={badgeStyle}>{ambianceEmojis[match.ambiance] || '⚡'} {ambianceLabels[match.ambiance] || 'Équilibré'}</span>
-            {pricePerPerson > 0 && (
-              <span style={{ ...badgeStyle, background: '#fef3c7', color: '#92400e' }}>💰 {pricePerPerson}€/pers</span>
+          )}
+          
+          {/* Tags */}
+          <div style={styles.matchTags}>
+            <span style={styles.tag}>📊 Niveau {match.level_min}-{match.level_max}</span>
+            <span style={{ ...styles.tag, ...styles.tagAmber }}>{ambiance.emoji} {ambiance.label}</span>
+            {match.price_total && (
+              <span style={styles.tag}>💰 {Math.round(match.price_total / 100 / 4)}€/pers</span>
             )}
           </div>
-
-          {/* Organisateur */}
-          <div style={{ padding: 14, borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Avatar profile={match.profiles} size={40} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: '#888' }}>Organisé par</div>
-              <div style={{ fontWeight: '600' }}>👑 {match.profiles?.name}</div>
-            </div>
-          </div>
-
-          {/* Équipes A vs B */}
-          <div style={{ padding: 16 }}>
-            <div style={{
-              fontSize: 13,
-              fontWeight: '600',
-              textAlign: 'center',
-              marginBottom: 12,
-              color: getSpotsLeft() > 0 ? '#166534' : '#dc2626'
-            }}>
-              {getSpotsLeft() > 0 ? `${getSpotsLeft()} place${getSpotsLeft() > 1 ? 's' : ''} disponible${getSpotsLeft() > 1 ? 's' : ''}` : '😕 Complet'}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 30px 1fr', gap: 8 }}>
-              {/* Équipe A */}
-              <div>
-                <div style={{ fontSize: 10, fontWeight: '700', color: '#22c55e', marginBottom: 6, textAlign: 'center', letterSpacing: 1 }}>ÉQUIPE A</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {[0, 1].map(i => (
-                    <PlayerSlotPublic key={`a-${i}`} player={teamA[i]} />
-                  ))}
-                </div>
-              </div>
-
-              {/* VS */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 11, fontWeight: '700', color: '#ccc' }}>VS</span>
-              </div>
-
-              {/* Équipe B */}
-              <div>
-                <div style={{ fontSize: 10, fontWeight: '700', color: '#3b82f6', marginBottom: 6, textAlign: 'center', letterSpacing: 1 }}>ÉQUIPE B</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {[0, 1].map(i => (
-                    <PlayerSlotPublic key={`b-${i}`} player={teamB[i]} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Status badges */}
-          {isCancelled && (
-            <div style={{ padding: 16, background: '#fee2e2', color: '#dc2626', textAlign: 'center', fontWeight: '600' }}>
-              ❌ Cette partie a été annulée
-            </div>
-          )}
-          {isCompleted && (
-            <div style={{ padding: 16, background: '#dcfce7', color: '#166534', textAlign: 'center', fontWeight: '600' }}>
-              ✅ Cette partie est terminée
-            </div>
-          )}
         </div>
 
-        {/* Messages status */}
-        {alreadyJoined && (
-          <div style={{ marginTop: 16, padding: 16, background: 'rgba(34,197,94,0.2)', borderRadius: 12, textAlign: 'center' }}>
-            <div style={{ color: '#22c55e', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>
-              ✅ Tu participes à cette partie !
-            </div>
-            <Link href={`/dashboard/match/${matchId}`} style={{
-              display: 'inline-block', padding: '12px 24px', background: '#fff', color: '#1a1a1a',
-              borderRadius: 10, textDecoration: 'none', fontWeight: '600', fontSize: 14
-            }}>
-              Voir la partie →
-            </Link>
-          </div>
-        )}
-
-        {isPending && (
-          <div style={{ marginTop: 16, padding: 16, background: 'rgba(245,158,11,0.2)', borderRadius: 12, textAlign: 'center' }}>
-            <div style={{ color: '#fbbf24', fontSize: 14, fontWeight: '600' }}>⏳ Demande envoyée</div>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 4 }}>L'organisateur doit valider ta participation</div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div style={{ textAlign: 'center', marginTop: 32, color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
-          L'app pour organiser tes parties de padel
-        </div>
-      </div>
-
-      {/* CTA Fixe */}
-      {canJoin && (
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: '#fff', padding: 16, boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
-        }}>
-          <div style={{ maxWidth: 500, margin: '0 auto' }}>
-            <button
-              onClick={() => setShowJoinModal(true)}
-              style={{
-                width: '100%', padding: 16, background: '#22c55e', color: '#fff',
-                border: 'none', borderRadius: 12, fontSize: 16, fontWeight: '600', cursor: 'pointer'
-              }}
-            >
-              {user ? '🎾 Rejoindre la partie' : 'Se connecter pour rejoindre'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Rejoindre (nouveau) */}
-      {showJoinModal && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: '20px 20px 0 0', width: '100%',
-            maxWidth: 500, maxHeight: '85vh', overflow: 'auto'
-          }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: 18, fontWeight: '600', margin: 0 }}>Rejoindre la partie</h3>
-              <button onClick={() => { setShowJoinModal(false); setDuoSelected(null); setDuoSearch('') }} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#999' }}>×</button>
-            </div>
-
-            <div style={{ padding: 20 }}>
-              {!user ? (
-                <>
-                  <p style={{ color: '#666', fontSize: 14, marginBottom: 20, textAlign: 'center' }}>
-                    Connecte-toi pour demander à rejoindre cette partie
-                  </p>
-                  <button onClick={() => { sessionStorage.setItem('redirectAfterLogin', `/join/${matchId}`); router.push('/auth') }}
-                    style={{ width: '100%', padding: 16, background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: '600', cursor: 'pointer' }}>
-                    Se connecter
-                  </button>
-                </>
-              ) : (
-                <>
-                  {/* Choix équipe */}
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 14, fontWeight: '600', marginBottom: 10 }}>Dans quelle équipe ?</div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      {['A', 'B'].map(team => (
-                        <button key={team} onClick={() => setSelectedTeam(team)} style={{
-                          flex: 1, padding: 14,
-                          border: `2px solid ${selectedTeam === team ? (team === 'A' ? '#22c55e' : '#3b82f6') : '#e5e5e5'}`,
-                          borderRadius: 10,
-                          background: selectedTeam === team ? (team === 'A' ? '#f0fdf4' : '#eff6ff') : '#fff',
-                          fontWeight: '600', cursor: 'pointer'
-                        }}>
-                          Équipe {team}
-                        </button>
-                      ))}
+        {/* Équipes */}
+        <div style={styles.teamsSection}>
+          <div style={styles.teamsTitle}>🏆 Les équipes ({spotsLeft} place{spotsLeft > 1 ? 's' : ''} dispo)</div>
+          
+          <div style={styles.teamsGrid}>
+            {/* Équipe A */}
+            <div style={{ ...styles.teamColumn, ...styles.teamA }}>
+              <div style={{ ...styles.teamHeader, color: JUNTO.teamA }}>🅰️ Équipe A</div>
+              {teamA.map((player, idx) => (
+                <div key={idx} style={styles.teamPlayer}>
+                  <div style={{ 
+                    ...styles.teamPlayerAvatar, 
+                    background: player.profiles?.avatar_url ? 'transparent' : getAvatarColor(player.profiles?.name)
+                  }}>
+                    {player.profiles?.avatar_url 
+                      ? <img src={player.profiles.avatar_url} alt="" style={styles.avatarImg} />
+                      : player.profiles?.name?.[0]?.toUpperCase() || '?'
+                    }
+                  </div>
+                  <div>
+                    <div style={styles.teamPlayerName}>
+                      {player.profiles?.name}
+                      {player.isOrganizer && ' 👑'}
+                    </div>
+                    <div style={styles.teamPlayerLevel}>
+                      {player.isPendingInvite ? '⏳ Invité' : `Niveau ${player.profiles?.level || '?'}`}
                     </div>
                   </div>
-
-                  {/* Option duo */}
-                  {getSpotsLeft() >= 2 && (
-                    <div style={{ marginBottom: 20, padding: 16, background: '#f9f9f9', borderRadius: 12 }}>
-                      <div style={{ fontSize: 14, fontWeight: '600', marginBottom: 10 }}>👥 Venir avec un partenaire ?</div>
-                      
-                      {duoSelected ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: '#f0fdf4', borderRadius: 10, border: '1px solid #bbf7d0' }}>
-                          <Avatar profile={duoSelected} size={36} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: '600' }}>{duoSelected.name}</div>
-                            <div style={{ fontSize: 12, color: '#666' }}>Niveau {duoSelected.level}/10</div>
-                          </div>
-                          <button onClick={() => { setDuoSelected(null); setDuoSearch('') }} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#999' }}>×</button>
-                        </div>
-                      ) : (
-                        <>
-                          <input type="text" value={duoSearch} onChange={(e) => searchDuoPartner(e.target.value)}
-                            placeholder="Rechercher un joueur..."
-                            style={{ width: '100%', padding: 12, border: '1px solid #e5e5e5', borderRadius: 10, fontSize: 15, marginBottom: 8, boxSizing: 'border-box' }}
-                          />
-                          {duoResults.length > 0 && (
-                            <div style={{ border: '1px solid #e5e5e5', borderRadius: 10, overflow: 'hidden' }}>
-                              {duoResults.map(p => (
-                                <div key={p.id} onClick={() => { setDuoSelected(p); setDuoResults([]); setDuoSearch('') }}
-                                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, cursor: 'pointer', borderBottom: '1px solid #f0f0f0', background: '#fff' }}>
-                                  <Avatar profile={p} size={32} />
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: '500' }}>{p.name}</div>
-                                    <div style={{ fontSize: 12, color: '#888' }}>Niveau {p.level}/10</div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <div style={{ fontSize: 12, color: '#888', marginTop: 8, textAlign: 'center' }}>
-                            ou laisse vide pour rejoindre seul(e)
-                          </div>
-                        </>
-                      )}
+                </div>
+              ))}
+              {teamA.length < 2 && (
+                <div style={styles.teamEmpty}>+ {2 - teamA.length} place{2 - teamA.length > 1 ? 's' : ''}</div>
+              )}
+            </div>
+            
+            {/* Équipe B */}
+            <div style={{ ...styles.teamColumn, ...styles.teamB }}>
+              <div style={{ ...styles.teamHeader, color: JUNTO.teamB }}>🅱️ Équipe B</div>
+              {teamB.map((player, idx) => (
+                <div key={idx} style={styles.teamPlayer}>
+                  <div style={{ 
+                    ...styles.teamPlayerAvatar, 
+                    background: player.profiles?.avatar_url ? 'transparent' : getAvatarColor(player.profiles?.name)
+                  }}>
+                    {player.profiles?.avatar_url 
+                      ? <img src={player.profiles.avatar_url} alt="" style={styles.avatarImg} />
+                      : player.profiles?.name?.[0]?.toUpperCase() || '?'
+                    }
+                  </div>
+                  <div>
+                    <div style={styles.teamPlayerName}>{player.profiles?.name}</div>
+                    <div style={styles.teamPlayerLevel}>
+                      {player.isPendingInvite ? '⏳ Invité' : `Niveau ${player.profiles?.level || '?'}`}
                     </div>
-                  )}
-
-                  {/* Info */}
-                  <p style={{ fontSize: 13, color: '#888', marginBottom: 16, textAlign: 'center' }}>
-                    {match.join_mode === 'approval' ? "L'organisateur devra accepter ta demande" : "Tu seras directement inscrit(e)"}
-                  </p>
-
-                  {/* Bouton */}
-                  <button onClick={() => joinMatch(!!duoSelected)} disabled={joining}
-                    style={{
-                      width: '100%', padding: 16,
-                      background: joining ? '#e5e5e5' : '#22c55e',
-                      color: joining ? '#999' : '#fff',
-                      border: 'none', borderRadius: 12, fontSize: 16, fontWeight: '600',
-                      cursor: joining ? 'not-allowed' : 'pointer'
-                    }}>
-                    {joining ? 'Inscription...' : (duoSelected ? `Rejoindre avec ${duoSelected.name}` : 'Rejoindre la partie')}
-                  </button>
-                </>
+                  </div>
+                </div>
+              ))}
+              {teamB.length < 2 && (
+                <div style={styles.teamEmpty}>+ {2 - teamB.length} place{2 - teamB.length > 1 ? 's' : ''}</div>
               )}
             </div>
           </div>
         </div>
-      )}
 
-      {/* Modal Duo (ancien, gardé pour compatibilité) */}
-      {showDuoModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 200,
-          padding: 20
-        }}
-        onClick={(e) => e.target === e.currentTarget && setShowDuoModal(false)}
-        >
-          <div style={{
-            background: '#fff',
-            borderRadius: 20,
-            padding: 24,
-            width: '100%',
-            maxWidth: 400
-          }}>
-            <h2 style={{ fontSize: 18, fontWeight: '700', margin: '0 0 8px' }}>
-              👥 Rejoindre en duo
-            </h2>
-            <p style={{ color: '#666', fontSize: 14, margin: '0 0 20px' }}>
-              Avec qui viens-tu jouer ?
+        {/* CTA Section */}
+        {alreadyJoined ? (
+          <div style={styles.alreadyJoinedBox}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: JUNTO.teal }}>Tu es inscrit !</div>
+            <Link href={`/dashboard/match/${matchId}`} style={styles.goToMatchBtn}>
+              Voir la partie →
+            </Link>
+          </div>
+        ) : isPending ? (
+          <div style={styles.pendingBox}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: JUNTO.amber }}>Demande en attente</div>
+            <p style={{ fontSize: 14, color: JUNTO.gray, marginTop: 8 }}>
+              L'organisateur doit valider ta demande
             </p>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
-                Nom de ton partenaire
-              </label>
-              <input
-                type="text"
-                value={duoName}
-                onChange={(e) => setDuoName(e.target.value)}
-                placeholder="Ex: Julie"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid #eee',
-                  fontSize: 15
-                }}
-              />
+          </div>
+        ) : match.status === 'full' ? (
+          <div style={styles.fullBox}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>😢</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: JUNTO.gray }}>Partie complète</div>
+          </div>
+        ) : user ? (
+          <div style={styles.ctaSection}>
+            {/* Choix équipe */}
+            <div style={styles.teamChoice}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink, marginBottom: 10 }}>
+                Rejoindre quelle équipe ?
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setSelectedTeam('A')}
+                  style={{
+                    ...styles.teamBtn,
+                    background: selectedTeam === 'A' ? `linear-gradient(135deg, ${JUNTO.teamA}, #16a34a)` : JUNTO.bg,
+                    color: selectedTeam === 'A' ? '#fff' : JUNTO.gray,
+                    border: selectedTeam === 'A' ? 'none' : `2px solid ${JUNTO.border}`
+                  }}
+                >
+                  🅰️ Équipe A
+                </button>
+                <button
+                  onClick={() => setSelectedTeam('B')}
+                  style={{
+                    ...styles.teamBtn,
+                    background: selectedTeam === 'B' ? `linear-gradient(135deg, ${JUNTO.teamB}, #2563eb)` : JUNTO.bg,
+                    color: selectedTeam === 'B' ? '#fff' : JUNTO.gray,
+                    border: selectedTeam === 'B' ? 'none' : `2px solid ${JUNTO.border}`
+                  }}
+                >
+                  🅱️ Équipe B
+                </button>
+              </div>
             </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
-                Son email <span style={{ color: '#999', fontWeight: '400' }}>(s'il est sur PadelMatch)</span>
-              </label>
-              <input
-                type="email"
-                value={duoEmail}
-                onChange={(e) => setDuoEmail(e.target.value)}
-                placeholder="julie@email.com"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid #eee',
-                  fontSize: 15
-                }}
-              />
-            </div>
-
-            <button
-              onClick={joinAsDuo}
-              disabled={sendingDuoInvite || (!duoName && !duoEmail)}
-              style={{
-                width: '100%',
-                padding: 14,
-                background: sendingDuoInvite ? '#ccc' : '#1a1a1a',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 15,
-                fontWeight: '600',
-                cursor: sendingDuoInvite ? 'not-allowed' : 'pointer',
-                marginBottom: 10
-              }}
+            
+            <button 
+              onClick={joinMatch} 
+              disabled={joining}
+              style={styles.joinBtn}
             >
-              {sendingDuoInvite ? 'Inscription...' : 'Rejoindre en duo'}
-            </button>
-
-            <button
-              onClick={() => setShowDuoModal(false)}
-              style={{
-                width: '100%',
-                padding: 12,
-                background: '#f5f5f5',
-                color: '#666',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                cursor: 'pointer'
-              }}
-            >
-              Annuler
+              {joining ? '⏳ Inscription...' : '🎾 Rejoindre la partie'}
             </button>
           </div>
-        </div>
-      )}
-    </div>
-  )
-}
+        ) : (
+          <div style={styles.loginPrompt}>
+            <h3 style={styles.loginTitle}>Envie de jouer ? 🎾</h3>
+            <p style={styles.loginText}>Connecte-toi pour rejoindre cette partie</p>
+            <Link href="/auth" style={styles.loginBtn}>Se connecter</Link>
+            <Link href="/auth" style={styles.signupBtn}>Créer un compte gratuit</Link>
+          </div>
+        )}
 
-// === COMPOSANTS ===
-
-function Avatar({ profile, size = 40 }) {
-  if (profile?.avatar_url) {
-    return <img src={profile.avatar_url} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} />
-  }
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: '#fff', fontWeight: '600', fontSize: size * 0.4
-    }}>
-      {profile?.name?.[0] || '?'}
-    </div>
-  )
-}
-
-function PlayerSlotPublic({ player }) {
-  const positionShort = { 'left': 'G', 'right': 'D', 'both': 'P' }
-
-  if (!player) {
-    return (
-      <div style={{
-        background: '#f9f9f9', borderRadius: 8, padding: 10, textAlign: 'center',
-        border: '2px dashed #e5e5e5', minHeight: 50,
-        display: 'flex', alignItems: 'center', justifyContent: 'center'
-      }}>
-        <span style={{ color: '#ccc', fontSize: 12 }}>Place libre</span>
-      </div>
-    )
-  }
-
-  if (player.isPendingInvite) {
-    return (
-      <div style={{ background: '#fffbeb', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid #fcd34d' }}>
-        <div style={{ fontSize: 14, marginBottom: 2 }}>⏳</div>
-        <div style={{ fontSize: 12, fontWeight: '500', color: '#92400e' }}>{player.invitee_name}</div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ background: '#fff', borderRadius: 8, padding: 8, border: '1px solid #e5e5e5', display: 'flex', alignItems: 'center', gap: 8 }}>
-      <Avatar profile={player.profiles} size={32} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: '600', display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {player.isOrganizer && <span>👑</span>}
-          {player.profiles?.name}
-        </div>
-        <div style={{ fontSize: 11, color: '#888' }}>
-          ⭐{player.profiles?.level} • {positionShort[player.profiles?.position] || 'P'}
+        {/* Footer */}
+        <div style={styles.footer}>
+          <FourDots size={6} gap={3} />
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes junto-dot {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.3); opacity: 0.7; }
+        }
+        .junto-dot { animation: junto-dot 3s ease-in-out infinite; }
+        
+        @keyframes junto-loading {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-12px); }
+        }
+        .junto-loading-dot { animation: junto-loading 1.4s ease-in-out infinite; }
+      `}</style>
     </div>
   )
 }
 
 // === STYLES ===
+const loadingStyles = `
+  @keyframes junto-loading {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-12px); }
+  }
+  .junto-loading-dot { animation: junto-loading 1.4s ease-in-out infinite; }
+`
 
-const badgeStyle = {
-  padding: '6px 12px',
-  background: '#f5f5f5',
-  borderRadius: 20,
-  fontSize: 12,
-  fontWeight: '600'
+const styles = {
+  // Page
+  page: {
+    minHeight: '100vh',
+    background: `linear-gradient(180deg, ${JUNTO.slate} 0%, ${JUNTO.slateDark} 45%, ${JUNTO.bg} 45%)`,
+    padding: '32px 20px 60px',
+    fontFamily: "'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+  },
+  container: {
+    maxWidth: 440,
+    margin: '0 auto'
+  },
+  
+  // Header
+  header: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: 28
+  },
+  logo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 22,
+    fontWeight: 700
+  },
+  
+  // Match Card
+  matchCard: {
+    background: `linear-gradient(145deg, #4a5d6d 0%, ${JUNTO.slate} 100%)`,
+    borderRadius: 28,
+    padding: '28px 24px',
+    position: 'relative',
+    boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
+    border: '2px solid rgba(255,255,255,0.1)',
+    marginBottom: 20
+  },
+  matchCardAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 24,
+    bottom: 24,
+    width: 6,
+    background: JUNTO.coral,
+    borderRadius: '0 4px 4px 0'
+  },
+  dateBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    background: 'rgba(0, 184, 169, 0.15)',
+    border: `2px solid ${JUNTO.teal}`,
+    borderRadius: 100,
+    padding: '10px 18px',
+    marginBottom: 20,
+    fontSize: 14,
+    fontWeight: 700,
+    color: JUNTO.tealGlow
+  },
+  matchInfo: {
+    textAlign: 'center',
+    marginBottom: 24
+  },
+  matchTitle: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: JUNTO.white,
+    margin: '0 0 8px'
+  },
+  matchLocation: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6
+  },
+  
+  // Organizer
+  organizerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    background: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    marginBottom: 20
+  },
+  organizerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 20,
+    fontWeight: 700,
+    color: JUNTO.white,
+    overflow: 'hidden'
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+  organizerInfo: {
+    flex: 1
+  },
+  organizerName: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: JUNTO.white
+  },
+  organizerMeta: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)'
+  },
+  organizerBadge: {
+    padding: '6px 12px',
+    background: JUNTO.amber,
+    borderRadius: 100,
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#000'
+  },
+  
+  // Tags
+  matchTags: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: 10,
+    flexWrap: 'wrap'
+  },
+  tag: {
+    padding: '10px 16px',
+    background: 'rgba(255,255,255,0.1)',
+    borderRadius: 100,
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'rgba(255,255,255,0.85)'
+  },
+  tagAmber: {
+    background: 'rgba(255, 180, 0, 0.2)',
+    color: JUNTO.amber
+  },
+  
+  // Teams
+  teamsSection: {
+    background: JUNTO.white,
+    borderRadius: 24,
+    padding: 24,
+    border: `2px solid ${JUNTO.border}`,
+    marginBottom: 20
+  },
+  teamsTitle: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: JUNTO.ink,
+    marginBottom: 16,
+    textAlign: 'center'
+  },
+  teamsGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 16
+  },
+  teamColumn: {
+    padding: 16,
+    borderRadius: 16,
+    background: JUNTO.bg
+  },
+  teamA: {
+    border: `2px solid ${JUNTO.teamA}`
+  },
+  teamB: {
+    border: `2px solid ${JUNTO.teamB}`
+  },
+  teamHeader: {
+    fontSize: 14,
+    fontWeight: 700,
+    marginBottom: 12,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6
+  },
+  teamPlayer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    background: JUNTO.white,
+    borderRadius: 12,
+    marginBottom: 8
+  },
+  teamPlayerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 14,
+    fontWeight: 700,
+    color: JUNTO.white,
+    overflow: 'hidden'
+  },
+  teamPlayerName: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: JUNTO.ink
+  },
+  teamPlayerLevel: {
+    fontSize: 12,
+    color: JUNTO.muted
+  },
+  teamEmpty: {
+    padding: 16,
+    border: `2px dashed ${JUNTO.border}`,
+    borderRadius: 12,
+    textAlign: 'center',
+    color: JUNTO.muted,
+    fontSize: 13
+  },
+  
+  // CTA
+  ctaSection: {
+    background: JUNTO.white,
+    borderRadius: 20,
+    padding: 24,
+    border: `2px solid ${JUNTO.border}`
+  },
+  teamChoice: {
+    marginBottom: 20
+  },
+  teamBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer'
+  },
+  joinBtn: {
+    width: '100%',
+    padding: 18,
+    background: JUNTO.coral,
+    color: JUNTO.white,
+    border: 'none',
+    borderRadius: 16,
+    fontSize: 17,
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: `0 8px 24px ${JUNTO.coralGlow}`
+  },
+  
+  // Login prompt
+  loginPrompt: {
+    background: JUNTO.white,
+    borderRadius: 20,
+    padding: 28,
+    textAlign: 'center',
+    border: `2px solid ${JUNTO.border}`
+  },
+  loginTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: JUNTO.ink,
+    margin: '0 0 8px'
+  },
+  loginText: {
+    fontSize: 14,
+    color: JUNTO.gray,
+    margin: '0 0 20px'
+  },
+  loginBtn: {
+    display: 'block',
+    width: '100%',
+    padding: 16,
+    background: JUNTO.coral,
+    color: JUNTO.white,
+    border: 'none',
+    borderRadius: 14,
+    fontSize: 16,
+    fontWeight: 700,
+    textDecoration: 'none',
+    textAlign: 'center',
+    marginBottom: 12
+  },
+  signupBtn: {
+    display: 'block',
+    width: '100%',
+    padding: 14,
+    background: JUNTO.white,
+    color: JUNTO.ink,
+    border: `2px solid ${JUNTO.border}`,
+    borderRadius: 14,
+    fontSize: 15,
+    fontWeight: 600,
+    textDecoration: 'none',
+    textAlign: 'center'
+  },
+  
+  // Status boxes
+  alreadyJoinedBox: {
+    background: JUNTO.tealSoft,
+    borderRadius: 20,
+    padding: 28,
+    textAlign: 'center',
+    border: `2px solid ${JUNTO.teal}`
+  },
+  goToMatchBtn: {
+    display: 'inline-block',
+    marginTop: 16,
+    padding: '14px 28px',
+    background: JUNTO.teal,
+    color: JUNTO.white,
+    borderRadius: 12,
+    textDecoration: 'none',
+    fontWeight: 700,
+    fontSize: 15
+  },
+  pendingBox: {
+    background: JUNTO.amberSoft,
+    borderRadius: 20,
+    padding: 28,
+    textAlign: 'center',
+    border: `2px solid ${JUNTO.amber}`
+  },
+  fullBox: {
+    background: JUNTO.bg,
+    borderRadius: 20,
+    padding: 28,
+    textAlign: 'center',
+    border: `2px solid ${JUNTO.border}`
+  },
+  
+  // Footer
+  footer: {
+    display: 'flex',
+    justifyContent: 'center',
+    paddingTop: 32
+  },
+  
+  // Loading
+  loadingPage: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: `linear-gradient(180deg, ${JUNTO.slate} 0%, ${JUNTO.slateDark} 100%)`,
+    fontFamily: "'Satoshi', -apple-system, sans-serif"
+  },
+  loadingDots: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16
+  },
+  loadingDot: {
+    width: 14,
+    height: 14,
+    borderRadius: '50%'
+  },
+  
+  // Error
+  errorPage: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: JUNTO.bg,
+    padding: 20,
+    fontFamily: "'Satoshi', -apple-system, sans-serif"
+  },
+  errorCard: {
+    background: JUNTO.white,
+    borderRadius: 24,
+    padding: '48px 40px',
+    textAlign: 'center',
+    maxWidth: 360,
+    border: `2px solid ${JUNTO.border}`
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: JUNTO.ink,
+    margin: '0 0 8px'
+  },
+  errorText: {
+    fontSize: 14,
+    color: JUNTO.gray,
+    margin: '0 0 28px'
+  },
+  errorBtn: {
+    display: 'inline-block',
+    padding: '16px 32px',
+    background: JUNTO.coral,
+    color: JUNTO.white,
+    borderRadius: 100,
+    textDecoration: 'none',
+    fontWeight: 700,
+    fontSize: 15
+  }
 }
