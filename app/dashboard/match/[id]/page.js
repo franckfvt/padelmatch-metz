@@ -74,6 +74,12 @@ export default function MatchDetailPage() {
   const [joinTeam, setJoinTeam] = useState('A')
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [copied, setCopied] = useState(false)
+  
+  // États pour invitation par email
+  const [inviteName, setInviteName] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteTeam, setInviteTeam] = useState('A')
+  const [inviteSending, setInviteSending] = useState(false)
 
   // === DATA LOADING ===
   useEffect(() => { loadData() }, [matchId])
@@ -234,7 +240,70 @@ export default function MatchDetailPage() {
 
   async function resendInvite(invite) {
     // TODO: Implement resend logic (SMS/notification)
-    alert(`Invitation renvoyée à ${invite.invited_name || invite.invited_phone}`)
+    alert(`Invitation renvoyée à ${invite.invitee_name || invite.invited_name || invite.invitee_email || 'cet invité'}`)
+  }
+
+  async function sendEmailInvite() {
+    if (!inviteName.trim()) {
+      alert('Indique au moins un prénom')
+      return
+    }
+    
+    setInviteSending(true)
+    
+    try {
+      const inviteToken = crypto.randomUUID()
+      
+      // Créer l'invitation dans la base
+      const { error: inviteError } = await supabase
+        .from('pending_invites')
+        .insert({
+          match_id: parseInt(matchId),
+          inviter_id: user.id,
+          invitee_name: inviteName.trim(),
+          invitee_email: inviteEmail.trim() || null,
+          team: inviteTeam,
+          status: 'pending',
+          invite_token: inviteToken
+        })
+      
+      if (inviteError) throw inviteError
+      
+      // Envoyer l'email si fourni
+      if (inviteEmail.trim()) {
+        const response = await fetch('/api/send-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inviteToken: inviteToken,
+            inviteeName: inviteName.trim(),
+            inviteeContact: inviteEmail.trim(),
+            inviterName: profile?.name || 'Un joueur',
+            matchDate: match?.match_date || null,
+            matchTime: match?.match_time || null,
+            clubName: match?.clubs?.name || match?.city || 'À définir'
+          })
+        })
+        
+        const result = await response.json()
+        if (result.success) {
+          console.log(`✅ Email envoyé à ${inviteEmail}`)
+        }
+      }
+      
+      // Reset et fermer
+      setInviteName('')
+      setInviteEmail('')
+      setInviteTeam('A')
+      setModal(null)
+      loadData()
+      
+    } catch (err) {
+      console.error('Erreur invitation:', err)
+      alert('Erreur lors de l\'envoi de l\'invitation')
+    } finally {
+      setInviteSending(false)
+    }
   }
 
   async function leaveMatch() {
@@ -261,7 +330,7 @@ export default function MatchDetailPage() {
   const allPlayers = [
     orgaPlayer, 
     ...confirmedParticipants, 
-    ...pendingInvites.map(i => ({ ...i, isPendingInvite: true, profiles: { name: i.invited_name || 'Invité' } }))
+    ...pendingInvites.map(i => ({ ...i, isPendingInvite: true, profiles: { name: i.invitee_name || i.invited_name || 'Invité' } }))
   ]
   
   const teamA = allPlayers.filter(p => p.team === 'A')
@@ -771,12 +840,17 @@ export default function MatchDetailPage() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 18, fontWeight: 700
                     }}>
-                      {inv.invited_name?.[0]?.toUpperCase() || '?'}
+                      {(inv.invitee_name || inv.invited_name)?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div style={{ flex: 1 }}>
                       <strong style={{ display: 'block', fontSize: 15, color: JUNTO.ink }}>
-                        {inv.invited_name || inv.invited_phone || 'Invité'} n'a pas répondu
+                        {inv.invitee_name || inv.invited_name || 'Invité'} n'a pas répondu
                       </strong>
+                      {inv.invitee_email && (
+                        <span style={{ fontSize: 12, color: JUNTO.teal, display: 'block', marginBottom: 2 }}>
+                          ✉️ {inv.invitee_email}
+                        </span>
+                      )}
                       <span style={{ fontSize: 13, color: JUNTO.amber, fontWeight: 500 }}>
                         ⏳ Invité il y a {inv.daysSince} jours
                       </span>
@@ -1204,8 +1278,127 @@ export default function MatchDetailPage() {
       {/* Modal Invite (pour organisateur) */}
       {modal === 'invite' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setModal(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: JUNTO.white, borderRadius: 28, padding: 28, width: '100%', maxWidth: 400 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: JUNTO.white, borderRadius: 28, padding: 28, width: '100%', maxWidth: 420, maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 20px', color: JUNTO.ink, textAlign: 'center' }}>👥 Ajouter un joueur</h3>
+            
+            {/* Formulaire invitation par email */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', 
+              borderRadius: 16, 
+              padding: 20, 
+              marginBottom: 16,
+              border: '2px solid #e2e8f0'
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: JUNTO.ink, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                ✉️ Inviter quelqu'un
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                <input
+                  type="text"
+                  value={inviteName}
+                  onChange={e => setInviteName(e.target.value)}
+                  placeholder="Prénom *"
+                  style={{
+                    padding: '14px 16px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    outline: 'none'
+                  }}
+                />
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="Email (optionnel)"
+                  style={{
+                    padding: '14px 16px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              
+              {/* Sélection équipe */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <button
+                  onClick={() => setInviteTeam('A')}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    border: 'none',
+                    borderRadius: 10,
+                    background: inviteTeam === 'A' ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#f1f5f9',
+                    color: inviteTeam === 'A' ? '#fff' : '#64748b',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🅰️ Équipe A
+                </button>
+                <button
+                  onClick={() => setInviteTeam('B')}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    border: 'none',
+                    borderRadius: 10,
+                    background: inviteTeam === 'B' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : '#f1f5f9',
+                    color: inviteTeam === 'B' ? '#fff' : '#64748b',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🅱️ Équipe B
+                </button>
+              </div>
+              
+              <button
+                onClick={sendEmailInvite}
+                disabled={!inviteName.trim() || inviteSending}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  background: inviteName.trim() 
+                    ? (inviteEmail.trim() ? JUNTO.teal : JUNTO.ink)
+                    : '#e5e5e5',
+                  color: inviteName.trim() ? '#fff' : '#999',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: inviteName.trim() ? 'pointer' : 'not-allowed',
+                  boxShadow: inviteName.trim() && inviteEmail.trim() 
+                    ? '0 4px 12px rgba(0, 184, 169, 0.25)' 
+                    : 'none'
+                }}
+              >
+                {inviteSending 
+                  ? '⏳ Envoi...' 
+                  : inviteEmail.trim() 
+                    ? '📤 Ajouter et envoyer l\'invitation' 
+                    : '+ Ajouter à la partie'
+                }
+              </button>
+              
+              <p style={{ fontSize: 12, color: JUNTO.gray, marginTop: 10, textAlign: 'center' }}>
+                💡 {inviteEmail.trim() 
+                  ? "Cette personne recevra un email pour rejoindre" 
+                  : "Ajoute un email pour envoyer une invitation automatique"}
+              </p>
+            </div>
+            
+            {/* Séparateur */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
+              <div style={{ flex: 1, height: 1, background: JUNTO.border }}></div>
+              <span style={{ fontSize: 12, color: JUNTO.muted }}>ou</span>
+              <div style={{ flex: 1, height: 1, background: JUNTO.border }}></div>
+            </div>
             
             <Link href={`/dashboard/joueurs?match=${matchId}`} style={{
               display: 'flex', alignItems: 'center', gap: 14,
@@ -1227,7 +1420,7 @@ export default function MatchDetailPage() {
               <div style={{ width: 48, height: 48, borderRadius: 12, background: JUNTO.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>📤</div>
               <div>
                 <strong style={{ display: 'block', fontSize: 15, color: JUNTO.ink }}>Partager un lien</strong>
-                <span style={{ fontSize: 13, color: JUNTO.gray }}>WhatsApp, SMS, Email...</span>
+                <span style={{ fontSize: 13, color: JUNTO.gray }}>WhatsApp, SMS, copier le lien...</span>
               </div>
             </button>
             
