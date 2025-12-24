@@ -2,13 +2,12 @@
 
 /**
  * ============================================
- * PAGE MA CARTE - JUNTO BRAND v2
+ * PAGE MA CARTE - JUNTO BRAND v3
  * ============================================
  * 
- * Architecture :
- * 1. HERO CARTE (above the fold) - effet wow, viralité
- * 2. TABS: Stats / Badges / Parrainage
- * 3. RÉGLAGES (toujours visibles en bas)
+ * Nouvelle architecture responsive :
+ * - Desktop : 2 colonnes (carte fixe + contenu scrollable)
+ * - Mobile : Stack vertical avec tabs
  * 
  * ============================================
  */
@@ -46,8 +45,10 @@ const SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
 
 const AMBIANCE_CONFIG = {
   chill: { emoji: '😌', label: 'Détente', color: JUNTO.teal },
+  loisir: { emoji: '😌', label: 'Détente', color: JUNTO.teal },
   mix: { emoji: '⚡', label: 'Équilibré', color: JUNTO.amber },
-  competition: { emoji: '🔥', label: 'Compétition', color: JUNTO.coral }
+  competition: { emoji: '🔥', label: 'Compétition', color: JUNTO.coral },
+  compet: { emoji: '🔥', label: 'Compétition', color: JUNTO.coral }
 }
 
 const POSITION_CONFIG = {
@@ -58,17 +59,262 @@ const POSITION_CONFIG = {
   both: { emoji: '↔️', label: 'Polyvalent' }
 }
 
+// === COMPOSANT: Les 4 points animés ===
+function FourDots({ size = 8, gap = 4 }) {
+  return (
+    <div style={{ display: 'flex', gap }}>
+      {AVATAR_COLORS.map((c, i) => (
+        <div 
+          key={i} 
+          className="junto-dot" 
+          style={{ 
+            width: size, 
+            height: size, 
+            borderRadius: '50%', 
+            background: c,
+            animationDelay: `${i * 0.15}s`
+          }} 
+        />
+      ))}
+    </div>
+  )
+}
+
+// === COMPOSANT: Carte Joueur Partageable ===
+function PlayerCard({ profile, stats, badges, avatarColor, ambiance, position, forExport = false }) {
+  const cardStyle = {
+    background: `linear-gradient(145deg, #4a5d6d 0%, ${JUNTO.slate} 50%, #2a3a48 100%)`,
+    borderRadius: forExport ? 32 : 28,
+    padding: forExport ? 40 : 32,
+    position: 'relative',
+    boxShadow: forExport ? 'none' : '0 25px 60px rgba(0,0,0,0.4)',
+    border: '2px solid rgba(255,255,255,0.1)',
+    width: '100%',
+    maxWidth: forExport ? 400 : 380,
+    aspectRatio: forExport ? '1 / 1.2' : 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
+  }
+
+  return (
+    <div style={cardStyle}>
+      {/* Accent bar */}
+      <div style={{
+        position: 'absolute',
+        left: 0,
+        top: 28,
+        bottom: 28,
+        width: 6,
+        background: `linear-gradient(180deg, ${JUNTO.coral} 0%, ${JUNTO.amber} 100%)`,
+        borderRadius: '0 4px 4px 0'
+      }} />
+
+      {/* Content */}
+      <div style={{ textAlign: 'center' }}>
+        {/* Avatar */}
+        <div style={{
+          width: forExport ? 120 : 100,
+          height: forExport ? 120 : 100,
+          borderRadius: 28,
+          background: profile?.avatar_url ? 'transparent' : avatarColor,
+          margin: '0 auto 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: forExport ? 52 : 44,
+          fontWeight: 700,
+          color: JUNTO.white,
+          border: '4px solid rgba(255,255,255,0.2)',
+          overflow: 'hidden',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.3)'
+        }}>
+          {profile?.avatar_url 
+            ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+            : profile?.name?.[0]?.toUpperCase()
+          }
+        </div>
+
+        {/* Name */}
+        <h2 style={{ 
+          fontSize: forExport ? 32 : 28, 
+          fontWeight: 800, 
+          color: JUNTO.white, 
+          margin: '0 0 8px',
+          letterSpacing: -0.5
+        }}>
+          {profile?.name || 'Joueur'}
+        </h2>
+
+        {/* Location */}
+        {profile?.city && (
+          <div style={{ 
+            fontSize: 14, 
+            color: 'rgba(255,255,255,0.5)', 
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6
+          }}>
+            📍 {profile.city}
+          </div>
+        )}
+
+        {/* Level badge - prominent */}
+        <div style={{
+          background: 'rgba(0, 184, 169, 0.15)',
+          border: `2px solid ${JUNTO.teal}`,
+          borderRadius: 20,
+          padding: '20px 32px',
+          display: 'inline-block',
+          marginBottom: 20
+        }}>
+          <div style={{ 
+            fontSize: forExport ? 56 : 48, 
+            fontWeight: 900, 
+            color: '#4eeee0', 
+            lineHeight: 1 
+          }}>
+            {profile?.level || '?'}
+          </div>
+          <div style={{ 
+            fontSize: 12, 
+            color: '#4eeee0', 
+            marginTop: 6, 
+            fontWeight: 600, 
+            letterSpacing: 2,
+            textTransform: 'uppercase'
+          }}>
+            Niveau
+          </div>
+        </div>
+
+        {/* Tags */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          gap: 10, 
+          flexWrap: 'wrap' 
+        }}>
+          <span style={{ 
+            background: 'rgba(255,255,255,0.1)', 
+            color: 'rgba(255,255,255,0.85)', 
+            padding: '10px 18px', 
+            borderRadius: 100, 
+            fontSize: 14, 
+            fontWeight: 600 
+          }}>
+            {position.emoji} {position.label}
+          </span>
+          <span style={{ 
+            background: `${ambiance.color}25`, 
+            color: ambiance.color, 
+            padding: '10px 18px', 
+            borderRadius: 100, 
+            fontSize: 14, 
+            fontWeight: 600 
+          }}>
+            {ambiance.emoji} {ambiance.label}
+          </span>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      {stats && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 24,
+          marginTop: 24,
+          paddingTop: 20,
+          borderTop: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: JUNTO.white }}>{stats.matchesPlayed}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Parties</div>
+          </div>
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: JUNTO.teal }}>{stats.wins}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Victoires</div>
+          </div>
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: JUNTO.amber }}>{stats.winRate}%</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Win rate</div>
+          </div>
+        </div>
+      )}
+
+      {/* Badges row */}
+      {badges && badges.length > 0 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 8,
+          marginTop: 16
+        }}>
+          {badges.slice(0, 4).map((b, i) => (
+            <div key={i} style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20
+            }}>
+              {b.badge_definitions?.emoji || '🏅'}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Logo Junto */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        marginTop: 24,
+        paddingTop: 20,
+        borderTop: '1px solid rgba(255,255,255,0.1)'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 10,
+          background: 'rgba(0,0,0,0.2)',
+          padding: '10px 20px',
+          borderRadius: 100
+        }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>junto</span>
+          {!forExport && <FourDots size={6} gap={3} />}
+          {forExport && (
+            <div style={{ display: 'flex', gap: 3 }}>
+              {AVATAR_COLORS.map((c, i) => (
+                <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: c }} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// === PAGE PRINCIPALE ===
 export default function MaCartePage() {
   const router = useRouter()
   const cardRef = useRef(null)
+  const exportCardRef = useRef(null)
   
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   
-  const [activeTab, setActiveTab] = useState('stats')
+  const [activeSection, setActiveSection] = useState('stats')
   
-  const [showTournamentMode, setShowTournamentMode] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -110,7 +356,7 @@ export default function MaCartePage() {
 
     const today = new Date().toISOString().split('T')[0]
 
-    // Parties jouées
+    // Stats de jeu
     const { data: participations } = await supabase
       .from('match_participants')
       .select(`
@@ -134,19 +380,16 @@ export default function MaCartePage() {
 
     const winRate = matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0
 
-    // Parties organisées
     const { count: organized } = await supabase
       .from('matches')
       .select('id', { count: 'exact', head: true })
       .eq('organizer_id', session.user.id)
 
-    // Favoris
     const { count: favoritesCount } = await supabase
       .from('player_favorites')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', session.user.id)
 
-    // Partenaires uniques
     let partnersCount = 0
     if (participations?.length > 0) {
       const matchIds = participations.map(p => p.match_id)
@@ -243,29 +486,49 @@ export default function MaCartePage() {
   }
 
   async function downloadCard() {
-    if (!cardRef.current) return
     setDownloading(true)
     
     try {
+      // Méthode 1: Utiliser html2canvas si disponible
       const html2canvas = (await import('html2canvas')).default
       
-      const canvas = await html2canvas(cardRef.current, {
+      // Créer un élément temporaire pour l'export
+      const exportElement = exportCardRef.current
+      if (!exportElement) throw new Error('Element not found')
+      
+      // Rendre visible temporairement
+      exportElement.style.display = 'block'
+      exportElement.style.position = 'fixed'
+      exportElement.style.left = '-9999px'
+      exportElement.style.top = '0'
+      
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      const canvas = await html2canvas(exportElement, {
         backgroundColor: JUNTO.slate,
         scale: 2,
         useCORS: true,
-        logging: false
+        allowTaint: true,
+        logging: false,
+        width: 400,
+        height: 480
       })
       
+      exportElement.style.display = 'none'
+      
+      // Télécharger
       const link = document.createElement('a')
-      link.download = `carte-${profile?.name || 'joueur'}.png`
-      link.href = canvas.toDataURL('image/png')
+      link.download = `junto-${profile?.name || 'joueur'}.png`
+      link.href = canvas.toDataURL('image/png', 1.0)
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      
     } catch (err) {
       console.error('Erreur téléchargement:', err)
+      // Fallback: copier le lien
       await copyLink()
-      alert('Le lien de ton profil a été copié !')
+      alert('Le lien de ton profil a été copié ! Tu peux faire une capture d\'écran de ta carte.')
     } finally {
       setDownloading(false)
     }
@@ -327,755 +590,245 @@ export default function MaCartePage() {
     )
   }
 
-  // === MODAL PARTAGE ===
-  if (showShareModal) {
-    return (
-      <div
-        onClick={() => setShowShareModal(false)}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: 24
-        }}
-      >
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            background: JUNTO.white,
-            borderRadius: 28,
-            padding: 24,
-            width: '100%',
-            maxWidth: 360,
-            textAlign: 'center'
-          }}
-        >
-          <div style={{ marginBottom: 20 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: JUNTO.ink, margin: '0 0 4px' }}>
-              📤 Partager ma carte
-            </h2>
-            <p style={{ fontSize: 13, color: JUNTO.muted, margin: 0 }}>
-              Scanne ou partage ton profil
-            </p>
-          </div>
+  // === SECTIONS CONTENT ===
+  const sections = [
+    { id: 'stats', label: 'Stats', icon: '📊' },
+    { id: 'badges', label: 'Badges', icon: '🏅', badge: `${userBadges.length}/${allBadgesCount}` },
+    { id: 'referral', label: 'Parrainage', icon: '🎁' },
+    { id: 'settings', label: 'Réglages', icon: '⚙️' }
+  ]
 
-          <div style={{
-            background: JUNTO.white,
-            borderRadius: 20,
-            border: `2px solid ${JUNTO.border}`,
-            padding: 20,
-            marginBottom: 20
-          }}>
-            {qrCodeUrl ? (
-              <img 
-                src={qrCodeUrl} 
-                alt="QR Code" 
-                style={{ width: 180, height: 180, display: 'block', margin: '0 auto' }}
-              />
-            ) : (
-              <div style={{ width: 180, height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: JUNTO.muted, margin: '0 auto' }}>
-                Génération...
-              </div>
-            )}
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: 14,
-            background: JUNTO.bgSoft,
-            borderRadius: 16,
-            marginBottom: 20
-          }}>
-            <div style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: profile?.avatar_url ? 'transparent' : avatarColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 20,
-              fontWeight: 700,
-              color: JUNTO.white,
-              overflow: 'hidden'
-            }}>
-              {profile?.avatar_url 
-                ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                : profile?.name?.[0]?.toUpperCase()
-              }
-            </div>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: JUNTO.ink }}>{profile?.name}</div>
-              <div style={{ fontSize: 13, color: JUNTO.muted }}>⭐ Niveau {profile?.level}</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <button
-              onClick={handleNativeShare}
-              style={{
-                width: '100%',
-                padding: 16,
-                background: JUNTO.coral,
-                border: 'none',
-                borderRadius: 14,
-                fontSize: 15,
-                fontWeight: 700,
-                color: JUNTO.white,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                boxShadow: `0 4px 16px ${JUNTO.coralGlow}`
-              }}
-            >
-              📤 Partager
-            </button>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <button
-                onClick={copyLink}
-                style={{
-                  padding: 14,
-                  background: JUNTO.bgSoft,
-                  border: `2px solid ${JUNTO.border}`,
-                  borderRadius: 12,
-                  fontSize: 14,
-                  color: copied ? JUNTO.teal : JUNTO.ink,
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                {copied ? '✓ Copié !' : '🔗 Copier'}
-              </button>
-              <button
-                onClick={downloadCard}
-                disabled={downloading}
-                style={{
-                  padding: 14,
-                  background: JUNTO.bgSoft,
-                  border: `2px solid ${JUNTO.border}`,
-                  borderRadius: 12,
-                  fontSize: 14,
-                  color: JUNTO.ink,
-                  cursor: downloading ? 'wait' : 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                {downloading ? '⏳' : '📷'} Image
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowShareModal(false)}
-            style={{
-              marginTop: 16,
-              background: 'none',
-              border: 'none',
-              color: JUNTO.muted,
-              fontSize: 14,
-              cursor: 'pointer',
-              padding: 12
-            }}
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // === MODE TOURNOI ===
-  if (showTournamentMode) {
-    return (
-      <div
-        onClick={() => setShowTournamentMode(false)}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: '#000',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: 24,
-          cursor: 'pointer'
-        }}
-      >
-        <div style={{
-          background: `linear-gradient(135deg, #4a5d6d 0%, ${JUNTO.slate} 100%)`,
-          borderRadius: 28,
-          padding: 32,
-          width: '100%',
-          maxWidth: 320,
-          textAlign: 'center',
-          position: 'relative',
-          border: '2px solid rgba(255,255,255,0.1)'
-        }}>
-          {/* Barre latérale */}
-          <div style={{
-            position: 'absolute',
-            left: 0,
-            top: 24,
-            bottom: 24,
-            width: 6,
-            background: JUNTO.coral,
-            borderRadius: '0 4px 4px 0'
-          }} />
-
-          <div style={{
-            width: 100,
-            height: 100,
-            borderRadius: 24,
-            background: profile?.avatar_url ? 'transparent' : avatarColor,
-            margin: '0 auto 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 42,
-            fontWeight: 700,
-            color: JUNTO.white,
-            border: '4px solid rgba(255,255,255,0.2)',
-            overflow: 'hidden',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.25)'
-          }}>
-            {profile?.avatar_url 
-              ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              : profile?.name?.[0]?.toUpperCase()
-            }
-          </div>
-
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: JUNTO.white, margin: '0 0 24px' }}>
-            {profile?.name}
-          </h1>
-
-          <div style={{
-            background: 'rgba(0, 184, 169, 0.15)',
-            border: `3px solid ${JUNTO.teal}`,
-            borderRadius: 20,
-            padding: '24px 40px',
-            marginBottom: 24
-          }}>
-            <div style={{ fontSize: 72, fontWeight: 900, color: '#4eeee0', lineHeight: 1 }}>
-              {profile?.level || '?'}
-            </div>
-            <div style={{ fontSize: 14, color: '#4eeee0', marginTop: 8, fontWeight: 600, letterSpacing: 2 }}>
-              NIVEAU
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            <span style={{ background: 'rgba(255,255,255,0.1)', padding: '10px 18px', borderRadius: 100, color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600 }}>
-              {position.emoji} {position.label}
-            </span>
-            <span style={{ background: `${ambiance.color}30`, padding: '10px 18px', borderRadius: 100, color: ambiance.color, fontSize: 14, fontWeight: 600 }}>
-              {ambiance.emoji} {ambiance.label}
-            </span>
-          </div>
-
-          {userBadges.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 16 }}>
-              {userBadges.slice(0, 4).map(ub => (
-                <div key={ub.badge_id} style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-                  {ub.badge_definitions?.emoji || '🏅'}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {qrCodeUrl && (
-            <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ background: JUNTO.white, borderRadius: 12, padding: 8, display: 'inline-block' }}>
-                <img src={qrCodeUrl} alt="QR Code" style={{ width: 80, height: 80, display: 'block' }} />
-              </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>
-                Scanner pour voir mon profil
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: 32, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>junto</span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {AVATAR_COLORS.map((c, i) => (
-              <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: c, opacity: 0.8 }} />
-            ))}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 16, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-          Tap pour fermer
-        </div>
-      </div>
-    )
-  }
-
-  // === PAGE NORMALE ===
   return (
-    <div style={{ fontFamily: "'Satoshi', sans-serif", background: JUNTO.bg, minHeight: '100vh' }}>
-      <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 100 }}>
-        
-        {/* ============================================ */}
-        {/* HERO - CARTE */}
-        {/* ============================================ */}
-        <div style={{
-          background: `linear-gradient(180deg, ${JUNTO.slate} 0%, #2a3a48 100%)`,
-          padding: '24px 20px 32px',
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: '0 0 32px 32px'
-        }}>
-          {/* Pattern terrain */}
-          <div style={{ 
-            position: 'absolute', 
-            inset: 0, 
-            opacity: 0.04, 
-            pointerEvents: 'none',
-            background: `
-              linear-gradient(90deg, transparent 49.5%, rgba(255,255,255,0.5) 49.5%, rgba(255,255,255,0.5) 50.5%, transparent 50.5%),
-              linear-gradient(0deg, transparent 49.5%, rgba(255,255,255,0.5) 49.5%, rgba(255,255,255,0.5) 50.5%, transparent 50.5%)
-            `
-          }} />
+    <div className="carte-page">
+      
+      {/* Export card (hidden) */}
+      <div ref={exportCardRef} style={{ display: 'none' }}>
+        <PlayerCard 
+          profile={profile}
+          stats={stats}
+          badges={userBadges}
+          avatarColor={avatarColor}
+          ambiance={ambiance}
+          position={position}
+          forExport={true}
+        />
+      </div>
 
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, position: 'relative', zIndex: 1 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: JUNTO.white, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-              🎴 Ma Carte
-            </h1>
-            <Link
-              href="/dashboard/profile/edit"
-              style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: 'none',
-                borderRadius: 100,
-                padding: '10px 18px',
-                color: 'rgba(255,255,255,0.8)',
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              ✏️ Modifier
-            </Link>
-          </div>
+      {/* === MODAL PARTAGE === */}
+      {showShareModal && (
+        <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowShareModal(false)}>✕</button>
+            
+            <h2 className="modal-title">📤 Partager ma carte</h2>
+            <p className="modal-subtitle">Scanne ou partage ton profil</p>
 
-          {/* CARTE JOUEUR */}
-          <div
-            ref={cardRef}
-            style={{
-              background: `linear-gradient(135deg, #4a5d6d 0%, ${JUNTO.slate} 100%)`,
-              borderRadius: 24,
-              padding: '28px 24px',
-              position: 'relative',
-              zIndex: 1,
-              boxShadow: '0 20px 50px rgba(0,0,0,0.35)',
-              border: '2px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            {/* Barre latérale Junto - couleur unique */}
-            <div style={{
-              position: 'absolute',
-              left: 0,
-              top: 24,
-              bottom: 24,
-              width: 6,
-              background: JUNTO.coral,
-              borderRadius: '0 4px 4px 0'
-            }} />
+            {/* QR Code */}
+            <div className="qr-container">
+              {qrCodeUrl ? (
+                <img src={qrCodeUrl} alt="QR Code" className="qr-code" />
+              ) : (
+                <div className="qr-placeholder">Génération...</div>
+              )}
+            </div>
 
-            {/* Avatar & infos */}
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{
-                width: 100,
-                height: 100,
-                borderRadius: 24,
-                background: profile?.avatar_url ? 'transparent' : avatarColor,
-                margin: '0 auto 16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 42,
-                fontWeight: 700,
-                color: JUNTO.white,
-                border: '4px solid rgba(255,255,255,0.2)',
-                overflow: 'hidden',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.25)'
-              }}>
+            {/* Mini profil */}
+            <div className="share-profile">
+              <div className="share-avatar" style={{ background: profile?.avatar_url ? 'transparent' : avatarColor }}>
                 {profile?.avatar_url 
-                  ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                  ? <img src={profile.avatar_url} alt="" />
                   : profile?.name?.[0]?.toUpperCase()
                 }
               </div>
-              
-              <h2 style={{ fontSize: 26, fontWeight: 800, color: JUNTO.white, margin: '0 0 6px', letterSpacing: -0.5 }}>
-                {profile?.name}
-              </h2>
-              
-              {profile?.city && (
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>
-                  📍 {profile.city} {profile?.signup_number && `· Membre #${profile.signup_number}`}
-                </div>
-              )}
-              
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ 
-                  background: 'rgba(0, 184, 169, 0.2)', 
-                  color: '#4eeee0', 
-                  padding: '8px 16px', 
-                  borderRadius: 100, 
-                  fontSize: 14, 
-                  fontWeight: 700,
-                  border: '1px solid rgba(0, 184, 169, 0.3)'
-                }}>
-                  ⭐ {profile?.level || '?'}
-                </span>
-                <span style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.85)', padding: '8px 16px', borderRadius: 100, fontSize: 14, fontWeight: 600 }}>
-                  {position.emoji} {position.label}
-                </span>
-                <span style={{ background: `${ambiance.color}30`, color: ambiance.color, padding: '8px 16px', borderRadius: 100, fontSize: 14, fontWeight: 600 }}>
-                  {ambiance.emoji} {ambiance.label}
-                </span>
+              <div className="share-info">
+                <div className="share-name">{profile?.name}</div>
+                <div className="share-level">⭐ Niveau {profile?.level}</div>
               </div>
             </div>
 
-            {/* Mini badges */}
-            {userBadges.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                {userBadges.slice(0, 4).map(ub => (
-                  <div key={ub.badge_id} style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-                    {ub.badge_definitions?.emoji || '🏅'}
+            {/* Actions */}
+            <div className="share-actions">
+              <button className="btn-share-primary" onClick={handleNativeShare}>
+                📤 Partager
+              </button>
+              <div className="share-actions-row">
+                <button className="btn-share-secondary" onClick={copyLink}>
+                  {copied ? '✓ Copié !' : '🔗 Copier'}
+                </button>
+                <button className="btn-share-secondary" onClick={downloadCard} disabled={downloading}>
+                  {downloading ? '⏳' : '📷'} Image
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === LAYOUT PRINCIPAL === */}
+      <div className="carte-layout">
+        
+        {/* COLONNE GAUCHE: Carte */}
+        <div className="carte-column">
+          <div className="carte-sticky">
+            {/* Header */}
+            <div className="carte-header">
+              <h1 className="carte-title">
+                <span>🎴</span> Ma Carte
+              </h1>
+              <Link href="/dashboard/profile/edit" className="btn-edit">
+                ✏️ Modifier
+              </Link>
+            </div>
+
+            {/* Carte joueur */}
+            <div ref={cardRef} className="card-wrapper">
+              <PlayerCard 
+                profile={profile}
+                stats={stats}
+                badges={userBadges}
+                avatarColor={avatarColor}
+                ambiance={ambiance}
+                position={position}
+              />
+            </div>
+
+            {/* Actions de partage */}
+            <div className="card-actions">
+              <button className="btn-action-primary" onClick={handleShare}>
+                📤 Partager ma carte
+              </button>
+              <div className="card-actions-row">
+                <button className="btn-action-secondary" onClick={downloadCard} disabled={downloading}>
+                  {downloading ? '⏳ ...' : '📷 Télécharger'}
+                </button>
+                <button className="btn-action-secondary" onClick={copyLink}>
+                  {copied ? '✓ Copié !' : '🔗 Copier lien'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* COLONNE DROITE: Contenu */}
+        <div className="content-column">
+          
+          {/* Navigation */}
+          <nav className="content-nav">
+            {sections.map(section => (
+              <button
+                key={section.id}
+                className={`nav-item ${activeSection === section.id ? 'active' : ''}`}
+                onClick={() => setActiveSection(section.id)}
+              >
+                <span className="nav-icon">{section.icon}</span>
+                <span className="nav-label">{section.label}</span>
+                {section.badge && (
+                  <span className="nav-badge">{section.badge}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Contenu des sections */}
+          <div className="content-body">
+            
+            {/* STATS */}
+            {activeSection === 'stats' && (
+              <div className="section-content">
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-value" style={{ color: JUNTO.slate }}>{stats.matchesPlayed}</div>
+                    <div className="stat-label">Parties jouées</div>
                   </div>
-                ))}
-                {userBadges.length > 4 && (
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-                    +{userBadges.length - 4}
+                  <div className="stat-card">
+                    <div className="stat-value" style={{ color: JUNTO.teal }}>{stats.wins}</div>
+                    <div className="stat-label">Victoires</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value" style={{ color: JUNTO.coral }}>{stats.losses}</div>
+                    <div className="stat-label">Défaites</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value" style={{ color: JUNTO.amber }}>{stats.winRate}%</div>
+                    <div className="stat-label">Win rate</div>
+                  </div>
+                </div>
+
+                <div className="info-cards">
+                  <div className="info-card">
+                    <div className="info-icon">🎯</div>
+                    <div className="info-content">
+                      <div className="info-value">{stats.organized}</div>
+                      <div className="info-label">Parties organisées</div>
+                    </div>
+                  </div>
+                  <div className="info-card">
+                    <div className="info-icon">🤝</div>
+                    <div className="info-content">
+                      <div className="info-value">{stats.partners}</div>
+                      <div className="info-label">Partenaires différents</div>
+                    </div>
+                  </div>
+                  <div className="info-card">
+                    <div className="info-icon">⭐</div>
+                    <div className="info-content">
+                      <div className="info-value">{stats.favorites}</div>
+                      <div className="info-label">Joueurs favoris</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* BADGES */}
+            {activeSection === 'badges' && (
+              <div className="section-content">
+                <div className="badges-header">
+                  <h3>🏅 Ma collection</h3>
+                  <span className="badges-count">{userBadges.length}/{allBadgesCount}</span>
+                </div>
+
+                {userBadges.length > 0 ? (
+                  <div className="badges-grid">
+                    {userBadges.map((ub, i) => (
+                      <div key={ub.badge_id} className="badge-card">
+                        <div className="badge-emoji">{ub.badge_definitions?.emoji || '🏅'}</div>
+                        <div className="badge-name">{ub.badge_definitions?.name || 'Badge'}</div>
+                        <div className="badge-desc">{ub.badge_definitions?.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">🏅</div>
+                    <div className="empty-title">Pas encore de badges</div>
+                    <div className="empty-text">Joue des parties, invite des amis, et débloque des badges !</div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Logo Junto */}
-            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 10,
-                background: 'rgba(0,0,0,0.2)',
-                padding: '12px 24px',
-                borderRadius: 100
-              }}>
-                <span style={{ fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: 0.5 }}>junto</span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {AVATAR_COLORS.map((c, i) => (
-                    <div key={i} className="junto-breathe-dot" style={{ 
-                      width: 8, 
-                      height: 8, 
-                      borderRadius: '50%', 
-                      background: c,
-                      animationDelay: `${i * 0.15}s`
-                    }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Boutons partage */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 20, position: 'relative', zIndex: 1 }}>
-            <button
-              onClick={handleShare}
-              style={{
-                padding: 16,
-                background: JUNTO.coral,
-                border: 'none',
-                borderRadius: 16,
-                fontSize: 15,
-                fontWeight: 700,
-                color: JUNTO.white,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                boxShadow: `0 8px 24px ${JUNTO.coralGlow}`
-              }}
-            >
-              📤 Partager
-            </button>
-            <button
-              onClick={() => {
-                generateQRCode()
-                setShowTournamentMode(true)
-              }}
-              style={{
-                padding: 16,
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: 16,
-                fontSize: 15,
-                fontWeight: 600,
-                color: JUNTO.white,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8
-              }}
-            >
-              🏆 Mode Tournoi
-            </button>
-          </div>
-
-          {/* Actions secondaires */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 16, position: 'relative', zIndex: 1 }}>
-            <button
-              onClick={downloadCard}
-              disabled={downloading}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'rgba(255,255,255,0.6)',
-                fontSize: 13,
-                cursor: downloading ? 'wait' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              {downloading ? '⏳' : '📷'} Télécharger
-            </button>
-            <button
-              onClick={copyLink}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: copied ? JUNTO.teal : 'rgba(255,255,255,0.6)',
-                fontSize: 13,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              {copied ? '✓ Copié !' : '🔗 Copier lien'}
-            </button>
-          </div>
-        </div>
-
-        {/* ============================================ */}
-        {/* TABS */}
-        {/* ============================================ */}
-        <div style={{ padding: '0 16px' }}>
-          <div style={{ display: 'flex', gap: 10, margin: '24px 0 20px', overflowX: 'auto', paddingBottom: 4 }}>
-            {[
-              { id: 'stats', label: '📊 Stats' },
-              { id: 'badges', label: '🏅 Badges', badge: `${userBadges.length}/${allBadgesCount}` },
-              { id: 'referral', label: '🎁 Parrainage' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  padding: '12px 18px',
-                  background: activeTab === tab.id ? JUNTO.ink : JUNTO.white,
-                  color: activeTab === tab.id ? JUNTO.white : JUNTO.gray,
-                  border: `2px solid ${activeTab === tab.id ? JUNTO.ink : JUNTO.border}`,
-                  borderRadius: 14,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  transition: `all 0.2s ${SPRING}`
-                }}
-              >
-                {tab.label}
-                {tab.badge && (
-                  <span style={{ 
-                    fontSize: 11, 
-                    background: activeTab === tab.id ? 'rgba(255,255,255,0.2)' : JUNTO.bgSoft,
-                    padding: '3px 10px',
-                    borderRadius: 8,
-                    fontWeight: 700
-                  }}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* ============================================ */}
-          {/* TAB: STATS */}
-          {/* ============================================ */}
-          {activeTab === 'stats' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Historique de jeu */}
-              <div style={{ display: 'flex', background: JUNTO.white, borderRadius: 20, border: `2px solid ${JUNTO.border}`, overflow: 'hidden' }}>
-                <div style={{ width: 5, background: JUNTO.teal, flexShrink: 0 }} />
-                <div style={{ flex: 1, padding: 18 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    🎾 Historique de jeu
-                  </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-                    {[
-                      { label: 'Parties', value: stats.matchesPlayed, color: JUNTO.slate },
-                      { label: 'Victoires', value: stats.wins, color: JUNTO.teal },
-                      { label: 'Défaites', value: stats.losses, color: JUNTO.coral },
-                      { label: 'Organisées', value: stats.organized, color: JUNTO.amber }
-                    ].map(stat => (
-                      <div key={stat.label} style={{ textAlign: 'center', padding: 14, background: JUNTO.bgSoft, borderRadius: 14 }}>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: stat.color, marginBottom: 4 }}>{stat.value}</div>
-                        <div style={{ fontSize: 10, color: JUNTO.muted, fontWeight: 500 }}>{stat.label}</div>
-                      </div>
-                    ))}
+            {/* PARRAINAGE */}
+            {activeSection === 'referral' && (
+              <div className="section-content">
+                <div className="referral-hero">
+                  <div className="referral-icon">🎁</div>
+                  <h3 className="referral-title">Invite tes potes !</h3>
+                  <p className="referral-text">Plus tu invites, plus tu débloques de badges exclusifs</p>
+                  
+                  <div className="referral-count">
+                    <div className="referral-number">{profile?.referral_count || 0}</div>
+                    <div className="referral-label">Amis invités</div>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* ============================================ */}
-          {/* TAB: BADGES */}
-          {/* ============================================ */}
-          {activeTab === 'badges' && (
-            <div style={{ display: 'flex', background: JUNTO.white, borderRadius: 20, border: `2px solid ${JUNTO.border}`, overflow: 'hidden' }}>
-              <div style={{ width: 5, background: JUNTO.amber, flexShrink: 0 }} />
-              <div style={{ flex: 1, padding: 18 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    🏅 Ma collection
-                  </h3>
-                  <span style={{ background: JUNTO.tealSoft, color: JUNTO.teal, padding: '6px 14px', borderRadius: 100, fontSize: 13, fontWeight: 700 }}>
-                    {userBadges.length}/{allBadgesCount}
-                  </span>
+                  <button className="btn-referral" onClick={shareReferral}>
+                    📤 Partager mon lien
+                  </button>
                 </div>
 
-                {userBadges.length > 0 ? (
-                  <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                      {userBadges.slice(0, 8).map((ub, i) => (
-                        <div key={ub.badge_id} style={{ 
-                          textAlign: 'center', 
-                          padding: 14, 
-                          background: JUNTO.tealSoft, 
-                          borderRadius: 14 
-                        }}>
-                          <div style={{ fontSize: 28, marginBottom: 6 }}>{ub.badge_definitions?.emoji || '🏅'}</div>
-                          <div style={{ fontSize: 10, color: JUNTO.gray, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {ub.badge_definitions?.name || 'Badge'}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <Link
-                      href="/dashboard/carte/badges"
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        marginTop: 16,
-                        padding: 14,
-                        background: JUNTO.bgSoft,
-                        border: 'none',
-                        borderRadius: 12,
-                        fontSize: 14,
-                        color: JUNTO.ink,
-                        textDecoration: 'none',
-                        textAlign: 'center',
-                        fontWeight: 600
-                      }}
-                    >
-                      Voir tous les badges →
-                    </Link>
-                  </>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: 24, color: JUNTO.muted }}>
-                    <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>🏅</div>
-                    <div style={{ fontSize: 14, marginBottom: 8 }}>Pas encore de badges</div>
-                    <div style={{ fontSize: 12, color: JUNTO.gray }}>
-                      Joue des parties, invite des amis, et débloque des badges !
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ============================================ */}
-          {/* TAB: PARRAINAGE */}
-          {/* ============================================ */}
-          {activeTab === 'referral' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Hero parrainage */}
-              <div style={{
-                background: `linear-gradient(135deg, ${JUNTO.tealSoft} 0%, #d1fae5 100%)`,
-                borderRadius: 20,
-                padding: 24,
-                border: `2px solid ${JUNTO.teal}`,
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🎁</div>
-                <h3 style={{ fontSize: 20, fontWeight: 700, color: JUNTO.teal, margin: '0 0 8px' }}>
-                  Invite tes potes !
-                </h3>
-                <p style={{ fontSize: 14, color: '#047857', marginBottom: 20, lineHeight: 1.6 }}>
-                  Plus tu invites, plus tu débloques de badges exclusifs et tu fais grandir la communauté padel 🎾
-                </p>
-                
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 36, fontWeight: 800, color: JUNTO.teal }}>
-                    {profile?.referral_count || 0}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#047857' }}>Amis invités</div>
-                </div>
-
-                <button
-                  onClick={shareReferral}
-                  style={{
-                    width: '100%',
-                    padding: 16,
-                    background: JUNTO.teal,
-                    border: 'none',
-                    borderRadius: 14,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: JUNTO.white,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    boxShadow: `0 4px 16px ${JUNTO.tealGlow}`
-                  }}
-                >
-                  📤 Partager mon lien
-                </button>
-              </div>
-
-              {/* Badges de parrainage */}
-              <div style={{ display: 'flex', background: JUNTO.white, borderRadius: 20, border: `2px solid ${JUNTO.border}`, overflow: 'hidden' }}>
-                <div style={{ width: 5, background: JUNTO.teal, flexShrink: 0 }} />
-                <div style={{ flex: 1, padding: 18 }}>
-                  <h4 style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    🏅 Badges à débloquer
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="referral-badges">
+                  <h4>🏅 Badges à débloquer</h4>
+                  <div className="referral-badges-list">
                     {[
                       { name: 'Ambassadeur', goal: 1, emoji: '📢', desc: '1 ami invité' },
                       { name: 'Recruteur', goal: 5, emoji: '🎯', desc: '5 amis invités' },
@@ -1087,28 +840,20 @@ export default function MaCartePage() {
                       const isEarned = current >= badge.goal
                       
                       return (
-                        <div key={badge.name} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 14,
-                          padding: 14,
-                          background: isEarned ? JUNTO.tealSoft : JUNTO.bgSoft,
-                          borderRadius: 14,
-                          opacity: isEarned ? 1 : 0.8
-                        }}>
-                          <div style={{ fontSize: 32, filter: isEarned ? 'none' : 'grayscale(0.5)' }}>{badge.emoji}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: isEarned ? JUNTO.teal : JUNTO.ink }}>
+                        <div key={badge.name} className={`referral-badge ${isEarned ? 'earned' : ''}`}>
+                          <div className="rb-emoji">{badge.emoji}</div>
+                          <div className="rb-info">
+                            <div className="rb-name">
                               {badge.name}
-                              {isEarned && <span style={{ marginLeft: 6, fontSize: 12 }}>✓</span>}
+                              {isEarned && <span className="rb-check">✓</span>}
                             </div>
-                            <div style={{ fontSize: 12, color: JUNTO.gray }}>{badge.desc}</div>
+                            <div className="rb-desc">{badge.desc}</div>
                             {!isEarned && (
-                              <div style={{ marginTop: 8 }}>
-                                <div style={{ height: 6, background: JUNTO.border, borderRadius: 3, overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${progress}%`, background: JUNTO.teal, borderRadius: 3 }} />
+                              <div className="rb-progress">
+                                <div className="rb-bar">
+                                  <div className="rb-fill" style={{ width: `${progress}%` }} />
                                 </div>
-                                <div style={{ fontSize: 11, color: JUNTO.muted, marginTop: 4 }}>{current}/{badge.goal}</div>
+                                <span className="rb-count">{current}/{badge.goal}</span>
                               </div>
                             )}
                           </div>
@@ -1118,78 +863,42 @@ export default function MaCartePage() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ============================================ */}
-          {/* RÉGLAGES */}
-          {/* ============================================ */}
-          <div style={{ marginTop: 28 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: JUNTO.ink, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              ⚙️ Réglages
-            </h3>
-            
-            <div style={{ background: JUNTO.white, borderRadius: 20, border: `2px solid ${JUNTO.border}`, overflow: 'hidden' }}>
-              {[
-                { icon: '✏️', label: 'Modifier mon profil', href: '/dashboard/profile/edit' },
-                { icon: '🔔', label: 'Notifications', href: '/dashboard/settings/notifications' },
-                { icon: '🔐', label: 'Confidentialité', href: '/dashboard/settings/privacy' },
-                { icon: '❓', label: 'Aide & FAQ', href: '/dashboard/settings/help' },
-                { icon: '💡', label: 'Proposer une idée', href: '/dashboard/ideas' },
-                { icon: '📄', label: 'CGU & Mentions légales', href: '/terms' }
-              ].map((item, i) => (
-                <Link 
-                  key={item.href} 
-                  href={item.href} 
-                  style={{ 
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '16px 18px',
-                    borderTop: i > 0 ? `1px solid ${JUNTO.border}` : 'none',
-                    color: JUNTO.ink,
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <span style={{ fontSize: 20 }}>{item.icon}</span>
-                    <span style={{ fontSize: 14 }}>{item.label}</span>
-                  </div>
-                  <span style={{ color: JUNTO.muted, fontSize: 18 }}>›</span>
-                </Link>
-              ))}
-            </div>
+            {/* SETTINGS */}
+            {activeSection === 'settings' && (
+              <div className="section-content">
+                <div className="settings-list">
+                  {[
+                    { icon: '✏️', label: 'Modifier mon profil', href: '/dashboard/profile/edit' },
+                    { icon: '🔔', label: 'Notifications', href: '/dashboard/settings/notifications' },
+                    { icon: '🔐', label: 'Confidentialité', href: '/dashboard/settings/privacy' },
+                    { icon: '❓', label: 'Aide & FAQ', href: '/dashboard/settings/help' },
+                    { icon: '💡', label: 'Proposer une idée', href: '/dashboard/ideas' },
+                    { icon: '📄', label: 'CGU & Mentions légales', href: '/terms' }
+                  ].map((item, i) => (
+                    <Link key={item.href} href={item.href} className="settings-item">
+                      <span className="settings-icon">{item.icon}</span>
+                      <span className="settings-label">{item.label}</span>
+                      <span className="settings-arrow">›</span>
+                    </Link>
+                  ))}
+                </div>
 
-            <button
-              onClick={handleLogout}
-              style={{
-                width: '100%',
-                marginTop: 16,
-                padding: 16,
-                background: 'transparent',
-                border: `2px solid ${JUNTO.coral}`,
-                borderRadius: 14,
-                fontSize: 14,
-                fontWeight: 600,
-                color: JUNTO.coral,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8
-              }}
-            >
-              🚪 Déconnexion
-            </button>
+                <button className="btn-logout" onClick={handleLogout}>
+                  🚪 Déconnexion
+                </button>
 
-            <div style={{ textAlign: 'center', padding: '28px 0', color: JUNTO.muted, fontSize: 12 }}>
-              Junto v1.0 · Made with 🎾 in France
-            </div>
+                <div className="app-version">
+                  Junto v1.0 · Made with 🎾 in France
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
+      {/* === STYLES === */}
       <style jsx global>{`
         @keyframes junto-loading {
           0%, 80%, 100% { transform: translateY(0); }
@@ -1201,11 +910,798 @@ export default function MaCartePage() {
         .junto-loading-dot:nth-child(3) { animation-delay: 0.2s; }
         .junto-loading-dot:nth-child(4) { animation-delay: 0.3s; }
         
-        @keyframes junto-breathe {
+        @keyframes junto-dot {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.3); opacity: 0.7; }
         }
-        .junto-breathe-dot { animation: junto-breathe 3s ease-in-out infinite; }
+        .junto-dot { animation: junto-dot 3s ease-in-out infinite; }
+
+        .carte-page {
+          font-family: 'Satoshi', -apple-system, sans-serif;
+          background: ${JUNTO.bg};
+          min-height: 100vh;
+          padding-bottom: 100px;
+        }
+
+        /* === LAYOUT === */
+        .carte-layout {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 24px;
+          display: grid;
+          grid-template-columns: 420px 1fr;
+          gap: 40px;
+          align-items: start;
+        }
+
+        .carte-column {
+          position: relative;
+        }
+
+        .carte-sticky {
+          position: sticky;
+          top: 24px;
+        }
+
+        .content-column {
+          min-height: 600px;
+        }
+
+        /* === CARTE HEADER === */
+        .carte-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+
+        .carte-title {
+          font-size: 24px;
+          font-weight: 700;
+          color: ${JUNTO.ink};
+          margin: 0;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .btn-edit {
+          background: ${JUNTO.bgSoft};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 100px;
+          padding: 10px 18px;
+          color: ${JUNTO.gray};
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: none;
+          transition: all 0.2s;
+        }
+
+        .btn-edit:hover {
+          border-color: ${JUNTO.coral};
+          color: ${JUNTO.coral};
+        }
+
+        /* === CARD WRAPPER === */
+        .card-wrapper {
+          display: flex;
+          justify-content: center;
+        }
+
+        /* === CARD ACTIONS === */
+        .card-actions {
+          margin-top: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .btn-action-primary {
+          width: 100%;
+          padding: 16px;
+          background: ${JUNTO.coral};
+          border: none;
+          border-radius: 16px;
+          font-size: 16px;
+          font-weight: 700;
+          color: ${JUNTO.white};
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          box-shadow: 0 8px 24px ${JUNTO.coralGlow};
+          transition: all 0.3s ${SPRING};
+        }
+
+        .btn-action-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 32px ${JUNTO.coralGlow};
+        }
+
+        .card-actions-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+
+        .btn-action-secondary {
+          padding: 14px;
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 14px;
+          font-size: 14px;
+          font-weight: 600;
+          color: ${JUNTO.gray};
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-action-secondary:hover {
+          border-color: ${JUNTO.ink};
+          color: ${JUNTO.ink};
+        }
+
+        .btn-action-secondary:disabled {
+          opacity: 0.6;
+          cursor: wait;
+        }
+
+        /* === CONTENT NAV === */
+        .content-nav {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 24px;
+          padding-bottom: 16px;
+          border-bottom: 2px solid ${JUNTO.border};
+          flex-wrap: wrap;
+        }
+
+        .nav-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 20px;
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 14px;
+          font-size: 14px;
+          font-weight: 600;
+          color: ${JUNTO.gray};
+          cursor: pointer;
+          transition: all 0.2s ${SPRING};
+        }
+
+        .nav-item:hover {
+          border-color: ${JUNTO.ink};
+          color: ${JUNTO.ink};
+        }
+
+        .nav-item.active {
+          background: ${JUNTO.ink};
+          border-color: ${JUNTO.ink};
+          color: ${JUNTO.white};
+        }
+
+        .nav-icon {
+          font-size: 16px;
+        }
+
+        .nav-badge {
+          font-size: 11px;
+          background: rgba(255,255,255,0.2);
+          padding: 3px 10px;
+          border-radius: 8px;
+          font-weight: 700;
+        }
+
+        .nav-item:not(.active) .nav-badge {
+          background: ${JUNTO.bgSoft};
+        }
+
+        /* === SECTION CONTENT === */
+        .section-content {
+          animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* === STATS === */
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+
+        .stat-card {
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 20px;
+          padding: 24px 16px;
+          text-align: center;
+          transition: all 0.3s ${SPRING};
+        }
+
+        .stat-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px rgba(0,0,0,0.06);
+        }
+
+        .stat-value {
+          font-size: 32px;
+          font-weight: 800;
+          margin-bottom: 4px;
+        }
+
+        .stat-label {
+          font-size: 12px;
+          color: ${JUNTO.muted};
+          font-weight: 500;
+        }
+
+        .info-cards {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .info-card {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 16px;
+          padding: 18px 20px;
+        }
+
+        .info-icon {
+          font-size: 28px;
+        }
+
+        .info-value {
+          font-size: 20px;
+          font-weight: 700;
+          color: ${JUNTO.ink};
+        }
+
+        .info-label {
+          font-size: 13px;
+          color: ${JUNTO.gray};
+        }
+
+        /* === BADGES === */
+        .badges-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+
+        .badges-header h3 {
+          font-size: 18px;
+          font-weight: 700;
+          color: ${JUNTO.ink};
+          margin: 0;
+        }
+
+        .badges-count {
+          background: ${JUNTO.tealSoft};
+          color: ${JUNTO.teal};
+          padding: 6px 16px;
+          border-radius: 100px;
+          font-size: 14px;
+          font-weight: 700;
+        }
+
+        .badges-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 16px;
+        }
+
+        .badge-card {
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 20px;
+          padding: 24px 16px;
+          text-align: center;
+          transition: all 0.3s ${SPRING};
+        }
+
+        .badge-card:hover {
+          transform: translateY(-4px);
+          border-color: ${JUNTO.amber};
+        }
+
+        .badge-emoji {
+          font-size: 40px;
+          margin-bottom: 12px;
+        }
+
+        .badge-name {
+          font-size: 14px;
+          font-weight: 700;
+          color: ${JUNTO.ink};
+          margin-bottom: 4px;
+        }
+
+        .badge-desc {
+          font-size: 11px;
+          color: ${JUNTO.muted};
+          line-height: 1.4;
+        }
+
+        .empty-state {
+          text-align: center;
+          padding: 60px 24px;
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 24px;
+        }
+
+        .empty-icon {
+          font-size: 48px;
+          opacity: 0.3;
+          margin-bottom: 16px;
+        }
+
+        .empty-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: ${JUNTO.ink};
+          margin-bottom: 8px;
+        }
+
+        .empty-text {
+          font-size: 14px;
+          color: ${JUNTO.gray};
+        }
+
+        /* === REFERRAL === */
+        .referral-hero {
+          background: linear-gradient(135deg, ${JUNTO.tealSoft} 0%, #d1fae5 100%);
+          border: 2px solid ${JUNTO.teal};
+          border-radius: 24px;
+          padding: 32px;
+          text-align: center;
+          margin-bottom: 24px;
+        }
+
+        .referral-icon {
+          font-size: 56px;
+          margin-bottom: 16px;
+        }
+
+        .referral-title {
+          font-size: 24px;
+          font-weight: 700;
+          color: ${JUNTO.teal};
+          margin: 0 0 8px;
+        }
+
+        .referral-text {
+          font-size: 15px;
+          color: #047857;
+          margin: 0 0 24px;
+        }
+
+        .referral-count {
+          margin-bottom: 24px;
+        }
+
+        .referral-number {
+          font-size: 48px;
+          font-weight: 800;
+          color: ${JUNTO.teal};
+        }
+
+        .referral-label {
+          font-size: 13px;
+          color: #047857;
+        }
+
+        .btn-referral {
+          width: 100%;
+          padding: 16px;
+          background: ${JUNTO.teal};
+          border: none;
+          border-radius: 16px;
+          font-size: 16px;
+          font-weight: 700;
+          color: ${JUNTO.white};
+          cursor: pointer;
+          box-shadow: 0 8px 24px ${JUNTO.tealGlow};
+        }
+
+        .referral-badges {
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 24px;
+          padding: 24px;
+        }
+
+        .referral-badges h4 {
+          font-size: 16px;
+          font-weight: 600;
+          color: ${JUNTO.ink};
+          margin: 0 0 20px;
+        }
+
+        .referral-badges-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .referral-badge {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 16px;
+          background: ${JUNTO.bgSoft};
+          border-radius: 16px;
+        }
+
+        .referral-badge.earned {
+          background: ${JUNTO.tealSoft};
+        }
+
+        .rb-emoji {
+          font-size: 32px;
+        }
+
+        .rb-info {
+          flex: 1;
+        }
+
+        .rb-name {
+          font-size: 14px;
+          font-weight: 600;
+          color: ${JUNTO.ink};
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .referral-badge.earned .rb-name {
+          color: ${JUNTO.teal};
+        }
+
+        .rb-check {
+          font-size: 12px;
+        }
+
+        .rb-desc {
+          font-size: 12px;
+          color: ${JUNTO.gray};
+          margin-top: 2px;
+        }
+
+        .rb-progress {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 8px;
+        }
+
+        .rb-bar {
+          flex: 1;
+          height: 6px;
+          background: ${JUNTO.border};
+          border-radius: 3px;
+          overflow: hidden;
+        }
+
+        .rb-fill {
+          height: 100%;
+          background: ${JUNTO.teal};
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+
+        .rb-count {
+          font-size: 11px;
+          color: ${JUNTO.muted};
+        }
+
+        /* === SETTINGS === */
+        .settings-list {
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 20px;
+          overflow: hidden;
+          margin-bottom: 16px;
+        }
+
+        .settings-item {
+          display: flex;
+          align-items: center;
+          padding: 18px 20px;
+          text-decoration: none;
+          color: ${JUNTO.ink};
+          border-top: 1px solid ${JUNTO.border};
+          transition: background 0.2s;
+        }
+
+        .settings-item:first-child {
+          border-top: none;
+        }
+
+        .settings-item:hover {
+          background: ${JUNTO.bgSoft};
+        }
+
+        .settings-icon {
+          font-size: 20px;
+          margin-right: 14px;
+        }
+
+        .settings-label {
+          flex: 1;
+          font-size: 15px;
+        }
+
+        .settings-arrow {
+          font-size: 20px;
+          color: ${JUNTO.muted};
+        }
+
+        .btn-logout {
+          width: 100%;
+          padding: 16px;
+          background: transparent;
+          border: 2px solid ${JUNTO.coral};
+          border-radius: 16px;
+          font-size: 15px;
+          font-weight: 600;
+          color: ${JUNTO.coral};
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+          background: ${JUNTO.coralSoft};
+        }
+
+        .app-version {
+          text-align: center;
+          padding: 32px 0;
+          color: ${JUNTO.muted};
+          font-size: 13px;
+        }
+
+        /* === MODAL === */
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          padding: 24px;
+        }
+
+        .modal-content {
+          background: ${JUNTO.white};
+          border-radius: 28px;
+          padding: 32px;
+          width: 100%;
+          max-width: 400px;
+          position: relative;
+        }
+
+        .modal-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: ${JUNTO.bgSoft};
+          border: none;
+          font-size: 18px;
+          color: ${JUNTO.gray};
+          cursor: pointer;
+        }
+
+        .modal-title {
+          font-size: 22px;
+          font-weight: 700;
+          color: ${JUNTO.ink};
+          margin: 0 0 4px;
+          text-align: center;
+        }
+
+        .modal-subtitle {
+          font-size: 14px;
+          color: ${JUNTO.muted};
+          margin: 0 0 24px;
+          text-align: center;
+        }
+
+        .qr-container {
+          background: ${JUNTO.white};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 20px;
+          padding: 24px;
+          margin-bottom: 24px;
+          display: flex;
+          justify-content: center;
+        }
+
+        .qr-code {
+          width: 180px;
+          height: 180px;
+        }
+
+        .qr-placeholder {
+          width: 180px;
+          height: 180px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: ${JUNTO.muted};
+        }
+
+        .share-profile {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 16px;
+          background: ${JUNTO.bgSoft};
+          border-radius: 16px;
+          margin-bottom: 24px;
+        }
+
+        .share-avatar {
+          width: 52px;
+          height: 52px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 22px;
+          font-weight: 700;
+          color: ${JUNTO.white};
+          overflow: hidden;
+        }
+
+        .share-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .share-name {
+          font-size: 16px;
+          font-weight: 600;
+          color: ${JUNTO.ink};
+        }
+
+        .share-level {
+          font-size: 13px;
+          color: ${JUNTO.muted};
+        }
+
+        .share-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .btn-share-primary {
+          width: 100%;
+          padding: 16px;
+          background: ${JUNTO.coral};
+          border: none;
+          border-radius: 14px;
+          font-size: 16px;
+          font-weight: 700;
+          color: ${JUNTO.white};
+          cursor: pointer;
+          box-shadow: 0 4px 16px ${JUNTO.coralGlow};
+        }
+
+        .share-actions-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+
+        .btn-share-secondary {
+          padding: 14px;
+          background: ${JUNTO.bgSoft};
+          border: 2px solid ${JUNTO.border};
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          color: ${JUNTO.ink};
+          cursor: pointer;
+        }
+
+        .btn-share-secondary:disabled {
+          opacity: 0.6;
+          cursor: wait;
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 1024px) {
+          .carte-layout {
+            grid-template-columns: 1fr;
+            gap: 24px;
+            max-width: 600px;
+          }
+
+          .carte-sticky {
+            position: relative;
+            top: 0;
+          }
+
+          .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 640px) {
+          .carte-layout {
+            padding: 16px;
+          }
+
+          .content-nav {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+          }
+
+          .nav-item {
+            padding: 10px 16px;
+            font-size: 13px;
+          }
+
+          .nav-label {
+            display: none;
+          }
+
+          .nav-icon {
+            font-size: 18px;
+          }
+
+          .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+          }
+
+          .stat-card {
+            padding: 20px 12px;
+          }
+
+          .stat-value {
+            font-size: 26px;
+          }
+
+          .badges-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .referral-hero {
+            padding: 24px;
+          }
+
+          .referral-number {
+            font-size: 40px;
+          }
+        }
       `}</style>
     </div>
   )
