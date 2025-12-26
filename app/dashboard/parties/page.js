@@ -5,12 +5,8 @@
  * PAGE PARTIES - 2×2 BRAND
  * ============================================
  * 
- * Page principale du dashboard
- * - Hero avec CTA créer une partie
- * - Mes prochaines parties (cards + liste)
- * - Actions en attente
- * - Parties à rejoindre
- * - Sidebar (profil, stats, favoris)
+ * Design sobre : interface noir/blanc/gris
+ * Les SEULES couleurs = avatars des joueurs
  * 
  * Couleurs joueurs: Coral, Amber, Teal, Violet
  * 
@@ -21,11 +17,36 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { COLORS, FOUR_DOTS, SHADOWS, ANIMATIONS } from '@/app/lib/design-tokens'
 
-// === AVATAR COLORS (4 joueurs = 4 couleurs) ===
-const AVATAR_COLORS = FOUR_DOTS.colors
-const SPRING = ANIMATIONS.spring
+// === 2×2 DESIGN TOKENS ===
+const COLORS = {
+  // Players - LES SEULES COULEURS
+  p1: '#ff5a5f',  // Coral
+  p2: '#ffb400',  // Amber
+  p3: '#00b8a9',  // Teal
+  p4: '#7c5cff',  // Violet
+  
+  // Interface sobre
+  ink: '#1a1a1a',
+  dark: '#2d2d2d',
+  gray: '#6b7280',
+  muted: '#9ca3af',
+  light: '#d1d5db',
+  
+  // Backgrounds
+  bg: '#f5f5f5',
+  card: '#ffffff',
+  cardHover: '#fafafa',
+  subtle: '#f9fafb',
+  
+  // Borders
+  border: '#e5e7eb',
+  borderLight: '#f3f4f6',
+  
+  white: '#ffffff',
+}
+
+const PLAYER_COLORS = [COLORS.p1, COLORS.p2, COLORS.p3, COLORS.p4]
 
 export default function PartiesPage() {
   const router = useRouter()
@@ -53,7 +74,7 @@ export default function PartiesPage() {
 
   useEffect(() => { loadData() }, [])
 
-  // === LOGIQUE DATA ===
+  // === LOGIQUE DATA (inchangée) ===
   async function loadData() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/auth'); return }
@@ -165,7 +186,7 @@ export default function PartiesPage() {
     setFavoritePlayers((favoritesResult.data || []).map(f => f.profiles).filter(Boolean))
   }
 
-  // === HELPERS ===
+  // === HELPERS (inchangés) ===
   function getGreeting() {
     const hour = new Date().getHours()
     const firstName = profile?.name?.split(' ')[0] || ''
@@ -246,22 +267,22 @@ export default function PartiesPage() {
     return true
   })
 
-  // Cards visibles (3 max) et liste pour le reste
   const visibleMatches = myUpcomingMatches.slice(0, 3)
   const hiddenMatches = myUpcomingMatches.slice(3)
 
   // === COMPOSANTS ===
   
-  function Avatar({ player, size = 36, overlap = false, index = 0 }) {
-    const bgColor = AVATAR_COLORS[index % 4]
+  // Avatar - LA SEULE COULEUR
+  function Avatar({ player, size = 40, overlap = false, index = 0 }) {
+    const bgColor = PLAYER_COLORS[index % 4]
     
     if (!player) {
       return (
         <div style={{
           width: size, height: size, borderRadius: '50%',
-          background: COLORS.bgSoft, border: `2px dashed ${COLORS.border}`,
+          background: COLORS.bg, border: `2px dashed ${COLORS.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: size * 0.4, color: COLORS.muted,
+          fontSize: size * 0.4, color: COLORS.muted, fontWeight: 600,
           marginLeft: overlap && index > 0 ? -10 : 0,
           position: 'relative', zIndex: 4 - index, flexShrink: 0
         }}>?</div>
@@ -271,11 +292,11 @@ export default function PartiesPage() {
     return (
       <div className="avatar-hover" style={{
         width: size, height: size, borderRadius: '50%',
-        background: player.avatar_url ? COLORS.bgSoft : bgColor,
+        background: player.avatar_url ? COLORS.bg : bgColor,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: size * 0.4, fontWeight: 700, color: COLORS.white,
         overflow: 'hidden', border: `3px solid ${COLORS.white}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
         marginLeft: overlap && index > 0 ? -10 : 0,
         position: 'relative', zIndex: 4 - index, flexShrink: 0
       }}>
@@ -287,58 +308,72 @@ export default function PartiesPage() {
     )
   }
 
-  // Match Card
+  // Match Card - sobre
   function MatchCard({ match, isOrganizer = false }) {
     const players = getMatchPlayers(match)
     const allSlots = [...players]
     while (allSlots.length < 4) allSlots.push(null)
+    const spotsLeft = 4 - players.length
     
     return (
       <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
         <div className="match-card" style={{ 
-          display: 'flex',
-          background: COLORS.white, 
-          borderRadius: 20, 
-          border: `2px solid ${COLORS.border}`,
-          overflow: 'hidden',
+          background: COLORS.bg,
+          borderRadius: 16, 
+          padding: 20,
           cursor: 'pointer',
-          transition: `all 0.4s ${SPRING}`,
+          transition: 'all 0.2s ease',
           height: '100%'
         }}>
-          <div style={{ width: 5, background: COLORS.primary, flexShrink: 0 }} />
-          <div style={{ flex: 1, padding: 18 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div>
-                <div style={{ fontSize: 12, color: COLORS.gray, fontWeight: 500, marginBottom: 2 }}>
-                  {formatDate(match.match_date)}
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: COLORS.ink, letterSpacing: -1 }}>
-                  {formatTime(match.match_time)}
-                </div>
+          {/* Header: Date/Heure + Badge */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, color: COLORS.gray, fontWeight: 500, marginBottom: 2 }}>
+                {formatDate(match.match_date)}
               </div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: COLORS.ink, letterSpacing: -1 }}>
+                {formatTime(match.match_time)}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
               {isOrganizer && (
                 <span style={{ 
-                  background: COLORS.amberSoft, color: '#92400e', 
-                  padding: '4px 10px', borderRadius: 8, 
-                  fontSize: 11, fontWeight: 700, height: 'fit-content'
+                  background: COLORS.white, 
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.gray, 
+                  padding: '5px 10px', borderRadius: 100, 
+                  fontSize: 11, fontWeight: 600
                 }}>👑 Orga</span>
               )}
+              {spotsLeft > 0 && (
+                <span style={{ 
+                  background: COLORS.white, 
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.gray, 
+                  padding: '5px 10px', borderRadius: 100, 
+                  fontSize: 11, fontWeight: 600
+                }}>{spotsLeft} place{spotsLeft > 1 ? 's' : ''}</span>
+              )}
             </div>
-            <div style={{ fontSize: 13, color: COLORS.gray, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>📍</span> {getMatchLocation(match)}
-            </div>
-            <div style={{ display: 'flex' }}>
-              {allSlots.map((player, idx) => (
-                <Avatar key={idx} player={player} size={34} overlap={true} index={idx} />
-              ))}
-            </div>
+          </div>
+          
+          {/* Location */}
+          <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 16 }}>
+            📍 {getMatchLocation(match)}
+          </div>
+          
+          {/* 4 Avatars - seules couleurs */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {allSlots.map((player, idx) => (
+              <Avatar key={idx} player={player} size={44} index={idx} />
+            ))}
           </div>
         </div>
       </Link>
     )
   }
 
-  // Liste simplifiée pour les parties supplémentaires
+  // Liste item - sobre
   function MatchListItem({ match, isOrganizer = false }) {
     const players = getMatchPlayers(match)
     const allSlots = [...players]
@@ -349,19 +384,17 @@ export default function PartiesPage() {
         <div className="match-list-item" style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 14,
+          gap: 16,
           padding: '14px 16px',
-          background: COLORS.white,
-          borderRadius: 14,
-          border: `1px solid ${COLORS.border}`,
+          background: COLORS.bg,
+          borderRadius: 12,
           cursor: 'pointer',
-          transition: `all 0.3s ${SPRING}`,
-          borderLeft: `4px solid ${COLORS.primary}`
+          transition: 'all 0.2s ease'
         }}>
           {/* Date/Heure */}
-          <div style={{ textAlign: 'center', minWidth: 50 }}>
-            <div style={{ fontSize: 11, color: COLORS.gray, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
+          <div style={{ textAlign: 'center', minWidth: 55 }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
           </div>
           
           {/* Location */}
@@ -371,7 +404,7 @@ export default function PartiesPage() {
             </div>
           </div>
           
-          {/* Avatars */}
+          {/* Mini avatars */}
           <div style={{ display: 'flex', flexShrink: 0 }}>
             {allSlots.map((player, idx) => (
               <Avatar key={idx} player={player} size={28} overlap={true} index={idx} />
@@ -381,9 +414,11 @@ export default function PartiesPage() {
           {/* Badge Orga */}
           {isOrganizer && (
             <span style={{ 
-              background: COLORS.amberSoft, color: '#92400e', 
-              padding: '3px 8px', borderRadius: 6, 
-              fontSize: 10, fontWeight: 700, flexShrink: 0
+              background: COLORS.white, 
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.gray, 
+              padding: '4px 8px', borderRadius: 100, 
+              fontSize: 10, fontWeight: 600, flexShrink: 0
             }}>👑</span>
           )}
         </div>
@@ -391,44 +426,54 @@ export default function PartiesPage() {
     )
   }
 
-  // Card pour parties disponibles
+  // Card parties disponibles
   function AvailableMatchCard({ match }) {
     const players = getMatchPlayers(match)
+    const allSlots = [...players]
+    while (allSlots.length < 4) allSlots.push(null)
     const spotsLeft = match.spots_available || (4 - players.length)
     
     return (
       <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
         <div className="available-card" style={{
           display: 'flex',
-          background: COLORS.white,
-          borderRadius: 16,
-          border: `2px solid ${COLORS.border}`,
-          overflow: 'hidden',
+          alignItems: 'center',
+          gap: 16,
+          padding: 16,
+          borderBottom: `1px solid ${COLORS.borderLight}`,
           cursor: 'pointer',
-          transition: `all 0.4s ${SPRING}`
+          transition: 'all 0.2s ease'
         }}>
-          <div style={{ width: 5, background: COLORS.teal, flexShrink: 0 }} />
-          <div style={{ flex: 1, padding: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ textAlign: 'center', minWidth: 50 }}>
-              <div style={{ fontSize: 11, color: COLORS.gray, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
-                {getMatchLocation(match)}
-              </div>
-              <div style={{ fontSize: 12, color: COLORS.muted }}>
-                Organisé par {match.profiles?.name?.split(' ')[0] || 'Anonyme'}
-              </div>
-            </div>
-            <span style={{ 
-              background: COLORS.tealSoft, color: COLORS.teal, 
-              padding: '6px 12px', borderRadius: 10, 
-              fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap'
-            }}>
-              {spotsLeft} place{spotsLeft > 1 ? 's' : ''}
-            </span>
+          {/* Date/Heure */}
+          <div style={{ textAlign: 'center', minWidth: 50 }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
           </div>
+          
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+              {getMatchLocation(match)}
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.muted }}>
+              par {match.profiles?.name?.split(' ')[0] || 'Anonyme'}
+            </div>
+          </div>
+          
+          {/* Mini avatars */}
+          <div style={{ display: 'flex', flexShrink: 0 }}>
+            {allSlots.map((player, idx) => (
+              <Avatar key={idx} player={player} size={24} overlap={true} index={idx} />
+            ))}
+          </div>
+          
+          {/* Places */}
+          <span style={{ 
+            fontSize: 12, fontWeight: 600, color: COLORS.gray,
+            whiteSpace: 'nowrap'
+          }}>
+            {spotsLeft} place{spotsLeft > 1 ? 's' : ''}
+          </span>
         </div>
       </Link>
     )
@@ -439,7 +484,7 @@ export default function PartiesPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          {AVATAR_COLORS.map((color, i) => (
+          {PLAYER_COLORS.map((color, i) => (
             <div key={i} className="dot-loading" style={{ width: 14, height: 14, borderRadius: '50%', background: color }} />
           ))}
         </div>
@@ -456,70 +501,50 @@ export default function PartiesPage() {
         <div className="main-column">
           
           {/* Greeting */}
-          <h1 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 20px', color: COLORS.ink, letterSpacing: -0.5 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 20px', color: COLORS.ink }}>
             {getGreeting()}
           </h1>
 
           {/* ======================== */}
-          {/* HERO - FOND BLANC */}
+          {/* HERO - SOBRE */}
           {/* ======================== */}
           <div style={{ 
+            background: COLORS.card,
+            borderRadius: 20, 
+            border: `1px solid ${COLORS.border}`,
+            padding: 24,
+            marginBottom: 24,
             display: 'flex',
-            background: COLORS.white, 
-            borderRadius: 24, 
-            border: `2px solid ${COLORS.border}`,
-            overflow: 'hidden',
-            marginBottom: 24
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 20,
+            flexWrap: 'wrap'
           }}>
-            {/* Barre latérale Coral */}
-            <div style={{ width: 6, background: COLORS.primary, flexShrink: 0 }} />
-            
-            <div className="hero-inner" style={{ 
-              flex: 1,
-              padding: 24,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 20
-            }}>
-              <div>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink, margin: '0 0 4px' }}>
-                  Organise une partie
-                </h2>
-                <p style={{ fontSize: 14, color: COLORS.gray, margin: 0 }}>
-                  Invite tes partenaires à jouer
-                </p>
-              </div>
-              
-              {/* 4 dots + bouton alignés */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-                <div style={{ display: 'flex', gap: 5 }}>
-                  {AVATAR_COLORS.map((c, i) => (
-                    <div key={i} className="dot-breathe" style={{ 
-                      width: 10, height: 10, borderRadius: '50%', background: c,
-                      animationDelay: `${i * 0.15}s`
-                    }} />
-                  ))}
-                </div>
-                <Link href="/dashboard/matches/create" style={{ 
-                  padding: '14px 28px', 
-                  background: COLORS.primary, 
-                  color: COLORS.white, 
-                  borderRadius: 100, 
-                  fontSize: 15, 
-                  fontWeight: 700, 
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  boxShadow: SHADOWS.primaryGlow,
-                  whiteSpace: 'nowrap',
-                  transition: `all 0.4s ${SPRING}`
-                }}>
-                  + Créer une partie
-                </Link>
-              </div>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink, margin: '0 0 4px' }}>
+                Organise une partie
+              </h2>
+              <p style={{ fontSize: 14, color: COLORS.gray, margin: 0 }}>
+                Invite tes potes à jouer
+              </p>
             </div>
+            
+            <Link href="/dashboard/matches/create" style={{ 
+              padding: '14px 28px', 
+              background: COLORS.ink, 
+              color: COLORS.white, 
+              borderRadius: 100, 
+              fontSize: 15, 
+              fontWeight: 700, 
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s ease'
+            }}>
+              + Créer une partie
+            </Link>
           </div>
 
           {/* ======================== */}
@@ -527,18 +552,19 @@ export default function PartiesPage() {
           {/* ======================== */}
           {myUpcomingMatches.length > 0 && (
             <div style={{ 
-              background: COLORS.white, 
-              borderRadius: 24, 
+              background: COLORS.card,
+              borderRadius: 20, 
+              border: `1px solid ${COLORS.border}`,
               padding: 24,
-              border: `2px solid ${COLORS.border}`,
               marginBottom: 24
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>🗓️</span> Tes prochaines parties
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                  🗓️ Tes prochaines parties
                 </h2>
                 <span style={{ 
-                  background: COLORS.primarySoft, color: COLORS.primary,
+                  background: COLORS.bg, 
+                  color: COLORS.ink,
                   padding: '4px 12px', borderRadius: 100,
                   fontSize: 13, fontWeight: 600
                 }}>
@@ -558,9 +584,9 @@ export default function PartiesPage() {
                 <div style={{ 
                   display: 'flex', 
                   flexDirection: 'column', 
-                  gap: 10, 
-                  paddingTop: 18, 
-                  marginTop: 18, 
+                  gap: 8, 
+                  paddingTop: 16, 
+                  marginTop: 16, 
                   borderTop: `1px solid ${COLORS.border}` 
                 }}>
                   {hiddenMatches.map((match) => (
@@ -576,15 +602,15 @@ export default function PartiesPage() {
                   style={{
                     width: '100%',
                     padding: '14px',
-                    background: 'transparent',
-                    border: `2px solid ${COLORS.border}`,
-                    borderRadius: 14,
+                    background: COLORS.bg,
+                    border: 'none',
+                    borderRadius: 12,
                     fontSize: 14,
                     fontWeight: 600,
                     color: COLORS.gray,
                     cursor: 'pointer',
                     marginTop: 16,
-                    transition: `all 0.3s ${SPRING}`
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {showAllMatches ? 'Voir moins ↑' : `Voir les ${hiddenMatches.length} autres parties ↓`}
@@ -598,8 +624,8 @@ export default function PartiesPage() {
           {/* ======================== */}
           {getTotalPendingActions() > 0 && (
             <div style={{ 
-              background: COLORS.primarySoft, 
-              border: `2px solid ${COLORS.primary}`,
+              background: COLORS.card,
+              border: `2px solid ${COLORS.ink}`,
               borderRadius: 20, 
               padding: 20,
               marginBottom: 24
@@ -608,7 +634,7 @@ export default function PartiesPage() {
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
                   🔔 Actions en attente
                   <span style={{
-                    background: COLORS.primary, color: COLORS.white,
+                    background: COLORS.ink, color: COLORS.white,
                     width: 22, height: 22, borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 12, fontWeight: 700
@@ -624,7 +650,7 @@ export default function PartiesPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
-                  background: COLORS.white,
+                  background: COLORS.bg,
                   padding: '14px 16px',
                   borderRadius: 14,
                   marginBottom: 10
@@ -640,14 +666,14 @@ export default function PartiesPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => acceptRequest(req)} style={{
-                      background: COLORS.teal, color: COLORS.white,
-                      padding: '8px 14px', borderRadius: 100,
+                      background: COLORS.ink, color: COLORS.white,
+                      padding: '8px 16px', borderRadius: 100,
                       fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
                     }}>Accepter</button>
                     <button onClick={() => refuseRequest(req)} style={{
-                      background: COLORS.bgSoft, color: COLORS.gray,
-                      padding: '8px 14px', borderRadius: 100,
-                      fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
+                      background: COLORS.white, color: COLORS.gray,
+                      padding: '8px 16px', borderRadius: 100,
+                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
                     }}>Refuser</button>
                   </div>
                 </div>
@@ -659,14 +685,14 @@ export default function PartiesPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
-                  background: COLORS.white,
+                  background: COLORS.bg,
                   padding: '14px 16px',
                   borderRadius: 14,
                   marginBottom: 10
                 }}>
                   <div style={{
                     width: 40, height: 40, borderRadius: '50%',
-                    background: COLORS.amber, color: COLORS.ink,
+                    background: COLORS.p2, color: COLORS.white,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 16, fontWeight: 700
                   }}>
@@ -677,24 +703,24 @@ export default function PartiesPage() {
                       {inv.invitee_name || inv.invited_name || 'Invité'} n'a pas répondu
                     </strong>
                     {inv.invitee_email && (
-                      <span style={{ fontSize: 11, color: COLORS.teal, display: 'block' }}>
+                      <span style={{ fontSize: 11, color: COLORS.gray, display: 'block' }}>
                         ✉️ {inv.invitee_email}
                       </span>
                     )}
-                    <span style={{ fontSize: 12, color: COLORS.gray }}>
+                    <span style={{ fontSize: 12, color: COLORS.muted }}>
                       Invité il y a {inv.daysSince} jours · {formatDate(inv.matches?.match_date)}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button style={{
-                      background: COLORS.bgSoft, color: COLORS.gray,
+                      background: COLORS.white, color: COLORS.gray,
                       padding: '8px 14px', borderRadius: 100,
-                      fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
+                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
                     }}>Relancer</button>
                     <button onClick={() => cancelInvite(inv)} style={{
-                      background: COLORS.bgSoft, color: COLORS.gray,
+                      background: COLORS.white, color: COLORS.gray,
                       padding: '8px 14px', borderRadius: 100,
-                      fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
+                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
                     }}>Annuler</button>
                   </div>
                 </div>
@@ -706,23 +732,24 @@ export default function PartiesPage() {
           {/* PARTIES À REJOINDRE */}
           {/* ======================== */}
           <div style={{ 
-            background: COLORS.white, 
-            borderRadius: 24, 
-            padding: 24,
-            border: `2px solid ${COLORS.border}`,
+            background: COLORS.card,
+            borderRadius: 20, 
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden',
             marginBottom: 24
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span>🎾</span> Parties à rejoindre
+            {/* Header */}
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                🎾 Parties à rejoindre
               </h2>
-              <Link href="/dashboard/explore" style={{ fontSize: 13, color: COLORS.primary, textDecoration: 'none', fontWeight: 600 }}>
+              <Link href="/dashboard/explore" style={{ fontSize: 13, color: COLORS.ink, textDecoration: 'none', fontWeight: 600 }}>
                 Voir tout →
               </Link>
             </div>
 
             {/* Filtres */}
-            <div className="filters-row" style={{ display: 'flex', gap: 8, marginBottom: 18, overflowX: 'auto', paddingBottom: 4 }}>
+            <div className="filters-row" style={{ display: 'flex', gap: 8, padding: '16px 24px', borderBottom: `1px solid ${COLORS.border}`, overflowX: 'auto' }}>
               {[
                 { id: 'today', label: "Aujourd'hui" },
                 { id: 'tomorrow', label: 'Demain' },
@@ -733,16 +760,16 @@ export default function PartiesPage() {
                   key={f.id}
                   onClick={() => setFilterDate(f.id)}
                   style={{
-                    padding: '10px 18px',
+                    padding: '8px 16px',
                     borderRadius: 100,
                     border: 'none',
-                    background: filterDate === f.id ? COLORS.ink : COLORS.bgSoft,
+                    background: filterDate === f.id ? COLORS.ink : COLORS.bg,
                     color: filterDate === f.id ? COLORS.white : COLORS.gray,
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
-                    transition: `all 0.3s ${SPRING}`
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {f.label}
@@ -750,13 +777,14 @@ export default function PartiesPage() {
               ))}
             </div>
 
+            {/* Liste */}
             {filteredAvailable.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', background: COLORS.bgSoft, borderRadius: 16 }}>
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
                 <p style={{ color: COLORS.gray, margin: 0, fontSize: 15 }}>Aucune partie disponible pour le moment</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
                 {filteredAvailable.slice(0, 5).map(match => (
                   <AvailableMatchCard key={match.id} match={match} />
                 ))}
@@ -767,22 +795,20 @@ export default function PartiesPage() {
           {/* BOÎTE À IDÉES - Mobile */}
           <Link href="/dashboard/ideas" className="ideas-mobile" style={{ textDecoration: 'none' }}>
             <div style={{ 
+              background: COLORS.card,
+              borderRadius: 16, 
+              border: `1px solid ${COLORS.border}`,
+              padding: 18,
               display: 'flex',
-              background: COLORS.white, 
-              borderRadius: 20, 
-              border: `2px solid ${COLORS.border}`,
-              overflow: 'hidden',
-              alignItems: 'center'
+              alignItems: 'center',
+              gap: 14
             }}>
-              <div style={{ width: 5, background: COLORS.amber, flexShrink: 0, alignSelf: 'stretch' }} />
-              <div style={{ flex: 1, padding: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span style={{ fontSize: 28 }}>💡</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink }}>Boîte à idées</div>
-                  <div style={{ fontSize: 13, color: COLORS.gray }}>Propose des améliorations</div>
-                </div>
-                <span style={{ color: COLORS.muted, fontSize: 20 }}>›</span>
+              <span style={{ fontSize: 28 }}>💡</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink }}>Boîte à idées</div>
+                <div style={{ fontSize: 13, color: COLORS.gray }}>Propose des améliorations</div>
               </div>
+              <span style={{ color: COLORS.muted, fontSize: 20 }}>›</span>
             </div>
           </Link>
         </div>
@@ -794,126 +820,111 @@ export default function PartiesPage() {
           
           {/* Profil Card */}
           <div style={{ 
-            display: 'flex',
-            background: COLORS.white, 
-            borderRadius: 24, 
-            border: `2px solid ${COLORS.border}`,
-            overflow: 'hidden',
-            marginBottom: 20
+            background: COLORS.card,
+            borderRadius: 20, 
+            border: `1px solid ${COLORS.border}`,
+            padding: 24,
+            marginBottom: 16,
+            textAlign: 'center'
           }}>
-            <div style={{ width: 5, background: COLORS.primary, flexShrink: 0 }} />
-            <div style={{ flex: 1, padding: 24, textAlign: 'center' }}>
-              <div style={{ 
-                width: 72, height: 72, borderRadius: '50%', 
-                background: profile?.avatar_url ? COLORS.bgSoft : COLORS.primary,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: COLORS.white, fontWeight: 700, fontSize: 28,
-                margin: '0 auto 14px', overflow: 'hidden',
-                border: `4px solid ${COLORS.white}`,
-                boxShadow: SHADOWS.primaryGlow
-              }}>
-                {profile?.avatar_url 
-                  ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : profile?.name?.[0]?.toUpperCase()
-                }
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink }}>{profile?.name}</div>
-              <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 18 }}>
-                Niveau {profile?.level || '?'} · {profile?.city || 'Non renseigné'}
-              </div>
-              
-              {/* Stats avec les 4 couleurs */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                {[
-                  { n: stats.total, l: 'Jouées', c: COLORS.primary, bg: COLORS.primarySoft },
-                  { n: stats.organized, l: 'Orga.', c: COLORS.violet, bg: COLORS.violetSoft },
-                  { n: stats.wins, l: 'Wins', c: COLORS.teal, bg: COLORS.tealSoft }
-                ].map((s) => (
-                  <div key={s.l} style={{ background: s.bg, borderRadius: 14, padding: '14px 8px' }}>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: s.c }}>{s.n}</div>
-                    <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500 }}>{s.l}</div>
-                  </div>
-                ))}
-              </div>
+            {/* Avatar - seule couleur */}
+            <div style={{ 
+              width: 72, height: 72, borderRadius: '50%', 
+              background: profile?.avatar_url ? COLORS.bg : COLORS.p1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: COLORS.white, fontWeight: 700, fontSize: 28,
+              margin: '0 auto 14px', overflow: 'hidden'
+            }}>
+              {profile?.avatar_url 
+                ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : profile?.name?.[0]?.toUpperCase()
+              }
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink }}>{profile?.name}</div>
+            <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 18 }}>
+              Niveau {profile?.level || '?'} · {profile?.city || 'Non renseigné'}
+            </div>
+            
+            {/* Stats sobres - noir/blanc */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {[
+                { n: stats.total, l: 'Matchs' },
+                { n: stats.organized, l: 'Orga.' },
+                { n: stats.wins, l: 'Wins' }
+              ].map((s) => (
+                <div key={s.l} style={{ background: COLORS.bg, borderRadius: 12, padding: '14px 8px' }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.ink }}>{s.n}</div>
+                  <div style={{ fontSize: 10, color: COLORS.muted, fontWeight: 500 }}>{s.l}</div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Joueurs favoris */}
           <div style={{ 
-            display: 'flex',
-            background: COLORS.white, 
-            borderRadius: 24, 
-            border: `2px solid ${COLORS.border}`,
-            overflow: 'hidden',
-            marginBottom: 20
+            background: COLORS.card,
+            borderRadius: 20, 
+            border: `1px solid ${COLORS.border}`,
+            padding: 20,
+            marginBottom: 16
           }}>
-            <div style={{ width: 5, background: COLORS.violet, flexShrink: 0 }} />
-            <div style={{ flex: 1, padding: 22 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink }}>
-                  ⭐ Joueurs favoris
-                </h3>
-                <Link href="/dashboard/activite" style={{ fontSize: 12, color: COLORS.primary, textDecoration: 'none', fontWeight: 600 }}>
-                  Voir
-                </Link>
-              </div>
-              
-              {favoritePlayers.length === 0 ? (
-                <p style={{ fontSize: 14, color: COLORS.muted, margin: 0 }}>Aucun favori pour l'instant</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {favoritePlayers.map((player, i) => (
-                    <Link href={`/player/${player.id}`} key={player.id} style={{ textDecoration: 'none' }}>
-                      <div className="player-row" style={{ 
-                        display: 'flex', alignItems: 'center', gap: 12, 
-                        cursor: 'pointer', padding: 8, marginLeft: -8, marginRight: -8,
-                        borderRadius: 12, transition: `all 0.3s ${SPRING}`
-                      }}>
-                        <Avatar player={player} size={42} index={i} />
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{player.name}</div>
-                          <div style={{ fontSize: 12, color: COLORS.muted }}>Niv. {player.level} · {player.city || ''}</div>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                ⭐ Joueurs favoris
+              </h3>
+              <Link href="/dashboard/activite" style={{ fontSize: 12, color: COLORS.ink, textDecoration: 'none', fontWeight: 600 }}>
+                Voir
+              </Link>
             </div>
+            
+            {favoritePlayers.length === 0 ? (
+              <p style={{ fontSize: 14, color: COLORS.muted, margin: 0 }}>Aucun favori pour l'instant</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {favoritePlayers.map((player, i) => (
+                  <Link href={`/player/${player.id}`} key={player.id} style={{ textDecoration: 'none' }}>
+                    <div className="player-row" style={{ 
+                      display: 'flex', alignItems: 'center', gap: 12, 
+                      cursor: 'pointer', padding: 8, marginLeft: -8, marginRight: -8,
+                      borderRadius: 12, transition: 'all 0.2s ease'
+                    }}>
+                      <Avatar player={player} size={42} index={i} />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{player.name}</div>
+                        <div style={{ fontSize: 12, color: COLORS.muted }}>Niv. {player.level} · {player.city || ''}</div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Boîte à idées */}
           <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
             <div style={{ 
+              background: COLORS.card,
+              borderRadius: 16, 
+              border: `1px solid ${COLORS.border}`,
+              padding: 18,
               display: 'flex',
-              background: COLORS.white, 
-              borderRadius: 20, 
-              border: `2px solid ${COLORS.border}`,
-              overflow: 'hidden',
+              alignItems: 'center',
+              gap: 14,
               cursor: 'pointer',
-              transition: `all 0.3s ${SPRING}`
+              transition: 'all 0.2s ease'
             }}>
-              <div style={{ width: 5, background: COLORS.amber, flexShrink: 0 }} />
-              <div style={{ flex: 1, padding: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span style={{ fontSize: 28 }}>💡</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>Boîte à idées</div>
-                  <div style={{ fontSize: 12, color: COLORS.muted }}>Propose des améliorations</div>
-                </div>
-                <span style={{ color: COLORS.muted }}>›</span>
+              <span style={{ fontSize: 24 }}>💡</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>Boîte à idées</div>
+                <div style={{ fontSize: 12, color: COLORS.muted }}>Propose des améliorations</div>
               </div>
+              <span style={{ color: COLORS.muted }}>›</span>
             </div>
           </Link>
         </aside>
       </div>
 
       <style jsx global>{`
-        @keyframes dot-breathe {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.4); opacity: 0.7; }
-        }
-        .dot-breathe { animation: dot-breathe 3s ease-in-out infinite; }
-        
         @keyframes dot-loading {
           0%, 80%, 100% { transform: translateY(0); }
           40% { transform: translateY(-12px); }
@@ -926,47 +937,36 @@ export default function PartiesPage() {
 
         .page-container {
           display: flex;
-          gap: 32px;
-          max-width: 1140px;
+          gap: 24px;
+          max-width: 1100px;
           margin: 0 auto;
         }
         
         .main-column { flex: 1; min-width: 0; }
-        .sidebar { width: 320px; flex-shrink: 0; display: none; }
-        
-        .hero-inner {
-          flex-direction: column;
-          align-items: flex-start !important;
-        }
+        .sidebar { width: 300px; flex-shrink: 0; display: none; }
         
         .matches-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 16px;
+          gap: 12px;
         }
         
         .match-card:hover {
-          border-color: ${COLORS.primary} !important;
-          transform: translateY(-6px);
-          box-shadow: 0 16px 32px rgba(0,0,0,0.08);
+          background: #eee;
         }
         
         .match-list-item:hover {
-          background: ${COLORS.primarySoft};
-          border-color: ${COLORS.primary};
-          transform: translateX(4px);
+          background: #eee;
         }
         
         .available-card:hover {
-          border-color: ${COLORS.teal} !important;
-          transform: translateY(-3px);
-          box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+          background: ${COLORS.bg};
         }
         
-        .avatar-hover { transition: all 0.3s ${SPRING}; }
-        .avatar-hover:hover { transform: translateY(-6px) scale(1.1); z-index: 10 !important; }
+        .avatar-hover { transition: transform 0.2s ease; }
+        .avatar-hover:hover { transform: translateY(-3px); z-index: 10 !important; }
         
-        .player-row:hover { background: ${COLORS.bgSoft}; }
+        .player-row:hover { background: ${COLORS.bg}; }
         
         .ideas-mobile { display: block; }
         
@@ -978,10 +978,6 @@ export default function PartiesPage() {
         
         @media (min-width: 640px) {
           .matches-grid { grid-template-columns: repeat(2, 1fr); }
-          .hero-inner {
-            flex-direction: row !important;
-            align-items: center !important;
-          }
         }
         
         @media (min-width: 1024px) {
