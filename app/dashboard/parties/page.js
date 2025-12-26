@@ -2,16 +2,17 @@
 
 /**
  * ============================================
- * PAGE PARTIES - JUNTO BRAND v3 (FINAL)
+ * PAGE PARTIES - 2×2 BRAND
  * ============================================
  * 
- * CHANGEMENTS v3:
- * - Hero fond blanc + barre latérale Coral
- * - 4 dots alignés à gauche du bouton
- * - Pas de badge places sur mes parties (visible via avatars)
- * - Section "Actions en attente" ajoutée
- * - Liste simplifiée pour voir + de parties
- * - Sidebar redesignée
+ * Page principale du dashboard
+ * - Hero avec CTA créer une partie
+ * - Mes prochaines parties (cards + liste)
+ * - Actions en attente
+ * - Parties à rejoindre
+ * - Sidebar (profil, stats, favoris)
+ * 
+ * Couleurs joueurs: Coral, Amber, Teal, Violet
  * 
  * ============================================
  */
@@ -20,32 +21,11 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { COLORS, FOUR_DOTS, SHADOWS, ANIMATIONS } from '@/app/lib/design-tokens'
 
-// === JUNTO DESIGN TOKENS ===
-const JUNTO = {
-  coral: '#ff5a5f',
-  slate: '#3d4f5f',
-  amber: '#ffb400',
-  teal: '#00b8a9',
-  ink: '#1a1a1a',
-  dark: '#2d2d2d',
-  gray: '#6b7280',
-  muted: '#9ca3af',
-  white: '#ffffff',
-  bg: '#fafafa',
-  bgSoft: '#f5f5f5',
-  border: '#e5e7eb',
-  borderLight: '#f1f5f9',
-  coralSoft: '#fff0f0',
-  tealSoft: '#e5f9f7',
-  amberSoft: '#fff8e5',
-  slateSoft: '#f0f3f5',
-  coralGlow: 'rgba(255, 90, 95, 0.25)',
-  tealGlow: 'rgba(0, 184, 169, 0.25)',
-}
-
-const AVATAR_COLORS = [JUNTO.coral, JUNTO.slate, JUNTO.amber, JUNTO.teal]
-const SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+// === AVATAR COLORS (4 joueurs = 4 couleurs) ===
+const AVATAR_COLORS = FOUR_DOTS.colors
+const SPRING = ANIMATIONS.spring
 
 export default function PartiesPage() {
   const router = useRouter()
@@ -279,9 +259,9 @@ export default function PartiesPage() {
       return (
         <div style={{
           width: size, height: size, borderRadius: '50%',
-          background: JUNTO.bgSoft, border: `2px dashed ${JUNTO.border}`,
+          background: COLORS.bgSoft, border: `2px dashed ${COLORS.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: size * 0.4, color: JUNTO.muted,
+          fontSize: size * 0.4, color: COLORS.muted,
           marginLeft: overlap && index > 0 ? -10 : 0,
           position: 'relative', zIndex: 4 - index, flexShrink: 0
         }}>?</div>
@@ -291,10 +271,10 @@ export default function PartiesPage() {
     return (
       <div className="avatar-hover" style={{
         width: size, height: size, borderRadius: '50%',
-        background: player.avatar_url ? JUNTO.bgSoft : bgColor,
+        background: player.avatar_url ? COLORS.bgSoft : bgColor,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: size * 0.4, fontWeight: 700, color: JUNTO.white,
-        overflow: 'hidden', border: `3px solid ${JUNTO.white}`,
+        fontSize: size * 0.4, fontWeight: 700, color: COLORS.white,
+        overflow: 'hidden', border: `3px solid ${COLORS.white}`,
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
         marginLeft: overlap && index > 0 ? -10 : 0,
         position: 'relative', zIndex: 4 - index, flexShrink: 0
@@ -307,7 +287,7 @@ export default function PartiesPage() {
     )
   }
 
-  // Match Card (sans badge places)
+  // Match Card
   function MatchCard({ match, isOrganizer = false }) {
     const players = getMatchPlayers(match)
     const allSlots = [...players]
@@ -317,34 +297,34 @@ export default function PartiesPage() {
       <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
         <div className="match-card" style={{ 
           display: 'flex',
-          background: JUNTO.white, 
+          background: COLORS.white, 
           borderRadius: 20, 
-          border: `2px solid ${JUNTO.border}`,
+          border: `2px solid ${COLORS.border}`,
           overflow: 'hidden',
           cursor: 'pointer',
           transition: `all 0.4s ${SPRING}`,
           height: '100%'
         }}>
-          <div style={{ width: 5, background: JUNTO.coral, flexShrink: 0 }} />
+          <div style={{ width: 5, background: COLORS.primary, flexShrink: 0 }} />
           <div style={{ flex: 1, padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
-                <div style={{ fontSize: 12, color: JUNTO.gray, fontWeight: 500, marginBottom: 2 }}>
+                <div style={{ fontSize: 12, color: COLORS.gray, fontWeight: 500, marginBottom: 2 }}>
                   {formatDate(match.match_date)}
                 </div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: JUNTO.ink, letterSpacing: -1 }}>
+                <div style={{ fontSize: 26, fontWeight: 700, color: COLORS.ink, letterSpacing: -1 }}>
                   {formatTime(match.match_time)}
                 </div>
               </div>
               {isOrganizer && (
                 <span style={{ 
-                  background: JUNTO.amberSoft, color: '#92400e', 
+                  background: COLORS.amberSoft, color: '#92400e', 
                   padding: '4px 10px', borderRadius: 8, 
                   fontSize: 11, fontWeight: 700, height: 'fit-content'
                 }}>👑 Orga</span>
               )}
             </div>
-            <div style={{ fontSize: 13, color: JUNTO.gray, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 13, color: COLORS.gray, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>📍</span> {getMatchLocation(match)}
             </div>
             <div style={{ display: 'flex' }}>
@@ -371,22 +351,22 @@ export default function PartiesPage() {
           alignItems: 'center',
           gap: 14,
           padding: '14px 16px',
-          background: JUNTO.white,
+          background: COLORS.white,
           borderRadius: 14,
-          border: `1px solid ${JUNTO.border}`,
+          border: `1px solid ${COLORS.border}`,
           cursor: 'pointer',
           transition: `all 0.3s ${SPRING}`,
-          borderLeft: `4px solid ${JUNTO.coral}`
+          borderLeft: `4px solid ${COLORS.primary}`
         }}>
           {/* Date/Heure */}
           <div style={{ textAlign: 'center', minWidth: 50 }}>
-            <div style={{ fontSize: 11, color: JUNTO.gray, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: JUNTO.ink }}>{formatTime(match.match_time)}</div>
+            <div style={{ fontSize: 11, color: COLORS.gray, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
           </div>
           
           {/* Location */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {getMatchLocation(match)}
             </div>
           </div>
@@ -401,7 +381,7 @@ export default function PartiesPage() {
           {/* Badge Orga */}
           {isOrganizer && (
             <span style={{ 
-              background: JUNTO.amberSoft, color: '#92400e', 
+              background: COLORS.amberSoft, color: '#92400e', 
               padding: '3px 8px', borderRadius: 6, 
               fontSize: 10, fontWeight: 700, flexShrink: 0
             }}>👑</span>
@@ -420,29 +400,29 @@ export default function PartiesPage() {
       <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
         <div className="available-card" style={{
           display: 'flex',
-          background: JUNTO.white,
+          background: COLORS.white,
           borderRadius: 16,
-          border: `2px solid ${JUNTO.border}`,
+          border: `2px solid ${COLORS.border}`,
           overflow: 'hidden',
           cursor: 'pointer',
           transition: `all 0.4s ${SPRING}`
         }}>
-          <div style={{ width: 5, background: JUNTO.teal, flexShrink: 0 }} />
+          <div style={{ width: 5, background: COLORS.teal, flexShrink: 0 }} />
           <div style={{ flex: 1, padding: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ textAlign: 'center', minWidth: 50 }}>
-              <div style={{ fontSize: 11, color: JUNTO.gray, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: JUNTO.ink }}>{formatTime(match.match_time)}</div>
+              <div style={{ fontSize: 11, color: COLORS.gray, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink, marginBottom: 2 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
                 {getMatchLocation(match)}
               </div>
-              <div style={{ fontSize: 12, color: JUNTO.muted }}>
+              <div style={{ fontSize: 12, color: COLORS.muted }}>
                 Organisé par {match.profiles?.name?.split(' ')[0] || 'Anonyme'}
               </div>
             </div>
             <span style={{ 
-              background: JUNTO.tealSoft, color: JUNTO.teal, 
+              background: COLORS.tealSoft, color: COLORS.teal, 
               padding: '6px 12px', borderRadius: 10, 
               fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap'
             }}>
@@ -460,10 +440,10 @@ export default function PartiesPage() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           {AVATAR_COLORS.map((color, i) => (
-            <div key={i} className="junto-loading-dot" style={{ width: 14, height: 14, borderRadius: '50%', background: color }} />
+            <div key={i} className="dot-loading" style={{ width: 14, height: 14, borderRadius: '50%', background: color }} />
           ))}
         </div>
-        <div style={{ color: JUNTO.gray, fontSize: 15 }}>Chargement...</div>
+        <div style={{ color: COLORS.gray, fontSize: 15 }}>Chargement...</div>
       </div>
     )
   }
@@ -476,7 +456,7 @@ export default function PartiesPage() {
         <div className="main-column">
           
           {/* Greeting */}
-          <h1 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 20px', color: JUNTO.ink, letterSpacing: -0.5 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 20px', color: COLORS.ink, letterSpacing: -0.5 }}>
             {getGreeting()}
           </h1>
 
@@ -485,14 +465,14 @@ export default function PartiesPage() {
           {/* ======================== */}
           <div style={{ 
             display: 'flex',
-            background: JUNTO.white, 
+            background: COLORS.white, 
             borderRadius: 24, 
-            border: `2px solid ${JUNTO.border}`,
+            border: `2px solid ${COLORS.border}`,
             overflow: 'hidden',
             marginBottom: 24
           }}>
             {/* Barre latérale Coral */}
-            <div style={{ width: 6, background: JUNTO.coral, flexShrink: 0 }} />
+            <div style={{ width: 6, background: COLORS.primary, flexShrink: 0 }} />
             
             <div className="hero-inner" style={{ 
               flex: 1,
@@ -503,10 +483,10 @@ export default function PartiesPage() {
               gap: 20
             }}>
               <div>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: JUNTO.ink, margin: '0 0 4px' }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink, margin: '0 0 4px' }}>
                   Organise une partie
                 </h2>
-                <p style={{ fontSize: 14, color: JUNTO.gray, margin: 0 }}>
+                <p style={{ fontSize: 14, color: COLORS.gray, margin: 0 }}>
                   Invite tes partenaires à jouer
                 </p>
               </div>
@@ -515,7 +495,7 @@ export default function PartiesPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
                 <div style={{ display: 'flex', gap: 5 }}>
                   {AVATAR_COLORS.map((c, i) => (
-                    <div key={i} className="junto-dot" style={{ 
+                    <div key={i} className="dot-breathe" style={{ 
                       width: 10, height: 10, borderRadius: '50%', background: c,
                       animationDelay: `${i * 0.15}s`
                     }} />
@@ -523,8 +503,8 @@ export default function PartiesPage() {
                 </div>
                 <Link href="/dashboard/matches/create" style={{ 
                   padding: '14px 28px', 
-                  background: JUNTO.coral, 
-                  color: JUNTO.white, 
+                  background: COLORS.primary, 
+                  color: COLORS.white, 
                   borderRadius: 100, 
                   fontSize: 15, 
                   fontWeight: 700, 
@@ -532,7 +512,7 @@ export default function PartiesPage() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  boxShadow: `0 8px 24px ${JUNTO.coralGlow}`,
+                  boxShadow: SHADOWS.primaryGlow,
                   whiteSpace: 'nowrap',
                   transition: `all 0.4s ${SPRING}`
                 }}>
@@ -547,18 +527,18 @@ export default function PartiesPage() {
           {/* ======================== */}
           {myUpcomingMatches.length > 0 && (
             <div style={{ 
-              background: JUNTO.white, 
+              background: COLORS.white, 
               borderRadius: 24, 
               padding: 24,
-              border: `2px solid ${JUNTO.border}`,
+              border: `2px solid ${COLORS.border}`,
               marginBottom: 24
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: JUNTO.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span>🗓️</span> Tes prochaines parties
                 </h2>
                 <span style={{ 
-                  background: JUNTO.coralSoft, color: JUNTO.coral,
+                  background: COLORS.primarySoft, color: COLORS.primary,
                   padding: '4px 12px', borderRadius: 100,
                   fontSize: 13, fontWeight: 600
                 }}>
@@ -581,7 +561,7 @@ export default function PartiesPage() {
                   gap: 10, 
                   paddingTop: 18, 
                   marginTop: 18, 
-                  borderTop: `1px solid ${JUNTO.border}` 
+                  borderTop: `1px solid ${COLORS.border}` 
                 }}>
                   {hiddenMatches.map((match) => (
                     <MatchListItem key={match.id} match={match} isOrganizer={match.organizer_id === user?.id} />
@@ -597,11 +577,11 @@ export default function PartiesPage() {
                     width: '100%',
                     padding: '14px',
                     background: 'transparent',
-                    border: `2px solid ${JUNTO.border}`,
+                    border: `2px solid ${COLORS.border}`,
                     borderRadius: 14,
                     fontSize: 14,
                     fontWeight: 600,
-                    color: JUNTO.gray,
+                    color: COLORS.gray,
                     cursor: 'pointer',
                     marginTop: 16,
                     transition: `all 0.3s ${SPRING}`
@@ -618,17 +598,17 @@ export default function PartiesPage() {
           {/* ======================== */}
           {getTotalPendingActions() > 0 && (
             <div style={{ 
-              background: JUNTO.coralSoft, 
-              border: `2px solid ${JUNTO.coral}`,
+              background: COLORS.primarySoft, 
+              border: `2px solid ${COLORS.primary}`,
               borderRadius: 20, 
               padding: 20,
               marginBottom: 24
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: JUNTO.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
                   🔔 Actions en attente
                   <span style={{
-                    background: JUNTO.coral, color: JUNTO.white,
+                    background: COLORS.primary, color: COLORS.white,
                     width: 22, height: 22, borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 12, fontWeight: 700
@@ -644,28 +624,28 @@ export default function PartiesPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
-                  background: JUNTO.white,
+                  background: COLORS.white,
                   padding: '14px 16px',
                   borderRadius: 14,
                   marginBottom: 10
                 }}>
                   <Avatar player={req.profiles} size={40} index={0} />
                   <div style={{ flex: 1 }}>
-                    <strong style={{ display: 'block', fontSize: 14, color: JUNTO.ink }}>
+                    <strong style={{ display: 'block', fontSize: 14, color: COLORS.ink }}>
                       {req.profiles?.name} veut rejoindre
                     </strong>
-                    <span style={{ fontSize: 12, color: JUNTO.gray }}>
+                    <span style={{ fontSize: 12, color: COLORS.gray }}>
                       {formatDate(req.matches?.match_date)} · {req.matches?.clubs?.name || 'Lieu à définir'}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => acceptRequest(req)} style={{
-                      background: JUNTO.teal, color: JUNTO.white,
+                      background: COLORS.teal, color: COLORS.white,
                       padding: '8px 14px', borderRadius: 100,
                       fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
                     }}>Accepter</button>
                     <button onClick={() => refuseRequest(req)} style={{
-                      background: JUNTO.bgSoft, color: JUNTO.gray,
+                      background: COLORS.bgSoft, color: COLORS.gray,
                       padding: '8px 14px', borderRadius: 100,
                       fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
                     }}>Refuser</button>
@@ -679,40 +659,40 @@ export default function PartiesPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
-                  background: JUNTO.white,
+                  background: COLORS.white,
                   padding: '14px 16px',
                   borderRadius: 14,
                   marginBottom: 10
                 }}>
                   <div style={{
                     width: 40, height: 40, borderRadius: '50%',
-                    background: JUNTO.amber, color: JUNTO.ink,
+                    background: COLORS.amber, color: COLORS.ink,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 16, fontWeight: 700
                   }}>
                     {(inv.invitee_name || inv.invited_name)?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <strong style={{ display: 'block', fontSize: 14, color: JUNTO.ink }}>
+                    <strong style={{ display: 'block', fontSize: 14, color: COLORS.ink }}>
                       {inv.invitee_name || inv.invited_name || 'Invité'} n'a pas répondu
                     </strong>
                     {inv.invitee_email && (
-                      <span style={{ fontSize: 11, color: JUNTO.teal, display: 'block' }}>
+                      <span style={{ fontSize: 11, color: COLORS.teal, display: 'block' }}>
                         ✉️ {inv.invitee_email}
                       </span>
                     )}
-                    <span style={{ fontSize: 12, color: JUNTO.gray }}>
+                    <span style={{ fontSize: 12, color: COLORS.gray }}>
                       Invité il y a {inv.daysSince} jours · {formatDate(inv.matches?.match_date)}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button style={{
-                      background: JUNTO.bgSoft, color: JUNTO.gray,
+                      background: COLORS.bgSoft, color: COLORS.gray,
                       padding: '8px 14px', borderRadius: 100,
                       fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
                     }}>Relancer</button>
                     <button onClick={() => cancelInvite(inv)} style={{
-                      background: JUNTO.bgSoft, color: JUNTO.gray,
+                      background: COLORS.bgSoft, color: COLORS.gray,
                       padding: '8px 14px', borderRadius: 100,
                       fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
                     }}>Annuler</button>
@@ -726,17 +706,17 @@ export default function PartiesPage() {
           {/* PARTIES À REJOINDRE */}
           {/* ======================== */}
           <div style={{ 
-            background: JUNTO.white, 
+            background: COLORS.white, 
             borderRadius: 24, 
             padding: 24,
-            border: `2px solid ${JUNTO.border}`,
+            border: `2px solid ${COLORS.border}`,
             marginBottom: 24
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: JUNTO.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span>🎾</span> Parties à rejoindre
               </h2>
-              <Link href="/dashboard/explore" style={{ fontSize: 13, color: JUNTO.coral, textDecoration: 'none', fontWeight: 600 }}>
+              <Link href="/dashboard/explore" style={{ fontSize: 13, color: COLORS.primary, textDecoration: 'none', fontWeight: 600 }}>
                 Voir tout →
               </Link>
             </div>
@@ -756,8 +736,8 @@ export default function PartiesPage() {
                     padding: '10px 18px',
                     borderRadius: 100,
                     border: 'none',
-                    background: filterDate === f.id ? JUNTO.ink : JUNTO.bgSoft,
-                    color: filterDate === f.id ? JUNTO.white : JUNTO.gray,
+                    background: filterDate === f.id ? COLORS.ink : COLORS.bgSoft,
+                    color: filterDate === f.id ? COLORS.white : COLORS.gray,
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -771,9 +751,9 @@ export default function PartiesPage() {
             </div>
 
             {filteredAvailable.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', background: JUNTO.bgSoft, borderRadius: 16 }}>
+              <div style={{ textAlign: 'center', padding: '40px 20px', background: COLORS.bgSoft, borderRadius: 16 }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-                <p style={{ color: JUNTO.gray, margin: 0, fontSize: 15 }}>Aucune partie disponible pour le moment</p>
+                <p style={{ color: COLORS.gray, margin: 0, fontSize: 15 }}>Aucune partie disponible pour le moment</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -788,20 +768,20 @@ export default function PartiesPage() {
           <Link href="/dashboard/ideas" className="ideas-mobile" style={{ textDecoration: 'none' }}>
             <div style={{ 
               display: 'flex',
-              background: JUNTO.white, 
+              background: COLORS.white, 
               borderRadius: 20, 
-              border: `2px solid ${JUNTO.border}`,
+              border: `2px solid ${COLORS.border}`,
               overflow: 'hidden',
               alignItems: 'center'
             }}>
-              <div style={{ width: 5, background: JUNTO.amber, flexShrink: 0, alignSelf: 'stretch' }} />
+              <div style={{ width: 5, background: COLORS.amber, flexShrink: 0, alignSelf: 'stretch' }} />
               <div style={{ flex: 1, padding: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
                 <span style={{ fontSize: 28 }}>💡</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: JUNTO.ink }}>Boîte à idées</div>
-                  <div style={{ fontSize: 13, color: JUNTO.gray }}>Propose des améliorations</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink }}>Boîte à idées</div>
+                  <div style={{ fontSize: 13, color: COLORS.gray }}>Propose des améliorations</div>
                 </div>
-                <span style={{ color: JUNTO.muted, fontSize: 20 }}>›</span>
+                <span style={{ color: COLORS.muted, fontSize: 20 }}>›</span>
               </div>
             </div>
           </Link>
@@ -815,43 +795,43 @@ export default function PartiesPage() {
           {/* Profil Card */}
           <div style={{ 
             display: 'flex',
-            background: JUNTO.white, 
+            background: COLORS.white, 
             borderRadius: 24, 
-            border: `2px solid ${JUNTO.border}`,
+            border: `2px solid ${COLORS.border}`,
             overflow: 'hidden',
             marginBottom: 20
           }}>
-            <div style={{ width: 5, background: JUNTO.coral, flexShrink: 0 }} />
+            <div style={{ width: 5, background: COLORS.primary, flexShrink: 0 }} />
             <div style={{ flex: 1, padding: 24, textAlign: 'center' }}>
               <div style={{ 
                 width: 72, height: 72, borderRadius: '50%', 
-                background: profile?.avatar_url ? JUNTO.bgSoft : JUNTO.coral,
+                background: profile?.avatar_url ? COLORS.bgSoft : COLORS.primary,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: JUNTO.white, fontWeight: 700, fontSize: 28,
+                color: COLORS.white, fontWeight: 700, fontSize: 28,
                 margin: '0 auto 14px', overflow: 'hidden',
-                border: `4px solid ${JUNTO.white}`,
-                boxShadow: `0 8px 24px ${JUNTO.coralGlow}`
+                border: `4px solid ${COLORS.white}`,
+                boxShadow: SHADOWS.primaryGlow
               }}>
                 {profile?.avatar_url 
                   ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : profile?.name?.[0]?.toUpperCase()
                 }
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: JUNTO.ink }}>{profile?.name}</div>
-              <div style={{ fontSize: 14, color: JUNTO.gray, marginBottom: 18 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink }}>{profile?.name}</div>
+              <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 18 }}>
                 Niveau {profile?.level || '?'} · {profile?.city || 'Non renseigné'}
               </div>
               
               {/* Stats avec les 4 couleurs */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                 {[
-                  { n: stats.total, l: 'Jouées', c: JUNTO.coral, bg: JUNTO.coralSoft },
-                  { n: stats.organized, l: 'Orga.', c: JUNTO.slate, bg: JUNTO.slateSoft },
-                  { n: stats.wins, l: 'Wins', c: JUNTO.teal, bg: JUNTO.tealSoft }
+                  { n: stats.total, l: 'Jouées', c: COLORS.primary, bg: COLORS.primarySoft },
+                  { n: stats.organized, l: 'Orga.', c: COLORS.violet, bg: COLORS.violetSoft },
+                  { n: stats.wins, l: 'Wins', c: COLORS.teal, bg: COLORS.tealSoft }
                 ].map((s) => (
                   <div key={s.l} style={{ background: s.bg, borderRadius: 14, padding: '14px 8px' }}>
                     <div style={{ fontSize: 22, fontWeight: 700, color: s.c }}>{s.n}</div>
-                    <div style={{ fontSize: 11, color: JUNTO.muted, fontWeight: 500 }}>{s.l}</div>
+                    <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500 }}>{s.l}</div>
                   </div>
                 ))}
               </div>
@@ -861,25 +841,25 @@ export default function PartiesPage() {
           {/* Joueurs favoris */}
           <div style={{ 
             display: 'flex',
-            background: JUNTO.white, 
+            background: COLORS.white, 
             borderRadius: 24, 
-            border: `2px solid ${JUNTO.border}`,
+            border: `2px solid ${COLORS.border}`,
             overflow: 'hidden',
             marginBottom: 20
           }}>
-            <div style={{ width: 5, background: JUNTO.slate, flexShrink: 0 }} />
+            <div style={{ width: 5, background: COLORS.violet, flexShrink: 0 }} />
             <div style={{ flex: 1, padding: 22 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: JUNTO.ink }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink }}>
                   ⭐ Joueurs favoris
                 </h3>
-                <Link href="/dashboard/joueurs" style={{ fontSize: 12, color: JUNTO.coral, textDecoration: 'none', fontWeight: 600 }}>
+                <Link href="/dashboard/activite" style={{ fontSize: 12, color: COLORS.primary, textDecoration: 'none', fontWeight: 600 }}>
                   Voir
                 </Link>
               </div>
               
               {favoritePlayers.length === 0 ? (
-                <p style={{ fontSize: 14, color: JUNTO.muted, margin: 0 }}>Aucun favori pour l'instant</p>
+                <p style={{ fontSize: 14, color: COLORS.muted, margin: 0 }}>Aucun favori pour l'instant</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {favoritePlayers.map((player, i) => (
@@ -891,8 +871,8 @@ export default function PartiesPage() {
                       }}>
                         <Avatar player={player} size={42} index={i} />
                         <div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink }}>{player.name}</div>
-                          <div style={{ fontSize: 12, color: JUNTO.muted }}>Niv. {player.level} · {player.city || ''}</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{player.name}</div>
+                          <div style={{ fontSize: 12, color: COLORS.muted }}>Niv. {player.level} · {player.city || ''}</div>
                         </div>
                       </div>
                     </Link>
@@ -906,21 +886,21 @@ export default function PartiesPage() {
           <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
             <div style={{ 
               display: 'flex',
-              background: JUNTO.white, 
+              background: COLORS.white, 
               borderRadius: 20, 
-              border: `2px solid ${JUNTO.border}`,
+              border: `2px solid ${COLORS.border}`,
               overflow: 'hidden',
               cursor: 'pointer',
               transition: `all 0.3s ${SPRING}`
             }}>
-              <div style={{ width: 5, background: JUNTO.amber, flexShrink: 0 }} />
+              <div style={{ width: 5, background: COLORS.amber, flexShrink: 0 }} />
               <div style={{ flex: 1, padding: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
                 <span style={{ fontSize: 28 }}>💡</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink }}>Boîte à idées</div>
-                  <div style={{ fontSize: 12, color: JUNTO.muted }}>Propose des améliorations</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>Boîte à idées</div>
+                  <div style={{ fontSize: 12, color: COLORS.muted }}>Propose des améliorations</div>
                 </div>
-                <span style={{ color: JUNTO.muted }}>›</span>
+                <span style={{ color: COLORS.muted }}>›</span>
               </div>
             </div>
           </Link>
@@ -928,21 +908,21 @@ export default function PartiesPage() {
       </div>
 
       <style jsx global>{`
-        @keyframes junto-breathe {
+        @keyframes dot-breathe {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.4); opacity: 0.7; }
         }
-        .junto-dot { animation: junto-breathe 3s ease-in-out infinite; }
+        .dot-breathe { animation: dot-breathe 3s ease-in-out infinite; }
         
-        @keyframes junto-loading {
+        @keyframes dot-loading {
           0%, 80%, 100% { transform: translateY(0); }
           40% { transform: translateY(-12px); }
         }
-        .junto-loading-dot { animation: junto-loading 1.4s ease-in-out infinite; }
-        .junto-loading-dot:nth-child(1) { animation-delay: 0s; }
-        .junto-loading-dot:nth-child(2) { animation-delay: 0.1s; }
-        .junto-loading-dot:nth-child(3) { animation-delay: 0.2s; }
-        .junto-loading-dot:nth-child(4) { animation-delay: 0.3s; }
+        .dot-loading { animation: dot-loading 1.4s ease-in-out infinite; }
+        .dot-loading:nth-child(1) { animation-delay: 0s; }
+        .dot-loading:nth-child(2) { animation-delay: 0.1s; }
+        .dot-loading:nth-child(3) { animation-delay: 0.2s; }
+        .dot-loading:nth-child(4) { animation-delay: 0.3s; }
 
         .page-container {
           display: flex;
@@ -966,27 +946,27 @@ export default function PartiesPage() {
         }
         
         .match-card:hover {
-          border-color: #ff5a5f !important;
+          border-color: ${COLORS.primary} !important;
           transform: translateY(-6px);
           box-shadow: 0 16px 32px rgba(0,0,0,0.08);
         }
         
         .match-list-item:hover {
-          background: #fff5f5;
-          border-color: #ff5a5f;
+          background: ${COLORS.primarySoft};
+          border-color: ${COLORS.primary};
           transform: translateX(4px);
         }
         
         .available-card:hover {
-          border-color: #00b8a9 !important;
+          border-color: ${COLORS.teal} !important;
           transform: translateY(-3px);
           box-shadow: 0 10px 24px rgba(0,0,0,0.06);
         }
         
-        .avatar-hover { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .avatar-hover { transition: all 0.3s ${SPRING}; }
         .avatar-hover:hover { transform: translateY(-6px) scale(1.1); z-index: 10 !important; }
         
-        .player-row:hover { background: #f5f5f5; }
+        .player-row:hover { background: ${COLORS.bgSoft}; }
         
         .ideas-mobile { display: block; }
         
