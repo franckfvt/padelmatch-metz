@@ -4,23 +4,28 @@ import { PWAProvider, InstallBanner, UpdateToast } from '@/app/components/pwa-pr
 
 
 export const metadata = {
-  title: 'Junto - Padel entre potes',
-  description: 'Organise des parties de padel avec tes potes en quelques clics',
+  title: '2×2 - Le padel entre amis',
+  description: 'Organise tes parties de padel en 30 secondes. Crée, partage, joue.',
   manifest: '/manifest.json',
-  themeColor: '#ff5a5f',
+  themeColor: '#0a0a0a',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Junto',
+    title: '2×2',
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    title: 'Junto - Padel entre potes',
-    description: 'Organise des parties de padel avec tes potes',
-    siteName: 'Junto',
+    title: '2×2 - Le padel entre amis',
+    description: 'Organise tes parties de padel en 30 secondes',
+    siteName: '2×2',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '2×2 - Le padel entre amis',
+    description: 'Organise tes parties de padel en 30 secondes',
   },
 }
 
@@ -29,7 +34,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#ff5a5f',
+  themeColor: '#0a0a0a',
   viewportFit: 'cover',
 }
 
@@ -39,18 +44,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* PWA Meta Tags */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#ff5a5f" />
+        <meta name="theme-color" content="#0a0a0a" />
         
         {/* iOS PWA */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Junto" />
+        <meta name="apple-mobile-web-app-title" content="2×2" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png" />
         <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192.png" />
         
-        {/* iOS Splash Screens (optionnel mais recommandé) */}
+        {/* iOS Splash Screens */}
         <link rel="apple-touch-startup-image" href="/splash/splash-1170x2532.png" 
           media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
         <link rel="apple-touch-startup-image" href="/splash/splash-1284x2778.png" 
@@ -63,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PWAProvider>
           {children}
           
-          {/* Composants PWA optionnels */}
+          {/* Composants PWA */}
           <InstallBanner />
           <UpdateToast />
         </PWAProvider>
