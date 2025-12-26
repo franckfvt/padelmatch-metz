@@ -2,11 +2,19 @@
 
 /**
  * ============================================
- * PAGE PROFIL PUBLIC - JUNTO STYLE
+ * PAGE PROFIL PUBLIC - 2×2 BRAND (OPTION A)
  * ============================================
  * 
  * Page affichée quand on scanne un QR code
  * ou qu'on partage un lien de profil
+ * 
+ * Design : Interface sobre + avatars carrés arrondis colorés
+ * 
+ * Fonctionnalités :
+ * - Affichage carte joueur (avatar carré, nom, niveau, position, ambiance)
+ * - Badges obtenus
+ * - CTA "Rejoindre 2×2" si visiteur non connecté
+ * - Boutons Partager/Retour si c'est son propre profil
  * 
  * ============================================
  */
@@ -16,33 +24,42 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
-// === JUNTO DESIGN TOKENS ===
-const JUNTO = {
-  coral: '#ff5a5f',
-  coralSoft: '#fff0f0',
-  coralGlow: 'rgba(255, 90, 95, 0.25)',
-  slate: '#3d4f5f',
-  slateSoft: '#f0f3f5',
-  amber: '#ffb400',
-  amberSoft: '#fff8e5',
-  teal: '#00b8a9',
-  tealSoft: '#e5f9f7',
+// === 2×2 DESIGN TOKENS ===
+const COLORS = {
+  // Players - LES SEULES COULEURS VIVES
+  p1: '#ff5a5f',  // Coral
+  p2: '#ffb400',  // Amber
+  p3: '#00b8a9',  // Teal
+  p4: '#7c5cff',  // Violet
+  
+  // Soft versions
+  p2Soft: '#fff8e5',
+  
+  // Interface sobre
   ink: '#1a1a1a',
   gray: '#6b7280',
   muted: '#9ca3af',
-  white: '#ffffff',
-  bg: '#fafafa',
+  
+  // Backgrounds
+  bg: '#f5f5f5',
+  bgSoft: '#fafafa',
+  card: '#ffffff',
+  cardDark: '#1a1a1a',
+  
+  // Borders
   border: '#e5e7eb',
+  
+  white: '#ffffff',
 }
 
-const AVATAR_COLORS = [JUNTO.coral, JUNTO.slate, JUNTO.amber, JUNTO.teal]
+const PLAYER_COLORS = [COLORS.p1, COLORS.p2, COLORS.p3, COLORS.p4]
 
 const AMBIANCE_CONFIG = {
-  chill: { emoji: '😌', label: 'Détente', color: JUNTO.teal },
-  loisir: { emoji: '😌', label: 'Détente', color: JUNTO.teal },
-  mix: { emoji: '⚡', label: 'Équilibré', color: JUNTO.amber },
-  competition: { emoji: '🔥', label: 'Compétition', color: JUNTO.coral },
-  compet: { emoji: '🔥', label: 'Compétition', color: JUNTO.coral }
+  chill: { emoji: '😌', label: 'Détente', color: COLORS.p3 },
+  loisir: { emoji: '😌', label: 'Détente', color: COLORS.p3 },
+  mix: { emoji: '⚡', label: 'Équilibré', color: COLORS.p2 },
+  competition: { emoji: '🔥', label: 'Compétition', color: COLORS.p1 },
+  compet: { emoji: '🔥', label: 'Compétition', color: COLORS.p1 }
 }
 
 const POSITION_CONFIG = {
@@ -53,18 +70,18 @@ const POSITION_CONFIG = {
   both: { emoji: '↔️', label: 'Polyvalent' }
 }
 
-// === COMPOSANT: Les 4 points ===
+// === COMPOSANT: Les 4 points animés ===
 function FourDots({ size = 8, gap = 4 }) {
   return (
     <div style={{ display: 'flex', gap }}>
-      {AVATAR_COLORS.map((c, i) => (
+      {PLAYER_COLORS.map((c, i) => (
         <div 
           key={i} 
-          className="junto-dot"
+          className="dot-breathe"
           style={{ 
             width: size, 
             height: size, 
-            borderRadius: '50%', 
+            borderRadius: size > 10 ? 4 : '50%', 
             background: c,
             animationDelay: `${i * 0.15}s`
           }} 
@@ -74,6 +91,7 @@ function FourDots({ size = 8, gap = 4 }) {
   )
 }
 
+// === PAGE PRINCIPALE ===
 export default function PublicProfileClient() {
   const params = useParams()
   const playerId = params?.id
@@ -88,11 +106,14 @@ export default function PublicProfileClient() {
     if (playerId) loadData()
   }, [playerId])
 
+  // === CHARGEMENT DES DONNÉES ===
   async function loadData() {
     try {
+      // Vérifier si l'utilisateur est connecté
       const { data: { session } } = await supabase.auth.getSession()
       setCurrentUser(session?.user || null)
 
+      // Charger le profil du joueur
       const { data, error: err } = await supabase
         .from('profiles')
         .select('*')
@@ -104,7 +125,7 @@ export default function PublicProfileClient() {
       } else {
         setProfile(data)
         
-        // Charger les badges
+        // Charger les badges du joueur
         const { data: badges } = await supabase
           .from('user_badges')
           .select(`badge_id, badge_definitions (id, name, emoji)`)
@@ -120,18 +141,19 @@ export default function PublicProfileClient() {
     }
   }
 
+  // === HELPERS ===
   function getAvatarColor(name) {
-    if (!name) return JUNTO.coral
-    return AVATAR_COLORS[name.charCodeAt(0) % 4]
+    if (!name) return COLORS.p1
+    return PLAYER_COLORS[name.charCodeAt(0) % 4]
   }
 
-  // Loading
+  // === LOADING STATE ===
   if (loading) {
     return (
       <div className="loading-page">
         <div className="loading-content">
           <div className="loading-dots">
-            {AVATAR_COLORS.map((c, i) => (
+            {PLAYER_COLORS.map((c, i) => (
               <div key={i} className="loading-dot" style={{ background: c, animationDelay: `${i * 0.1}s` }} />
             ))}
           </div>
@@ -143,15 +165,15 @@ export default function PublicProfileClient() {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(180deg, ${JUNTO.slate} 0%, #2a3a48 100%);
+            background: ${COLORS.cardDark};
             font-family: 'Satoshi', -apple-system, sans-serif;
           }
           .loading-content { text-align: center; }
           .loading-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; }
           .loading-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            border-radius: 6px;
             animation: loadBounce 1.4s ease-in-out infinite;
           }
           .loading-text { color: rgba(255,255,255,0.6); font-size: 14px; }
@@ -164,7 +186,7 @@ export default function PublicProfileClient() {
     )
   }
 
-  // Error
+  // === ERROR STATE ===
   if (error) {
     return (
       <div className="error-page">
@@ -173,7 +195,7 @@ export default function PublicProfileClient() {
           <h1 className="error-title">Joueur introuvable</h1>
           <p className="error-text">Ce profil n'existe pas ou a été supprimé.</p>
           <Link href="/" className="error-btn">
-            Découvrir Junto
+            Découvrir 2×2
           </Link>
         </div>
         <style jsx>{`
@@ -182,26 +204,26 @@ export default function PublicProfileClient() {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: ${JUNTO.bg};
+            background: ${COLORS.bg};
             padding: 20px;
             font-family: 'Satoshi', -apple-system, sans-serif;
           }
           .error-card {
-            background: ${JUNTO.white};
+            background: ${COLORS.white};
             border-radius: 24px;
             padding: 48px 40px;
             text-align: center;
             max-width: 360px;
-            border: 2px solid ${JUNTO.border};
+            border: 2px solid ${COLORS.border};
           }
           .error-emoji { font-size: 56px; margin-bottom: 20px; }
-          .error-title { font-size: 22px; font-weight: 700; color: ${JUNTO.ink}; margin: 0 0 8px; }
-          .error-text { font-size: 14px; color: ${JUNTO.gray}; margin: 0 0 28px; }
+          .error-title { font-size: 22px; font-weight: 700; color: ${COLORS.ink}; margin: 0 0 8px; }
+          .error-text { font-size: 14px; color: ${COLORS.gray}; margin: 0 0 28px; }
           .error-btn {
             display: inline-block;
             padding: 16px 32px;
-            background: ${JUNTO.coral};
-            color: ${JUNTO.white};
+            background: ${COLORS.ink};
+            color: ${COLORS.white};
             border-radius: 100px;
             text-decoration: none;
             font-weight: 700;
@@ -217,23 +239,23 @@ export default function PublicProfileClient() {
   const position = POSITION_CONFIG[profile?.position] || POSITION_CONFIG.both
   const isOwnProfile = currentUser?.id === playerId
 
+  // === RENDER ===
   return (
     <div className="public-profile">
       <div className="profile-container">
         
-        {/* Logo Junto */}
+        {/* Header - Logo 2×2 */}
         <div className="profile-header">
-          <div className="junto-logo">
-            <span>junto</span>
+          <div className="logo-2x2">
+            <span>2×2</span>
             <FourDots size={8} gap={4} />
           </div>
         </div>
 
         {/* Carte joueur */}
         <div className="player-card">
-          <div className="card-accent" />
           
-          {/* Avatar */}
+          {/* Avatar carré arrondi */}
           <div className="player-avatar" style={{ background: profile?.avatar_url ? 'transparent' : avatarColor }}>
             {profile?.avatar_url 
               ? <img src={profile.avatar_url} alt="" />
@@ -244,22 +266,27 @@ export default function PublicProfileClient() {
           {/* Nom */}
           <h1 className="player-name">{profile?.name || 'Joueur'}</h1>
           
-          {/* Ville */}
+          {/* Ville & Membre */}
           <p className="player-location">
-            {profile?.city ? `📍 ${profile.city}` : '🎾 Joueur Junto'}
+            {profile?.city ? `📍 ${profile.city}` : '🎾 Joueur 2×2'}
             {profile?.signup_number && ` · Membre #${profile.signup_number}`}
           </p>
 
-          {/* Niveau */}
+          {/* Niveau - Badge principal */}
           <div className="level-badge">
             <div className="level-value">{profile?.level || '?'}</div>
             <div className="level-label">Niveau</div>
           </div>
 
-          {/* Tags */}
+          {/* Tags position & ambiance */}
           <div className="player-tags">
             <span className="tag">{position.emoji} {position.label}</span>
-            <span className="tag amber">{ambiance.emoji} {ambiance.label}</span>
+            <span className="tag colored" style={{ 
+              background: `${ambiance.color}30`, 
+              color: ambiance.color 
+            }}>
+              {ambiance.emoji} {ambiance.label}
+            </span>
           </div>
         </div>
 
@@ -277,15 +304,16 @@ export default function PublicProfileClient() {
           </div>
         )}
 
-        {/* Actions */}
+        {/* Actions selon le contexte */}
         {isOwnProfile ? (
+          // C'est son propre profil
           <div className="actions-own">
             <button 
               className="btn-share"
               onClick={() => {
                 if (navigator.share) {
                   navigator.share({ 
-                    title: `${profile.name} - Junto`, 
+                    title: `${profile.name} - 2×2`, 
                     url: window.location.href 
                   })
                 } else {
@@ -296,14 +324,15 @@ export default function PublicProfileClient() {
             >
               📤 Partager ma carte
             </button>
-            <Link href="/dashboard/carte" className="btn-edit">
+            <Link href="/dashboard/carte" className="btn-back">
               ← Retour à ma carte
             </Link>
           </div>
         ) : (
+          // C'est un visiteur
           <div className="cta-section">
             <Link href="/" className="btn-join">
-              🎾 Rejoindre Junto
+              🎾 Rejoindre 2×2
             </Link>
             <p className="cta-subtext">Gratuit • Organise des parties de padel facilement</p>
           </div>
@@ -315,18 +344,19 @@ export default function PublicProfileClient() {
         </div>
       </div>
 
+      {/* === STYLES === */}
       <style jsx global>{`
-        @keyframes junto-dot {
+        @keyframes dot-breathe {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.3); opacity: 0.7; }
         }
-        .junto-dot { animation: junto-dot 3s ease-in-out infinite; }
+        .dot-breathe { animation: dot-breathe 3s ease-in-out infinite; }
       `}</style>
 
       <style jsx>{`
         .public-profile {
           min-height: 100vh;
-          background: linear-gradient(180deg, ${JUNTO.slate} 0%, #2a3a48 60%, ${JUNTO.bg} 60%);
+          background: linear-gradient(180deg, ${COLORS.cardDark} 0%, ${COLORS.cardDark} 55%, ${COLORS.bg} 55%);
           padding: 40px 20px 60px;
           font-family: 'Satoshi', -apple-system, sans-serif;
         }
@@ -343,35 +373,24 @@ export default function PublicProfileClient() {
           margin-bottom: 32px;
         }
 
-        .junto-logo {
+        .logo-2x2 {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
           color: rgba(255,255,255,0.8);
-          font-size: 22px;
-          font-weight: 700;
+          font-size: 24px;
+          font-weight: 900;
+          letter-spacing: -1px;
         }
 
         /* Carte joueur */
         .player-card {
-          background: linear-gradient(145deg, #4a5d6d 0%, ${JUNTO.slate} 100%);
+          background: ${COLORS.cardDark};
           border-radius: 28px;
           padding: 36px 28px;
           text-align: center;
-          position: relative;
           box-shadow: 0 25px 60px rgba(0,0,0,0.3);
-          border: 2px solid rgba(255,255,255,0.1);
           margin-bottom: 24px;
-        }
-
-        .card-accent {
-          position: absolute;
-          left: 0;
-          top: 28px;
-          bottom: 28px;
-          width: 6px;
-          background: ${JUNTO.coral};
-          border-radius: 0 4px 4px 0;
         }
 
         .player-avatar {
@@ -384,9 +403,8 @@ export default function PublicProfileClient() {
           justify-content: center;
           font-size: 44px;
           font-weight: 700;
-          color: ${JUNTO.white};
-          border: 4px solid rgba(255,255,255,0.2);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+          color: ${COLORS.white};
+          box-shadow: 0 12px 32px rgba(0,0,0,0.3);
           overflow: hidden;
         }
 
@@ -399,7 +417,7 @@ export default function PublicProfileClient() {
         .player-name {
           font-size: 28px;
           font-weight: 800;
-          color: ${JUNTO.white};
+          color: ${COLORS.white};
           margin: 0 0 8px;
           letter-spacing: -0.5px;
         }
@@ -412,23 +430,23 @@ export default function PublicProfileClient() {
 
         .level-badge {
           display: inline-block;
-          background: rgba(0, 184, 169, 0.15);
-          border: 2px solid ${JUNTO.teal};
+          background: ${COLORS.p3}20;
+          border: 2px solid ${COLORS.p3};
           border-radius: 20px;
-          padding: 18px 36px;
+          padding: 18px 40px;
           margin-bottom: 24px;
         }
 
         .level-value {
-          font-size: 48px;
+          font-size: 52px;
           font-weight: 900;
-          color: #4eeee0;
+          color: ${COLORS.p3};
           line-height: 1;
         }
 
         .level-label {
           font-size: 11px;
-          color: #4eeee0;
+          color: ${COLORS.p3};
           text-transform: uppercase;
           letter-spacing: 2px;
           margin-top: 8px;
@@ -450,24 +468,18 @@ export default function PublicProfileClient() {
           font-weight: 600;
         }
 
-        .tag.amber {
-          background: rgba(255, 180, 0, 0.2);
-          color: ${JUNTO.amber};
-        }
-
         /* Badges */
         .badges-section {
-          background: ${JUNTO.white};
+          background: ${COLORS.white};
           border-radius: 20px;
           padding: 20px;
-          border: 2px solid ${JUNTO.border};
           margin-bottom: 24px;
         }
 
         .badges-title {
           font-size: 14px;
           font-weight: 700;
-          color: ${JUNTO.ink};
+          color: ${COLORS.ink};
           margin-bottom: 14px;
           text-align: center;
         }
@@ -480,17 +492,17 @@ export default function PublicProfileClient() {
         }
 
         .badge-item {
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
-          background: ${JUNTO.amberSoft};
+          width: 52px;
+          height: 52px;
+          border-radius: 16px;
+          background: ${COLORS.p2Soft};
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 24px;
+          font-size: 26px;
         }
 
-        /* CTA */
+        /* CTA visiteur */
         .cta-section {
           text-align: center;
         }
@@ -499,25 +511,24 @@ export default function PublicProfileClient() {
           display: block;
           width: 100%;
           padding: 18px;
-          background: ${JUNTO.coral};
-          color: ${JUNTO.white};
+          background: ${COLORS.ink};
+          color: ${COLORS.white};
           border: none;
           border-radius: 16px;
           font-size: 17px;
           font-weight: 700;
           text-decoration: none;
           text-align: center;
-          box-shadow: 0 8px 24px ${JUNTO.coralGlow};
           margin-bottom: 16px;
         }
 
         .cta-subtext {
           font-size: 13px;
-          color: ${JUNTO.gray};
+          color: ${COLORS.gray};
           margin: 0;
         }
 
-        /* Own profile actions */
+        /* Actions profil propre */
         .actions-own {
           display: flex;
           flex-direction: column;
@@ -527,23 +538,22 @@ export default function PublicProfileClient() {
         .btn-share {
           width: 100%;
           padding: 18px;
-          background: ${JUNTO.coral};
-          color: ${JUNTO.white};
+          background: ${COLORS.ink};
+          color: ${COLORS.white};
           border: none;
           border-radius: 16px;
           font-size: 16px;
           font-weight: 700;
           cursor: pointer;
-          box-shadow: 0 8px 24px ${JUNTO.coralGlow};
         }
 
-        .btn-edit {
+        .btn-back {
           display: block;
           width: 100%;
           padding: 16px;
-          background: ${JUNTO.white};
-          color: ${JUNTO.gray};
-          border: 2px solid ${JUNTO.border};
+          background: ${COLORS.white};
+          color: ${COLORS.gray};
+          border: 2px solid ${COLORS.border};
           border-radius: 14px;
           font-size: 15px;
           font-weight: 600;
@@ -558,6 +568,7 @@ export default function PublicProfileClient() {
           padding-top: 32px;
         }
 
+        /* Responsive */
         @media (max-width: 480px) {
           .public-profile {
             padding: 32px 16px 48px;
@@ -572,7 +583,7 @@ export default function PublicProfileClient() {
           }
 
           .level-value {
-            font-size: 40px;
+            font-size: 44px;
           }
         }
       `}</style>

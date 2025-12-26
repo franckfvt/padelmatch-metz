@@ -1,10 +1,105 @@
 'use client'
 
+/**
+ * ============================================
+ * PAGE REJOINDRE MATCH - 2×2 BRAND (OPTION A)
+ * ============================================
+ * 
+ * Page affichée quand quelqu'un clique sur un lien
+ * de partage de partie (/join/[matchId])
+ * 
+ * Fonctionnalités :
+ * - Affichage des détails de la partie
+ * - Liste des joueurs (orga + participants + places vides)
+ * - Bouton rejoindre / Se connecter / Déjà inscrit / Complet
+ * - Redirection vers auth/onboarding si nécessaire
+ * 
+ * Design : Interface sobre + avatars carrés arrondis colorés
+ * 
+ * ============================================
+ */
+
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+// === 2×2 DESIGN TOKENS ===
+const COLORS = {
+  // Players - LES SEULES COULEURS VIVES
+  p1: '#ff5a5f',  // Coral
+  p2: '#ffb400',  // Amber
+  p3: '#00b8a9',  // Teal
+  p4: '#7c5cff',  // Violet
+  
+  // Soft versions
+  p1Soft: '#fff0f0',
+  p2Soft: '#fff8e5',
+  p3Soft: '#e5f9f7',
+  p4Soft: '#f0edff',
+  
+  // Interface sobre
+  ink: '#1a1a1a',
+  dark: '#2d2d2d',
+  gray: '#6b7280',
+  muted: '#9ca3af',
+  
+  // Backgrounds
+  bg: '#fafafa',
+  bgSoft: '#f5f5f5',
+  card: '#ffffff',
+  cardDark: '#1a1a1a',
+  
+  // Borders
+  border: '#e5e7eb',
+  
+  white: '#ffffff',
+}
+
+const PLAYER_COLORS = [COLORS.p1, COLORS.p2, COLORS.p3, COLORS.p4]
+
+const AMBIANCE_CONFIG = {
+  loisir: { label: 'Détente', emoji: '😌', color: COLORS.p3 },
+  chill: { label: 'Détente', emoji: '😌', color: COLORS.p3 },
+  mix: { label: 'Équilibré', emoji: '⚡', color: COLORS.p2 },
+  compet: { label: 'Compétitif', emoji: '🔥', color: COLORS.p1 },
+  competition: { label: 'Compétitif', emoji: '🔥', color: COLORS.p1 }
+}
+
+const POSITION_LABELS = {
+  droite: 'Droite',
+  right: 'Droite',
+  gauche: 'Gauche',
+  left: 'Gauche',
+  les_deux: 'D/G',
+  both: 'D/G'
+}
+
+const LEVEL_LABELS = {
+  'less6months': '1-2',
+  '6months2years': '3-4',
+  '2to5years': '5-6',
+  'more5years': '7+',
+  'all': 'Tous'
+}
+
+// === COMPOSANT: Les 4 dots animés ===
+function FourDots({ size = 10, gap = 5 }) {
+  return (
+    <div style={{ display: 'flex', gap }}>
+      {PLAYER_COLORS.map((c, i) => (
+        <div key={i} className="dot-breathe" style={{ 
+          width: size, height: size, 
+          borderRadius: size > 10 ? 4 : '50%', 
+          background: c,
+          animationDelay: `${i * 0.15}s`
+        }} />
+      ))}
+    </div>
+  )
+}
+
+// === PAGE PRINCIPALE ===
 export default function JoinMatchClient({ matchId }) {
   const router = useRouter()
   const [match, setMatch] = useState(null)
@@ -16,46 +111,7 @@ export default function JoinMatchClient({ matchId }) {
   const [error, setError] = useState('')
   const [alreadyJoined, setAlreadyJoined] = useState(false)
 
-  const experienceLabels = {
-    'less6months': 'Débutant',
-    '6months2years': 'Intermédiaire',
-    '2to5years': 'Confirmé',
-    'more5years': 'Expert'
-  }
-
-  const experienceEmojis = {
-    'less6months': '🌱',
-    '6months2years': '📈',
-    '2to5years': '💪',
-    'more5years': '🏆'
-  }
-
-  const levelLabels = {
-    'less6months': '1-2',
-    '6months2years': '3-4',
-    '2to5years': '5-6',
-    'more5years': '7+',
-    'all': 'Tous'
-  }
-
-  const ambianceLabels = {
-    'loisir': 'Détente',
-    'mix': 'Équilibré',
-    'compet': 'Compétitif'
-  }
-
-  const ambianceEmojis = {
-    'loisir': '😎',
-    'mix': '⚡',
-    'compet': '🏆'
-  }
-
-  const positionLabels = {
-    'droite': 'Droite',
-    'gauche': 'Gauche',
-    'les_deux': 'D/G'
-  }
-
+  // === CHARGEMENT DES DONNÉES ===
   useEffect(() => {
     loadData()
   }, [matchId])
@@ -67,8 +123,8 @@ export default function JoinMatchClient({ matchId }) {
         .from('matches')
         .select(`
           *,
-          clubs (id, name, address),
-          profiles!matches_organizer_id_fkey (id, name, experience, ambiance, reliability_score, level, position)
+          clubs (id, name, address, city),
+          profiles!matches_organizer_id_fkey (id, name, experience, ambiance, reliability_score, level, position, avatar_url)
         `)
         .eq('id', matchId)
         .single()
@@ -86,7 +142,7 @@ export default function JoinMatchClient({ matchId }) {
         .from('match_participants')
         .select(`
           *,
-          profiles (id, name, experience, ambiance, reliability_score, level, position)
+          profiles (id, name, experience, ambiance, reliability_score, level, position, avatar_url)
         `)
         .eq('match_id', matchId)
 
@@ -119,14 +175,18 @@ export default function JoinMatchClient({ matchId }) {
     }
   }
 
+  // === REJOINDRE LA PARTIE ===
   async function joinMatch() {
     if (!user) {
-      // Rediriger vers la connexion avec retour ici
+      // Sauvegarder la redirection et aller vers auth
+      sessionStorage.setItem('redirectAfterLogin', `/join/${matchId}`)
       router.push(`/auth?redirect=/join/${matchId}`)
       return
     }
 
-    if (!profile?.experience) {
+    if (!profile?.experience && !profile?.level) {
+      // Profil incomplet, aller vers onboarding
+      sessionStorage.setItem('redirectAfterOnboarding', `/join/${matchId}`)
       router.push(`/onboarding?redirect=/join/${matchId}`)
       return
     }
@@ -183,6 +243,7 @@ export default function JoinMatchClient({ matchId }) {
     }
   }
 
+  // === HELPERS ===
   function formatDate(dateStr) {
     const date = new Date(dateStr)
     return date.toLocaleDateString('fr-FR', {
@@ -197,72 +258,103 @@ export default function JoinMatchClient({ matchId }) {
   }
 
   function getReliabilityColor(score) {
-    if (score >= 90) return '#2e7d32'
-    if (score >= 70) return '#f59e0b'
-    return '#dc2626'
+    if (score >= 90) return COLORS.p3
+    if (score >= 70) return COLORS.p2
+    return COLORS.p1
   }
 
   function getLevel(profile) {
     if (profile?.level) return profile.level
-    if (profile?.experience) return levelLabels[profile.experience]
+    if (profile?.experience) return LEVEL_LABELS[profile.experience]
     return '?'
   }
 
+  function getAvatarColor(name, index) {
+    if (name) return PLAYER_COLORS[name.charCodeAt(0) % 4]
+    return PLAYER_COLORS[index % 4]
+  }
+
+  // === LOADING STATE ===
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f5f5f5',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
-          <div style={{ color: '#666' }}>Chargement de la partie...</div>
+      <div className="loading-page">
+        <div className="loading-content">
+          <div className="loading-dots">
+            {PLAYER_COLORS.map((c, i) => (
+              <div key={i} className="loading-dot" style={{ background: c, animationDelay: `${i * 0.1}s` }} />
+            ))}
+          </div>
+          <div className="loading-text">Chargement de la partie...</div>
         </div>
+        <style jsx>{`
+          .loading-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: ${COLORS.bg};
+            font-family: 'Satoshi', -apple-system, sans-serif;
+          }
+          .loading-content { text-align: center; }
+          .loading-dots { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+          .loading-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 6px;
+            animation: loadBounce 1.4s ease-in-out infinite;
+          }
+          .loading-text { color: ${COLORS.gray}; font-size: 14px; }
+          @keyframes loadBounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-14px); }
+          }
+        `}</style>
       </div>
     )
   }
 
+  // === ERROR STATE ===
   if (error && !match) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f5f5f5',
-        padding: 20,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}>
-        <div style={{
-          background: '#fff',
-          borderRadius: 24,
-          padding: 48,
-          textAlign: 'center',
-          maxWidth: 400
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-          <h1 style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>
-            Partie introuvable
-          </h1>
-          <p style={{ color: '#666', marginBottom: 24 }}>
-            {error}
-          </p>
-          <Link href="/" style={{
-            display: 'inline-block',
-            padding: '14px 28px',
-            background: '#1a1a1a',
-            color: '#fff',
-            borderRadius: 12,
-            textDecoration: 'none',
-            fontWeight: '600'
-          }}>
-            Retour à l'accueil
-          </Link>
+      <div className="error-page">
+        <div className="error-card">
+          <div className="error-emoji">😕</div>
+          <h1 className="error-title">Partie introuvable</h1>
+          <p className="error-text">{error}</p>
+          <Link href="/" className="error-btn">Retour à l'accueil</Link>
         </div>
+        <style jsx>{`
+          .error-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: ${COLORS.bg};
+            padding: 20px;
+            font-family: 'Satoshi', -apple-system, sans-serif;
+          }
+          .error-card {
+            background: ${COLORS.card};
+            border-radius: 24px;
+            padding: 48px 40px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+          }
+          .error-emoji { font-size: 56px; margin-bottom: 20px; }
+          .error-title { font-size: 22px; font-weight: 700; color: ${COLORS.ink}; margin: 0 0 12px; }
+          .error-text { color: ${COLORS.gray}; margin: 0 0 24px; font-size: 15px; }
+          .error-btn {
+            display: inline-block;
+            padding: 14px 28px;
+            background: ${COLORS.ink};
+            color: ${COLORS.white};
+            border-radius: 100px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+          }
+        `}</style>
       </div>
     )
   }
@@ -270,227 +362,105 @@ export default function JoinMatchClient({ matchId }) {
   const totalPlayers = 1 + participants.length
   const isFull = match.spots_available <= 0
   const pricePerPerson = match.price_total ? Math.round(match.price_total / 100 / match.spots_total) : 0
+  const ambiance = AMBIANCE_CONFIG[match.ambiance] || AMBIANCE_CONFIG.mix
 
+  // === RENDER ===
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f5f5f5',
-      padding: 20,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
-      <div style={{
-        maxWidth: 500,
-        margin: '0 auto',
-        paddingTop: 40
-      }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>🎾</div>
-            <div style={{ fontSize: 24, fontWeight: '700', color: '#1a1a1a' }}>
-              PadelMatch
+    <div className="join-page">
+      <div className="join-container">
+        
+        {/* Logo 2×2 */}
+        <div className="logo-header">
+          <Link href="/" className="logo-link">
+            <div className="logo-content">
+              <span className="logo-text">2×2</span>
+              <FourDots size={10} gap={5} />
             </div>
           </Link>
         </div>
 
         {/* Carte d'invitation */}
-        <div style={{
-          background: '#fff',
-          borderRadius: 24,
-          padding: 32,
-          marginBottom: 24,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
-        }}>
+        <div className="invite-card">
+          
           {/* Header invitation */}
-          <div style={{
-            textAlign: 'center',
-            marginBottom: 28,
-            paddingBottom: 28,
-            borderBottom: '1px solid #eee'
-          }}>
-            <div style={{ fontSize: 18, color: '#666', marginBottom: 8 }}>
+          <div className="invite-header">
+            <div className="invite-from">
               {match.profiles?.name} t'invite à jouer
             </div>
-            <h1 style={{
-              fontSize: 28,
-              fontWeight: '700',
-              color: '#1a1a1a',
-              margin: 0
-            }}>
-              Partie de Padel
-            </h1>
+            <h1 className="invite-title">Partie de Padel</h1>
           </div>
 
           {/* Infos principales */}
-          <div style={{ marginBottom: 28 }}>
+          <div className="info-section">
+            
             {/* Date */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              marginBottom: 16
-            }}>
-              <div style={{
-                width: 48,
-                height: 48,
-                background: '#f5f5f5',
-                borderRadius: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20
-              }}>
-                📅
-              </div>
-              <div>
-                <div style={{ fontWeight: '700', color: '#1a1a1a', fontSize: 17 }}>
-                  {formatDate(match.match_date)}
-                </div>
-                <div style={{ color: '#2e7d32', fontWeight: '600', fontSize: 20 }}>
-                  {formatTime(match.match_time)}
-                </div>
+            <div className="info-row">
+              <div className="info-icon">📅</div>
+              <div className="info-content">
+                <div className="info-main">{formatDate(match.match_date)}</div>
+                <div className="info-time">{formatTime(match.match_time)}</div>
               </div>
             </div>
 
             {/* Lieu */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              marginBottom: 16
-            }}>
-              <div style={{
-                width: 48,
-                height: 48,
-                background: '#f5f5f5',
-                borderRadius: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20
-              }}>
-                📍
-              </div>
-              <div>
-                <div style={{ fontWeight: '700', color: '#1a1a1a', fontSize: 17 }}>
-                  {match.clubs?.name}
-                </div>
-                <div style={{ color: '#666', fontSize: 14 }}>
-                  {match.clubs?.address}
-                </div>
+            <div className="info-row">
+              <div className="info-icon">📍</div>
+              <div className="info-content">
+                <div className="info-main">{match.clubs?.name || match.city || 'Lieu à définir'}</div>
+                {match.clubs?.address && <div className="info-sub">{match.clubs.address}</div>}
               </div>
             </div>
 
-            {/* Niveau et ambiance */}
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {/* Badges */}
+            <div className="badges-row">
               {match.level_required && match.level_required !== 'all' && (
-                <span style={{
-                  background: '#e8f5e9',
-                  color: '#2e7d32',
-                  padding: '10px 18px',
-                  borderRadius: 30,
-                  fontSize: 15,
-                  fontWeight: '600'
-                }}>
-                  ⭐ Niveau {levelLabels[match.level_required] || match.level_required}+
+                <span className="badge level">
+                  ⭐ Niveau {LEVEL_LABELS[match.level_required] || match.level_required}+
                 </span>
               )}
-              <span style={{
-                background: match.ambiance === 'compet' ? '#fef3c7' :
-                           match.ambiance === 'loisir' ? '#dbeafe' : '#f5f5f5',
-                color: match.ambiance === 'compet' ? '#92400e' :
-                       match.ambiance === 'loisir' ? '#1e40af' : '#666',
-                padding: '10px 18px',
-                borderRadius: 30,
-                fontSize: 15,
-                fontWeight: '600'
+              <span className="badge ambiance" style={{ 
+                background: `${ambiance.color}20`, 
+                color: ambiance.color 
               }}>
-                {ambianceEmojis[match.ambiance]} {ambianceLabels[match.ambiance]}
+                {ambiance.emoji} {ambiance.label}
               </span>
               {pricePerPerson > 0 && (
-                <span style={{
-                  background: '#fef3c7',
-                  color: '#92400e',
-                  padding: '10px 18px',
-                  borderRadius: 30,
-                  fontSize: 15,
-                  fontWeight: '600'
-                }}>
-                  💰 {pricePerPerson}€/pers
-                </span>
+                <span className="badge price">💰 {pricePerPerson}€/pers</span>
               )}
             </div>
           </div>
 
           {/* Joueurs */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 16
-            }}>
-              <span style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: '#999',
-                textTransform: 'uppercase'
-              }}>
-                Joueurs
-              </span>
-              <span style={{
-                background: isFull ? '#fef3c7' : '#e8f5e9',
-                color: isFull ? '#92400e' : '#2e7d32',
-                padding: '6px 14px',
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: '700'
-              }}>
+          <div className="players-section">
+            <div className="players-header">
+              <span className="players-label">Joueurs</span>
+              <span className={`players-count ${isFull ? 'full' : 'open'}`}>
                 {totalPlayers}/{match.spots_total}
               </span>
             </div>
 
-            <div style={{ display: 'grid', gap: 10 }}>
+            <div className="players-list">
+              
               {/* Organisateur */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: 14,
-                background: '#fafafa',
-                borderRadius: 14,
-                border: '2px solid #1a1a1a'
-              }}>
-                <div style={{
-                  width: 44,
-                  height: 44,
-                  background: '#1a1a1a',
-                  color: '#fff',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18
-                }}>
-                  👤
+              <div className="player-row orga">
+                <div className="player-avatar" style={{ background: getAvatarColor(match.profiles?.name, 0) }}>
+                  {match.profiles?.avatar_url ? (
+                    <img src={match.profiles.avatar_url} alt="" />
+                  ) : (
+                    match.profiles?.name?.[0]?.toUpperCase() || '?'
+                  )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', color: '#1a1a1a', marginBottom: 2 }}>
-                    {match.profiles?.name} ⭐
+                <div className="player-info">
+                  <div className="player-name">
+                    {match.profiles?.name}
+                    <span className="orga-badge">👑</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 12, color: '#2e7d32' }}>
-                      Niveau {getLevel(match.profiles)}
-                    </span>
+                  <div className="player-details">
+                    <span className="detail level">Niveau {getLevel(match.profiles)}</span>
                     {match.profiles?.position && (
-                      <span style={{ fontSize: 12, color: '#666' }}>
-                        • {positionLabels[match.profiles.position]}
-                      </span>
+                      <span className="detail">• {POSITION_LABELS[match.profiles.position]}</span>
                     )}
-                    <span style={{
-                      fontSize: 12,
-                      color: getReliabilityColor(match.profiles?.reliability_score || 100)
-                    }}>
+                    <span className="detail reliability" style={{ color: getReliabilityColor(match.profiles?.reliability_score || 100) }}>
                       • {match.profiles?.reliability_score || 100}% fiable
                     </span>
                   </div>
@@ -498,47 +468,23 @@ export default function JoinMatchClient({ matchId }) {
               </div>
 
               {/* Participants */}
-              {participants.map(p => (
-                <div
-                  key={p.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: 14,
-                    background: '#fafafa',
-                    borderRadius: 14
-                  }}
-                >
-                  <div style={{
-                    width: 44,
-                    height: 44,
-                    background: '#e5e5e5',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 18
-                  }}>
-                    👤
+              {participants.map((p, i) => (
+                <div key={p.id} className="player-row">
+                  <div className="player-avatar" style={{ background: getAvatarColor(p.profiles?.name, i + 1) }}>
+                    {p.profiles?.avatar_url ? (
+                      <img src={p.profiles.avatar_url} alt="" />
+                    ) : (
+                      p.profiles?.name?.[0]?.toUpperCase() || '?'
+                    )}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', color: '#1a1a1a', marginBottom: 2 }}>
-                      {p.profiles?.name}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 12, color: '#2e7d32' }}>
-                        Niveau {getLevel(p.profiles)}
-                      </span>
+                  <div className="player-info">
+                    <div className="player-name">{p.profiles?.name}</div>
+                    <div className="player-details">
+                      <span className="detail level">Niveau {getLevel(p.profiles)}</span>
                       {p.profiles?.position && (
-                        <span style={{ fontSize: 12, color: '#666' }}>
-                          • {positionLabels[p.profiles.position]}
-                        </span>
+                        <span className="detail">• {POSITION_LABELS[p.profiles.position]}</span>
                       )}
-                      <span style={{
-                        fontSize: 12,
-                        color: getReliabilityColor(p.profiles?.reliability_score || 100)
-                      }}>
+                      <span className="detail reliability" style={{ color: getReliabilityColor(p.profiles?.reliability_score || 100) }}>
                         • {p.profiles?.reliability_score || 100}% fiable
                       </span>
                     </div>
@@ -548,107 +494,452 @@ export default function JoinMatchClient({ matchId }) {
 
               {/* Places vides */}
               {Array.from({ length: match.spots_available }).map((_, i) => (
-                <div
-                  key={`empty-${i}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 20,
-                    border: '2px dashed #e5e5e5',
-                    borderRadius: 14,
-                    color: '#999',
-                    fontSize: 14
-                  }}
-                >
-                  Place disponible
+                <div key={`empty-${i}`} className="player-row empty">
+                  <div className="empty-icon">+</div>
+                  <span>Place disponible</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Bouton d'action */}
-          {error && (
-            <div style={{
-              background: '#fef2f2',
-              color: '#dc2626',
-              padding: '14px 16px',
-              borderRadius: 12,
-              fontSize: 14,
-              marginBottom: 16
-            }}>
-              {error}
-            </div>
+          {/* Message d'erreur */}
+          {error && match && (
+            <div className="error-message">{error}</div>
           )}
 
-          {alreadyJoined ? (
-            <div>
-              <div style={{
-                background: '#e8f5e9',
-                color: '#2e7d32',
-                padding: 20,
-                borderRadius: 14,
-                textAlign: 'center',
-                fontWeight: '600',
-                marginBottom: 12
-              }}>
-                ✓ Tu es inscrit à cette partie !
-              </div>
-              <Link href={`/dashboard/match/${matchId}`}>
-                <button style={{
-                  width: '100%',
-                  padding: '18px',
-                  background: '#1a1a1a',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 14,
-                  fontSize: 16,
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}>
+          {/* Bouton d'action */}
+          <div className="action-section">
+            {alreadyJoined ? (
+              <>
+                <div className="already-joined">✓ Tu es inscrit à cette partie !</div>
+                <Link href={`/dashboard/match/${matchId}`} className="btn-primary">
                   Voir la partie
-                </button>
-              </Link>
-            </div>
-          ) : isFull ? (
-            <div style={{
-              background: '#fef3c7',
-              color: '#92400e',
-              padding: 20,
-              borderRadius: 14,
-              textAlign: 'center',
-              fontWeight: '600'
-            }}>
-              Cette partie est complète
-            </div>
-          ) : (
-            <button
-              onClick={joinMatch}
-              disabled={joining}
-              style={{
-                width: '100%',
-                padding: '18px',
-                background: joining ? '#e5e5e5' : '#2e7d32',
-                color: joining ? '#999' : '#fff',
-                border: 'none',
-                borderRadius: 14,
-                fontSize: 16,
-                fontWeight: '600',
-                cursor: joining ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {joining ? 'Inscription...' : user ? 'Rejoindre cette partie' : 'Se connecter pour rejoindre'}
-            </button>
-          )}
+                </Link>
+              </>
+            ) : isFull ? (
+              <div className="match-full">Cette partie est complète</div>
+            ) : (
+              <button onClick={joinMatch} disabled={joining} className={`btn-join ${joining ? 'loading' : ''}`}>
+                {joining ? 'Inscription...' : user ? '🎾 Rejoindre cette partie' : '🔐 Se connecter pour rejoindre'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div style={{ textAlign: 'center', color: '#999', fontSize: 13 }}>
-          <Link href="/" style={{ color: '#666' }}>
-            En savoir plus sur PadelMatch
+        <div className="page-footer">
+          <Link href="/" className="footer-link">
+            En savoir plus sur 2×2
           </Link>
         </div>
       </div>
+
+      {/* === STYLES === */}
+      <style jsx global>{`
+        @keyframes dot-breathe {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.3); opacity: 0.7; }
+        }
+        .dot-breathe { animation: dot-breathe 3s ease-in-out infinite; }
+      `}</style>
+
+      <style jsx>{`
+        .join-page {
+          min-height: 100vh;
+          background: ${COLORS.bg};
+          padding: 20px;
+          font-family: 'Satoshi', -apple-system, sans-serif;
+        }
+
+        .join-container {
+          max-width: 500px;
+          margin: 0 auto;
+          padding-top: 40px;
+        }
+
+        /* Logo */
+        .logo-header {
+          text-align: center;
+          margin-bottom: 32px;
+        }
+
+        .logo-link {
+          text-decoration: none;
+          color: inherit;
+          display: inline-block;
+        }
+
+        .logo-content {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+        }
+
+        .logo-text {
+          font-size: 32px;
+          font-weight: 900;
+          color: ${COLORS.ink};
+          letter-spacing: -1px;
+        }
+
+        /* Invite Card */
+        .invite-card {
+          background: ${COLORS.card};
+          border-radius: 24px;
+          padding: 32px;
+          margin-bottom: 24px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+
+        .invite-header {
+          text-align: center;
+          margin-bottom: 28px;
+          padding-bottom: 28px;
+          border-bottom: 1px solid ${COLORS.border};
+        }
+
+        .invite-from {
+          font-size: 16px;
+          color: ${COLORS.gray};
+          margin-bottom: 8px;
+        }
+
+        .invite-title {
+          font-size: 28px;
+          font-weight: 800;
+          color: ${COLORS.ink};
+          margin: 0;
+        }
+
+        /* Info Section */
+        .info-section {
+          margin-bottom: 28px;
+        }
+
+        .info-row {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+
+        .info-icon {
+          width: 48px;
+          height: 48px;
+          background: ${COLORS.bgSoft};
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          flex-shrink: 0;
+        }
+
+        .info-content {
+          flex: 1;
+        }
+
+        .info-main {
+          font-weight: 700;
+          color: ${COLORS.ink};
+          font-size: 17px;
+        }
+
+        .info-time {
+          color: ${COLORS.p3};
+          font-weight: 700;
+          font-size: 20px;
+        }
+
+        .info-sub {
+          color: ${COLORS.gray};
+          font-size: 14px;
+          margin-top: 2px;
+        }
+
+        /* Badges */
+        .badges-row {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 20px;
+        }
+
+        .badge {
+          padding: 10px 18px;
+          border-radius: 100px;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .badge.level {
+          background: ${COLORS.p3Soft};
+          color: ${COLORS.p3};
+        }
+
+        .badge.price {
+          background: ${COLORS.p2Soft};
+          color: ${COLORS.p2};
+        }
+
+        /* Players Section */
+        .players-section {
+          margin-bottom: 28px;
+        }
+
+        .players-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+
+        .players-label {
+          font-size: 13px;
+          font-weight: 700;
+          color: ${COLORS.muted};
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .players-count {
+          padding: 6px 14px;
+          border-radius: 100px;
+          font-size: 14px;
+          font-weight: 700;
+        }
+
+        .players-count.open {
+          background: ${COLORS.p3Soft};
+          color: ${COLORS.p3};
+        }
+
+        .players-count.full {
+          background: ${COLORS.p2Soft};
+          color: ${COLORS.p2};
+        }
+
+        .players-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .player-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px;
+          background: ${COLORS.bgSoft};
+          border-radius: 16px;
+        }
+
+        .player-row.orga {
+          border: 2px solid ${COLORS.ink};
+          background: ${COLORS.card};
+        }
+
+        .player-row.empty {
+          justify-content: center;
+          border: 2px dashed ${COLORS.border};
+          background: transparent;
+          color: ${COLORS.muted};
+          font-size: 14px;
+          padding: 20px;
+        }
+
+        .empty-icon {
+          width: 32px;
+          height: 32px;
+          border: 2px dashed ${COLORS.border};
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          color: ${COLORS.muted};
+          margin-right: 8px;
+        }
+
+        .player-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          font-weight: 700;
+          color: ${COLORS.white};
+          flex-shrink: 0;
+          overflow: hidden;
+        }
+
+        .player-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .player-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .player-name {
+          font-weight: 600;
+          color: ${COLORS.ink};
+          font-size: 15px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .orga-badge {
+          font-size: 14px;
+        }
+
+        .player-details {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          margin-top: 4px;
+        }
+
+        .detail {
+          font-size: 12px;
+          color: ${COLORS.gray};
+        }
+
+        .detail.level {
+          color: ${COLORS.p3};
+          font-weight: 600;
+        }
+
+        /* Error Message */
+        .error-message {
+          background: ${COLORS.p1Soft};
+          color: ${COLORS.p1};
+          padding: 14px 16px;
+          border-radius: 12px;
+          font-size: 14px;
+          margin-bottom: 16px;
+          text-align: center;
+        }
+
+        /* Action Section */
+        .action-section {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .already-joined {
+          background: ${COLORS.p3Soft};
+          color: ${COLORS.p3};
+          padding: 20px;
+          border-radius: 16px;
+          text-align: center;
+          font-weight: 700;
+          font-size: 15px;
+        }
+
+        .match-full {
+          background: ${COLORS.p2Soft};
+          color: ${COLORS.p2};
+          padding: 20px;
+          border-radius: 16px;
+          text-align: center;
+          font-weight: 700;
+          font-size: 15px;
+        }
+
+        .btn-primary {
+          display: block;
+          width: 100%;
+          padding: 18px;
+          background: ${COLORS.ink};
+          color: ${COLORS.white};
+          border: none;
+          border-radius: 100px;
+          font-size: 16px;
+          font-weight: 700;
+          text-decoration: none;
+          text-align: center;
+          cursor: pointer;
+        }
+
+        .btn-join {
+          width: 100%;
+          padding: 18px;
+          background: ${COLORS.ink};
+          color: ${COLORS.white};
+          border: none;
+          border-radius: 100px;
+          font-size: 16px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-join:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .btn-join.loading {
+          background: ${COLORS.border};
+          color: ${COLORS.muted};
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+
+        /* Footer */
+        .page-footer {
+          text-align: center;
+          padding: 20px 0;
+        }
+
+        .footer-link {
+          color: ${COLORS.gray};
+          font-size: 13px;
+          text-decoration: none;
+        }
+
+        .footer-link:hover {
+          color: ${COLORS.ink};
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+          .join-container {
+            padding-top: 24px;
+          }
+
+          .invite-card {
+            padding: 24px;
+          }
+
+          .invite-title {
+            font-size: 24px;
+          }
+
+          .badges-row {
+            justify-content: center;
+          }
+
+          .player-details {
+            flex-direction: column;
+            gap: 2px;
+          }
+
+          .detail:not(:first-child)::before {
+            content: '';
+          }
+        }
+      `}</style>
     </div>
   )
 }

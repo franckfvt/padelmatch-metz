@@ -2,13 +2,14 @@
 
 /**
  * ============================================
- * PAGE PARTIES - 2×2 BRAND
+ * PAGE PARTIES - 2×2 BRAND (OPTION A)
  * ============================================
  * 
- * Design sobre : interface noir/blanc/gris
+ * Design : Interface sobre + avatars carrés arrondis colorés
  * Les SEULES couleurs = avatars des joueurs
  * 
- * Couleurs joueurs: Coral, Amber, Teal, Violet
+ * Avatars : Carrés arrondis avec initiale + prénom
+ * Couleurs : Coral, Amber, Teal, Violet
  * 
  * ============================================
  */
@@ -36,8 +37,7 @@ const COLORS = {
   // Backgrounds
   bg: '#f5f5f5',
   card: '#ffffff',
-  cardHover: '#fafafa',
-  subtle: '#f9fafb',
+  cardHover: '#eeeeee',
   
   // Borders
   border: '#e5e7eb',
@@ -74,7 +74,7 @@ export default function PartiesPage() {
 
   useEffect(() => { loadData() }, [])
 
-  // === LOGIQUE DATA (inchangée) ===
+  // === LOGIQUE DATA ===
   async function loadData() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/auth'); return }
@@ -186,7 +186,7 @@ export default function PartiesPage() {
     setFavoritePlayers((favoritesResult.data || []).map(f => f.profiles).filter(Boolean))
   }
 
-  // === HELPERS (inchangés) ===
+  // === HELPERS ===
   function getGreeting() {
     const hour = new Date().getHours()
     const firstName = profile?.name?.split(' ')[0] || ''
@@ -220,6 +220,11 @@ export default function PartiesPage() {
       }
     })
     return players
+  }
+
+  function getFirstName(name) {
+    if (!name) return ''
+    return name.split(' ')[0]
   }
 
   async function acceptRequest(req) {
@@ -272,43 +277,124 @@ export default function PartiesPage() {
 
   // === COMPOSANTS ===
   
-  // Avatar - LA SEULE COULEUR
-  function Avatar({ player, size = 40, overlap = false, index = 0 }) {
+  // Avatar carré arrondi - LA STAR DU DESIGN
+  function AvatarSlot({ player, index = 0, size = 'normal', showName = true }) {
     const bgColor = PLAYER_COLORS[index % 4]
+    const isLarge = size === 'large'
+    const isMini = size === 'mini'
+    
+    const dimensions = isMini ? 32 : isLarge ? 'auto' : 48
+    const borderRadius = isMini ? 10 : isLarge ? 16 : 14
+    const fontSize = isMini ? 14 : isLarge ? 24 : 18
+    const nameSize = isLarge ? 12 : 10
     
     if (!player) {
       return (
         <div style={{
-          width: size, height: size, borderRadius: '50%',
-          background: COLORS.bg, border: `2px dashed ${COLORS.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: size * 0.4, color: COLORS.muted, fontWeight: 600,
-          marginLeft: overlap && index > 0 ? -10 : 0,
-          position: 'relative', zIndex: 4 - index, flexShrink: 0
-        }}>?</div>
+          width: isMini ? dimensions : '100%',
+          height: isMini ? dimensions : undefined,
+          aspectRatio: isMini ? undefined : '1',
+          borderRadius,
+          background: COLORS.bg,
+          border: `2px dashed ${COLORS.border}`,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: COLORS.muted,
+          fontSize: isMini ? 12 : 18,
+          fontWeight: 600,
+          flexShrink: 0
+        }}>
+          <span>?</span>
+          {showName && !isMini && (
+            <span style={{ fontSize: nameSize, marginTop: 4, color: COLORS.muted }}>
+              {index === 0 ? '1 place' : ''}
+            </span>
+          )}
+        </div>
       )
     }
     
     return (
-      <div className="avatar-hover" style={{
-        width: size, height: size, borderRadius: '50%',
+      <div className="avatar-slot" style={{
+        width: isMini ? dimensions : '100%',
+        height: isMini ? dimensions : undefined,
+        aspectRatio: isMini ? undefined : '1',
+        borderRadius,
         background: player.avatar_url ? COLORS.bg : bgColor,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: size * 0.4, fontWeight: 700, color: COLORS.white,
-        overflow: 'hidden', border: `3px solid ${COLORS.white}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        marginLeft: overlap && index > 0 ? -10 : 0,
-        position: 'relative', zIndex: 4 - index, flexShrink: 0
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: COLORS.white,
+        fontSize,
+        fontWeight: 700,
+        overflow: 'hidden',
+        position: 'relative',
+        flexShrink: 0
       }}>
-        {player.avatar_url 
-          ? <img src={player.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : player.name?.[0]?.toUpperCase()
-        }
+        {player.avatar_url ? (
+          <img src={player.avatar_url} alt="" style={{ 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover',
+            position: 'absolute',
+            top: 0,
+            left: 0
+          }} />
+        ) : (
+          <>
+            <span>{player.name?.[0]?.toUpperCase()}</span>
+            {showName && !isMini && (
+              <span style={{ 
+                fontSize: nameSize, 
+                marginTop: 3, 
+                color: 'rgba(255,255,255,0.9)',
+                fontWeight: 600,
+                maxWidth: '90%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {getFirstName(player.name)}
+              </span>
+            )}
+          </>
+        )}
       </div>
     )
   }
 
-  // Match Card - sobre
+  // Avatar rond pour sidebar/liste (plus petit)
+  function AvatarRound({ player, size = 44, index = 0 }) {
+    const bgColor = PLAYER_COLORS[index % 4]
+    
+    return (
+      <div style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: player?.avatar_url ? COLORS.bg : bgColor,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: COLORS.white,
+        fontSize: size * 0.4,
+        fontWeight: 700,
+        overflow: 'hidden',
+        flexShrink: 0
+      }}>
+        {player?.avatar_url ? (
+          <img src={player.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          player?.name?.[0]?.toUpperCase() || '?'
+        )}
+      </div>
+    )
+  }
+
+  // Match Card - avec grille d'avatars carrés
   function MatchCard({ match, isOrganizer = false }) {
     const players = getMatchPlayers(match)
     const allSlots = [...players]
@@ -319,53 +405,55 @@ export default function PartiesPage() {
       <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
         <div className="match-card" style={{ 
           background: COLORS.bg,
-          borderRadius: 16, 
+          borderRadius: 24, 
           padding: 20,
           cursor: 'pointer',
           transition: 'all 0.2s ease',
           height: '100%'
         }}>
-          {/* Header: Date/Heure + Badge */}
+          {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
             <div>
-              <div style={{ fontSize: 12, color: COLORS.gray, fontWeight: 500, marginBottom: 2 }}>
+              <div style={{ fontSize: 13, color: COLORS.gray, fontWeight: 500, marginBottom: 2 }}>
                 {formatDate(match.match_date)}
               </div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: COLORS.ink, letterSpacing: -1 }}>
+              <div style={{ fontSize: 32, fontWeight: 900, color: COLORS.ink, letterSpacing: -1, lineHeight: 1 }}>
                 {formatTime(match.match_time)}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               {isOrganizer && (
                 <span style={{ 
-                  background: COLORS.white, 
-                  border: `1px solid ${COLORS.border}`,
+                  background: COLORS.white,
                   color: COLORS.gray, 
-                  padding: '5px 10px', borderRadius: 100, 
-                  fontSize: 11, fontWeight: 600
+                  padding: '6px 12px', borderRadius: 100, 
+                  fontSize: 12, fontWeight: 600
                 }}>👑 Orga</span>
               )}
               {spotsLeft > 0 && (
                 <span style={{ 
-                  background: COLORS.white, 
-                  border: `1px solid ${COLORS.border}`,
+                  background: COLORS.white,
                   color: COLORS.gray, 
-                  padding: '5px 10px', borderRadius: 100, 
-                  fontSize: 11, fontWeight: 600
+                  padding: '6px 12px', borderRadius: 100, 
+                  fontSize: 12, fontWeight: 600
                 }}>{spotsLeft} place{spotsLeft > 1 ? 's' : ''}</span>
               )}
             </div>
           </div>
           
           {/* Location */}
-          <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 16 }}>
+          <div style={{ fontSize: 15, color: COLORS.gray, marginBottom: 18 }}>
             📍 {getMatchLocation(match)}
           </div>
           
-          {/* 4 Avatars - seules couleurs */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          {/* Grille 4 avatars carrés */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(4, 1fr)', 
+            gap: 10 
+          }}>
             {allSlots.map((player, idx) => (
-              <Avatar key={idx} player={player} size={44} index={idx} />
+              <AvatarSlot key={idx} player={player} index={idx} size="large" showName={true} />
             ))}
           </div>
         </div>
@@ -373,7 +461,7 @@ export default function PartiesPage() {
     )
   }
 
-  // Liste item - sobre
+  // Liste item compact
   function MatchListItem({ match, isOrganizer = false }) {
     const players = getMatchPlayers(match)
     const allSlots = [...players]
@@ -387,38 +475,36 @@ export default function PartiesPage() {
           gap: 16,
           padding: '14px 16px',
           background: COLORS.bg,
-          borderRadius: 12,
+          borderRadius: 16,
           cursor: 'pointer',
           transition: 'all 0.2s ease'
         }}>
           {/* Date/Heure */}
           <div style={{ textAlign: 'center', minWidth: 55 }}>
             <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
           </div>
           
           {/* Location */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {getMatchLocation(match)}
             </div>
           </div>
           
-          {/* Mini avatars */}
-          <div style={{ display: 'flex', flexShrink: 0 }}>
+          {/* Mini avatars carrés */}
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
             {allSlots.map((player, idx) => (
-              <Avatar key={idx} player={player} size={28} overlap={true} index={idx} />
+              <AvatarSlot key={idx} player={player} index={idx} size="mini" showName={false} />
             ))}
           </div>
           
-          {/* Badge Orga */}
           {isOrganizer && (
             <span style={{ 
-              background: COLORS.white, 
-              border: `1px solid ${COLORS.border}`,
+              background: COLORS.white,
               color: COLORS.gray, 
-              padding: '4px 8px', borderRadius: 100, 
-              fontSize: 10, fontWeight: 600, flexShrink: 0
+              padding: '4px 10px', borderRadius: 100, 
+              fontSize: 11, fontWeight: 600, flexShrink: 0
             }}>👑</span>
           )}
         </div>
@@ -427,7 +513,7 @@ export default function PartiesPage() {
   }
 
   // Card parties disponibles
-  function AvailableMatchCard({ match }) {
+  function AvailableMatchItem({ match }) {
     const players = getMatchPlayers(match)
     const allSlots = [...players]
     while (allSlots.length < 4) allSlots.push(null)
@@ -435,42 +521,42 @@ export default function PartiesPage() {
     
     return (
       <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
-        <div className="available-card" style={{
+        <div className="available-item" style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          padding: 16,
-          borderBottom: `1px solid ${COLORS.borderLight}`,
+          gap: 14,
+          padding: '14px 16px',
+          borderRadius: 16,
           cursor: 'pointer',
           transition: 'all 0.2s ease'
         }}>
           {/* Date/Heure */}
           <div style={{ textAlign: 'center', minWidth: 50 }}>
             <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
           </div>
           
           {/* Info */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
               {getMatchLocation(match)}
             </div>
-            <div style={{ fontSize: 12, color: COLORS.muted }}>
-              par {match.profiles?.name?.split(' ')[0] || 'Anonyme'}
+            <div style={{ fontSize: 13, color: COLORS.muted }}>
+              par {getFirstName(match.profiles?.name) || 'Anonyme'}
             </div>
           </div>
           
           {/* Mini avatars */}
-          <div style={{ display: 'flex', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
             {allSlots.map((player, idx) => (
-              <Avatar key={idx} player={player} size={24} overlap={true} index={idx} />
+              <AvatarSlot key={idx} player={player} index={idx} size="mini" showName={false} />
             ))}
           </div>
           
           {/* Places */}
           <span style={{ 
-            fontSize: 12, fontWeight: 600, color: COLORS.gray,
-            whiteSpace: 'nowrap'
+            fontSize: 14, fontWeight: 600, color: COLORS.gray,
+            whiteSpace: 'nowrap', minWidth: 60, textAlign: 'right'
           }}>
             {spotsLeft} place{spotsLeft > 1 ? 's' : ''}
           </span>
@@ -485,7 +571,7 @@ export default function PartiesPage() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           {PLAYER_COLORS.map((color, i) => (
-            <div key={i} className="dot-loading" style={{ width: 14, height: 14, borderRadius: '50%', background: color }} />
+            <div key={i} className="dot-loading" style={{ width: 16, height: 16, borderRadius: 6, background: color }} />
           ))}
         </div>
         <div style={{ color: COLORS.gray, fontSize: 15 }}>Chargement...</div>
@@ -501,27 +587,29 @@ export default function PartiesPage() {
         <div className="main-column">
           
           {/* Greeting */}
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 20px', color: COLORS.ink }}>
+          <h1 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 4px', color: COLORS.ink }}>
             {getGreeting()}
           </h1>
+          <p style={{ fontSize: 15, color: COLORS.gray, margin: '0 0 20px' }}>
+            {myUpcomingMatches.length} partie{myUpcomingMatches.length > 1 ? 's' : ''} à venir
+          </p>
 
           {/* ======================== */}
-          {/* HERO - SOBRE */}
+          {/* HERO */}
           {/* ======================== */}
           <div style={{ 
             background: COLORS.card,
             borderRadius: 20, 
-            border: `1px solid ${COLORS.border}`,
-            padding: 24,
+            padding: 20,
             marginBottom: 24,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            gap: 20,
+            gap: 16,
             flexWrap: 'wrap'
           }}>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink, margin: '0 0 4px' }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink, margin: '0 0 4px' }}>
                 Organise une partie
               </h2>
               <p style={{ fontSize: 14, color: COLORS.gray, margin: 0 }}>
@@ -529,17 +617,14 @@ export default function PartiesPage() {
               </p>
             </div>
             
-            <Link href="/dashboard/matches/create" style={{ 
-              padding: '14px 28px', 
+            <Link href="/dashboard/matches/create" className="hero-btn" style={{ 
+              padding: '14px 24px', 
               background: COLORS.ink, 
               color: COLORS.white, 
-              borderRadius: 100, 
+              borderRadius: 14, 
               fontSize: 15, 
               fontWeight: 700, 
               textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
               whiteSpace: 'nowrap',
               transition: 'all 0.2s ease'
             }}>
@@ -548,45 +633,149 @@ export default function PartiesPage() {
           </div>
 
           {/* ======================== */}
+          {/* ACTIONS EN ATTENTE */}
+          {/* ======================== */}
+          {getTotalPendingActions() > 0 && (
+            <div style={{ 
+              background: COLORS.card,
+              border: `2px solid ${COLORS.ink}`,
+              borderRadius: 20, 
+              padding: 20,
+              marginBottom: 24
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                  🔔 Actions en attente
+                </h3>
+                <span style={{
+                  background: COLORS.p1, color: COLORS.white,
+                  width: 24, height: 24, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, fontWeight: 700
+                }}>
+                  {getTotalPendingActions()}
+                </span>
+              </div>
+              
+              {/* Demandes de joueurs */}
+              {pendingActions.requestsToReview.map((req, idx) => (
+                <div key={req.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  background: COLORS.bg,
+                  padding: '14px 16px',
+                  borderRadius: 16,
+                  marginBottom: 10
+                }}>
+                  <AvatarSlot player={req.profiles} index={idx} size="mini" showName={false} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ display: 'block', fontSize: 14, color: COLORS.ink }}>
+                      {getFirstName(req.profiles?.name)} veut rejoindre
+                    </strong>
+                    <span style={{ fontSize: 12, color: COLORS.gray }}>
+                      {formatDate(req.matches?.match_date)} · {req.matches?.clubs?.name || 'Lieu à définir'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button onClick={(e) => { e.preventDefault(); acceptRequest(req) }} style={{
+                      background: COLORS.ink, color: COLORS.white,
+                      padding: '10px 18px', borderRadius: 100,
+                      fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer'
+                    }}>OK</button>
+                    <button onClick={(e) => { e.preventDefault(); refuseRequest(req) }} style={{
+                      background: COLORS.white, color: COLORS.gray,
+                      padding: '10px 18px', borderRadius: 100,
+                      fontSize: 13, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
+                    }}>Non</button>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Invitations sans réponse */}
+              {pendingActions.invitesToFollow.map((inv, idx) => (
+                <div key={inv.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  background: COLORS.bg,
+                  padding: '14px 16px',
+                  borderRadius: 16,
+                  marginBottom: 10
+                }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    background: COLORS.p2, color: COLORS.white,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 700, flexShrink: 0
+                  }}>
+                    {(inv.invitee_name || inv.invited_name)?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ display: 'block', fontSize: 14, color: COLORS.ink }}>
+                      {getFirstName(inv.invitee_name || inv.invited_name) || 'Invité'} n'a pas répondu
+                    </strong>
+                    <span style={{ fontSize: 12, color: COLORS.muted }}>
+                      Invité il y a {inv.daysSince} jours · {formatDate(inv.matches?.match_date)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button style={{
+                      background: COLORS.white, color: COLORS.gray,
+                      padding: '8px 14px', borderRadius: 100,
+                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
+                    }}>Relancer</button>
+                    <button onClick={(e) => { e.preventDefault(); cancelInvite(inv) }} style={{
+                      background: COLORS.white, color: COLORS.gray,
+                      padding: '8px 14px', borderRadius: 100,
+                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
+                    }}>Annuler</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ======================== */}
           {/* TES PROCHAINES PARTIES */}
           {/* ======================== */}
           {myUpcomingMatches.length > 0 && (
             <div style={{ 
               background: COLORS.card,
-              borderRadius: 20, 
-              border: `1px solid ${COLORS.border}`,
+              borderRadius: 24, 
               padding: 24,
               marginBottom: 24
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink }}>
                   🗓️ Tes prochaines parties
                 </h2>
                 <span style={{ 
-                  background: COLORS.bg, 
-                  color: COLORS.ink,
-                  padding: '4px 12px', borderRadius: 100,
-                  fontSize: 13, fontWeight: 600
+                  background: COLORS.ink, 
+                  color: COLORS.white,
+                  width: 28, height: 28, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, fontWeight: 700
                 }}>
                   {myUpcomingMatches.length}
                 </span>
               </div>
 
-              {/* Cards pour les 3 premières */}
+              {/* Cards grille */}
               <div className="matches-grid">
                 {visibleMatches.map((match) => (
                   <MatchCard key={match.id} match={match} isOrganizer={match.organizer_id === user?.id} />
                 ))}
               </div>
 
-              {/* Liste simplifiée pour les suivantes */}
+              {/* Liste pour les suivantes */}
               {showAllMatches && hiddenMatches.length > 0 && (
                 <div style={{ 
                   display: 'flex', 
                   flexDirection: 'column', 
-                  gap: 8, 
-                  paddingTop: 16, 
-                  marginTop: 16, 
+                  gap: 10, 
+                  paddingTop: 20, 
+                  marginTop: 20, 
                   borderTop: `1px solid ${COLORS.border}` 
                 }}>
                   {hiddenMatches.map((match) => (
@@ -595,16 +784,16 @@ export default function PartiesPage() {
                 </div>
               )}
 
-              {/* Bouton voir plus/moins */}
+              {/* Bouton voir plus */}
               {hiddenMatches.length > 0 && (
                 <button
                   onClick={() => setShowAllMatches(!showAllMatches)}
                   style={{
                     width: '100%',
-                    padding: '14px',
+                    padding: '16px',
                     background: COLORS.bg,
                     border: 'none',
-                    borderRadius: 12,
+                    borderRadius: 14,
                     fontSize: 14,
                     fontWeight: 600,
                     color: COLORS.gray,
@@ -620,130 +809,20 @@ export default function PartiesPage() {
           )}
 
           {/* ======================== */}
-          {/* ACTIONS EN ATTENTE */}
-          {/* ======================== */}
-          {getTotalPendingActions() > 0 && (
-            <div style={{ 
-              background: COLORS.card,
-              border: `2px solid ${COLORS.ink}`,
-              borderRadius: 20, 
-              padding: 20,
-              marginBottom: 24
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  🔔 Actions en attente
-                  <span style={{
-                    background: COLORS.ink, color: COLORS.white,
-                    width: 22, height: 22, borderRadius: '50%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 700
-                  }}>
-                    {getTotalPendingActions()}
-                  </span>
-                </h3>
-              </div>
-              
-              {/* Demandes de joueurs */}
-              {pendingActions.requestsToReview.map((req) => (
-                <div key={req.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  background: COLORS.bg,
-                  padding: '14px 16px',
-                  borderRadius: 14,
-                  marginBottom: 10
-                }}>
-                  <Avatar player={req.profiles} size={40} index={0} />
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ display: 'block', fontSize: 14, color: COLORS.ink }}>
-                      {req.profiles?.name} veut rejoindre
-                    </strong>
-                    <span style={{ fontSize: 12, color: COLORS.gray }}>
-                      {formatDate(req.matches?.match_date)} · {req.matches?.clubs?.name || 'Lieu à définir'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => acceptRequest(req)} style={{
-                      background: COLORS.ink, color: COLORS.white,
-                      padding: '8px 16px', borderRadius: 100,
-                      fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer'
-                    }}>Accepter</button>
-                    <button onClick={() => refuseRequest(req)} style={{
-                      background: COLORS.white, color: COLORS.gray,
-                      padding: '8px 16px', borderRadius: 100,
-                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
-                    }}>Refuser</button>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Invitations sans réponse */}
-              {pendingActions.invitesToFollow.map((inv) => (
-                <div key={inv.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  background: COLORS.bg,
-                  padding: '14px 16px',
-                  borderRadius: 14,
-                  marginBottom: 10
-                }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: '50%',
-                    background: COLORS.p2, color: COLORS.white,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 16, fontWeight: 700
-                  }}>
-                    {(inv.invitee_name || inv.invited_name)?.[0]?.toUpperCase() || '?'}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ display: 'block', fontSize: 14, color: COLORS.ink }}>
-                      {inv.invitee_name || inv.invited_name || 'Invité'} n'a pas répondu
-                    </strong>
-                    {inv.invitee_email && (
-                      <span style={{ fontSize: 11, color: COLORS.gray, display: 'block' }}>
-                        ✉️ {inv.invitee_email}
-                      </span>
-                    )}
-                    <span style={{ fontSize: 12, color: COLORS.muted }}>
-                      Invité il y a {inv.daysSince} jours · {formatDate(inv.matches?.match_date)}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button style={{
-                      background: COLORS.white, color: COLORS.gray,
-                      padding: '8px 14px', borderRadius: 100,
-                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
-                    }}>Relancer</button>
-                    <button onClick={() => cancelInvite(inv)} style={{
-                      background: COLORS.white, color: COLORS.gray,
-                      padding: '8px 14px', borderRadius: 100,
-                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
-                    }}>Annuler</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ======================== */}
           {/* PARTIES À REJOINDRE */}
           {/* ======================== */}
           <div style={{ 
             background: COLORS.card,
-            borderRadius: 20, 
-            border: `1px solid ${COLORS.border}`,
+            borderRadius: 24, 
             overflow: 'hidden',
             marginBottom: 24
           }}>
             {/* Header */}
             <div style={{ padding: '20px 24px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink }}>
                 🎾 Parties à rejoindre
               </h2>
-              <Link href="/dashboard/explore" style={{ fontSize: 13, color: COLORS.ink, textDecoration: 'none', fontWeight: 600 }}>
+              <Link href="/dashboard/explore" style={{ fontSize: 14, color: COLORS.ink, textDecoration: 'none', fontWeight: 600 }}>
                 Voir tout →
               </Link>
             </div>
@@ -759,8 +838,9 @@ export default function PartiesPage() {
                 <button
                   key={f.id}
                   onClick={() => setFilterDate(f.id)}
+                  className="filter-btn"
                   style={{
-                    padding: '8px 16px',
+                    padding: '10px 18px',
                     borderRadius: 100,
                     border: 'none',
                     background: filterDate === f.id ? COLORS.ink : COLORS.bg,
@@ -779,14 +859,15 @@ export default function PartiesPage() {
 
             {/* Liste */}
             {filteredAvailable.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-                <p style={{ color: COLORS.gray, margin: 0, fontSize: 15 }}>Aucune partie disponible pour le moment</p>
+              <div style={{ textAlign: 'center', padding: '50px 20px' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+                <p style={{ color: COLORS.gray, margin: 0, fontSize: 15 }}>Aucune partie disponible</p>
+                <p style={{ color: COLORS.muted, margin: '8px 0 0', fontSize: 13 }}>Essaie un autre filtre ou crée ta propre partie</p>
               </div>
             ) : (
-              <div>
+              <div style={{ padding: '8px 12px' }}>
                 {filteredAvailable.slice(0, 5).map(match => (
-                  <AvailableMatchCard key={match.id} match={match} />
+                  <AvailableMatchItem key={match.id} match={match} />
                 ))}
               </div>
             )}
@@ -796,8 +877,7 @@ export default function PartiesPage() {
           <Link href="/dashboard/ideas" className="ideas-mobile" style={{ textDecoration: 'none' }}>
             <div style={{ 
               background: COLORS.card,
-              borderRadius: 16, 
-              border: `1px solid ${COLORS.border}`,
+              borderRadius: 20, 
               padding: 18,
               display: 'flex',
               alignItems: 'center',
@@ -821,13 +901,12 @@ export default function PartiesPage() {
           {/* Profil Card */}
           <div style={{ 
             background: COLORS.card,
-            borderRadius: 20, 
-            border: `1px solid ${COLORS.border}`,
+            borderRadius: 24, 
             padding: 24,
             marginBottom: 16,
             textAlign: 'center'
           }}>
-            {/* Avatar - seule couleur */}
+            {/* Avatar profil */}
             <div style={{ 
               width: 72, height: 72, borderRadius: '50%', 
               background: profile?.avatar_url ? COLORS.bg : COLORS.p1,
@@ -841,20 +920,20 @@ export default function PartiesPage() {
               }
             </div>
             <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink }}>{profile?.name}</div>
-            <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 18 }}>
+            <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 20 }}>
               Niveau {profile?.level || '?'} · {profile?.city || 'Non renseigné'}
             </div>
             
-            {/* Stats sobres - noir/blanc */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {/* Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {[
                 { n: stats.total, l: 'Matchs' },
                 { n: stats.organized, l: 'Orga.' },
                 { n: stats.wins, l: 'Wins' }
               ].map((s) => (
-                <div key={s.l} style={{ background: COLORS.bg, borderRadius: 12, padding: '14px 8px' }}>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.ink }}>{s.n}</div>
-                  <div style={{ fontSize: 10, color: COLORS.muted, fontWeight: 500 }}>{s.l}</div>
+                <div key={s.l} style={{ background: COLORS.bg, borderRadius: 14, padding: '16px 8px' }}>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: COLORS.ink }}>{s.n}</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500, marginTop: 2 }}>{s.l}</div>
                 </div>
               ))}
             </div>
@@ -864,7 +943,6 @@ export default function PartiesPage() {
           <div style={{ 
             background: COLORS.card,
             borderRadius: 20, 
-            border: `1px solid ${COLORS.border}`,
             padding: 20,
             marginBottom: 16
           }}>
@@ -872,7 +950,7 @@ export default function PartiesPage() {
               <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink }}>
                 ⭐ Joueurs favoris
               </h3>
-              <Link href="/dashboard/activite" style={{ fontSize: 12, color: COLORS.ink, textDecoration: 'none', fontWeight: 600 }}>
+              <Link href="/dashboard/activite" style={{ fontSize: 13, color: COLORS.ink, textDecoration: 'none', fontWeight: 600 }}>
                 Voir
               </Link>
             </div>
@@ -880,15 +958,26 @@ export default function PartiesPage() {
             {favoritePlayers.length === 0 ? (
               <p style={{ fontSize: 14, color: COLORS.muted, margin: 0 }}>Aucun favori pour l'instant</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {favoritePlayers.map((player, i) => (
                   <Link href={`/player/${player.id}`} key={player.id} style={{ textDecoration: 'none' }}>
-                    <div className="player-row" style={{ 
+                    <div className="favorite-row" style={{ 
                       display: 'flex', alignItems: 'center', gap: 12, 
-                      cursor: 'pointer', padding: 8, marginLeft: -8, marginRight: -8,
-                      borderRadius: 12, transition: 'all 0.2s ease'
+                      cursor: 'pointer', padding: 10, marginLeft: -10, marginRight: -10,
+                      borderRadius: 14, transition: 'all 0.2s ease'
                     }}>
-                      <Avatar player={player} size={42} index={i} />
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 12,
+                        background: player.avatar_url ? COLORS.bg : PLAYER_COLORS[i % 4],
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: COLORS.white, fontSize: 18, fontWeight: 700,
+                        overflow: 'hidden', flexShrink: 0
+                      }}>
+                        {player.avatar_url 
+                          ? <img src={player.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : player.name?.[0]?.toUpperCase()
+                        }
+                      </div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{player.name}</div>
                         <div style={{ fontSize: 12, color: COLORS.muted }}>Niv. {player.level} · {player.city || ''}</div>
@@ -902,10 +991,9 @@ export default function PartiesPage() {
 
           {/* Boîte à idées */}
           <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
-            <div style={{ 
+            <div className="ideas-card" style={{ 
               background: COLORS.card,
-              borderRadius: 16, 
-              border: `1px solid ${COLORS.border}`,
+              borderRadius: 20, 
               padding: 18,
               display: 'flex',
               alignItems: 'center',
@@ -938,35 +1026,52 @@ export default function PartiesPage() {
         .page-container {
           display: flex;
           gap: 24px;
-          max-width: 1100px;
+          max-width: 1200px;
           margin: 0 auto;
         }
         
         .main-column { flex: 1; min-width: 0; }
-        .sidebar { width: 300px; flex-shrink: 0; display: none; }
+        .sidebar { width: 320px; flex-shrink: 0; display: none; }
         
         .matches-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 12px;
+          gap: 14px;
         }
         
         .match-card:hover {
-          background: #eee;
+          background: ${COLORS.cardHover};
+          transform: translateY(-2px);
         }
         
         .match-list-item:hover {
-          background: #eee;
+          background: ${COLORS.cardHover};
         }
         
-        .available-card:hover {
+        .available-item:hover {
           background: ${COLORS.bg};
         }
         
-        .avatar-hover { transition: transform 0.2s ease; }
-        .avatar-hover:hover { transform: translateY(-3px); z-index: 10 !important; }
+        .avatar-slot {
+          transition: transform 0.2s ease;
+        }
         
-        .player-row:hover { background: ${COLORS.bg}; }
+        .match-card:hover .avatar-slot {
+          transform: translateY(-2px);
+        }
+        
+        .favorite-row:hover { 
+          background: ${COLORS.bg}; 
+        }
+        
+        .ideas-card:hover {
+          background: ${COLORS.bg};
+        }
+        
+        .hero-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
         
         .ideas-mobile { display: block; }
         
@@ -976,16 +1081,20 @@ export default function PartiesPage() {
         }
         .filters-row::-webkit-scrollbar { display: none; }
         
+        /* Tablet */
         @media (min-width: 640px) {
           .matches-grid { grid-template-columns: repeat(2, 1fr); }
         }
         
+        /* Desktop */
         @media (min-width: 1024px) {
           .sidebar { display: block; }
           .ideas-mobile { display: none; }
+          .matches-grid { grid-template-columns: repeat(2, 1fr); }
         }
         
-        @media (min-width: 1200px) {
+        /* Large desktop */
+        @media (min-width: 1280px) {
           .matches-grid { grid-template-columns: repeat(3, 1fr); }
         }
       `}</style>

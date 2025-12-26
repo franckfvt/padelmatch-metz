@@ -2,12 +2,12 @@
 
 /**
  * ============================================
- * PAGE: Modifier mon profil - SIMPLIFIÉE V3
+ * PAGE: Modifier mon profil - 2×2 BRAND
  * ============================================
  * 
- * - Avatar = Lettre + couleur automatique
- * - Option photo si souhaité
- * - Toutes les infos modifiables
+ * - Avatar carré arrondi avec couleur auto
+ * - Option upload photo
+ * - Toutes infos modifiables
  * 
  * ============================================
  */
@@ -17,21 +17,46 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-// Couleurs automatiques basées sur la première lettre du nom
-const LETTER_COLORS = {
-  A: '#3b82f6', B: '#22c55e', C: '#f59e0b', D: '#a855f7',
-  E: '#ef4444', F: '#06b6d4', G: '#ec4899', H: '#14b8a6',
-  I: '#3b82f6', J: '#22c55e', K: '#f59e0b', L: '#a855f7',
-  M: '#ef4444', N: '#06b6d4', O: '#ec4899', P: '#14b8a6',
-  Q: '#3b82f6', R: '#22c55e', S: '#f59e0b', T: '#a855f7',
-  U: '#ef4444', V: '#06b6d4', W: '#ec4899', X: '#14b8a6',
-  Y: '#3b82f6', Z: '#22c55e'
+// === 2×2 DESIGN TOKENS ===
+const COLORS = {
+  p1: '#ff5a5f',  // Coral
+  p2: '#ffb400',  // Amber
+  p3: '#00b8a9',  // Teal
+  p4: '#7c5cff',  // Violet
+  
+  p1Soft: '#fff0f0',
+  p2Soft: '#fff8e5',
+  p3Soft: '#e5f9f7',
+  p4Soft: '#f0edff',
+  
+  ink: '#1a1a1a',
+  gray: '#6b7280',
+  muted: '#9ca3af',
+  bg: '#fafafa',
+  bgSoft: '#f5f5f5',
+  card: '#ffffff',
+  border: '#e5e7eb',
+  white: '#ffffff',
 }
 
-function getColorForName(name) {
-  const letter = (name || 'A')[0].toUpperCase()
-  return LETTER_COLORS[letter] || '#3b82f6'
+const PLAYER_COLORS = [COLORS.p1, COLORS.p2, COLORS.p3, COLORS.p4]
+
+function getAvatarColor(name) {
+  if (!name) return COLORS.p1
+  return PLAYER_COLORS[name.charCodeAt(0) % 4]
 }
+
+const POSITION_OPTIONS = [
+  { id: 'left', label: 'Gauche', emoji: '⬅️' },
+  { id: 'right', label: 'Droite', emoji: '➡️' },
+  { id: 'both', label: 'Les deux', emoji: '↔️' }
+]
+
+const AMBIANCE_OPTIONS = [
+  { id: 'loisir', label: 'Détente', emoji: '😌', color: COLORS.p3 },
+  { id: 'mix', label: 'Équilibré', emoji: '⚡', color: COLORS.p2 },
+  { id: 'compet', label: 'Compétitif', emoji: '🔥', color: COLORS.p1 }
+]
 
 export default function EditProfilePage() {
   const router = useRouter()
@@ -42,7 +67,6 @@ export default function EditProfilePage() {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState(null)
 
-  // Formulaire
   const [form, setForm] = useState({
     name: '',
     bio: '',
@@ -52,18 +76,6 @@ export default function EditProfilePage() {
     ambiance: 'mix',
     avatar_url: ''
   })
-
-  const positionOptions = [
-    { id: 'left', label: 'Gauche', emoji: '⬅️' },
-    { id: 'right', label: 'Droite', emoji: '➡️' },
-    { id: 'both', label: 'Les deux', emoji: '↔️' }
-  ]
-
-  const ambianceOptions = [
-    { id: 'loisir', label: 'Détente', emoji: '😎', color: '#22c55e' },
-    { id: 'mix', label: 'Équilibré', emoji: '⚡', color: '#3b82f6' },
-    { id: 'compet', label: 'Compétitif', emoji: '🏆', color: '#f59e0b' }
-  ]
 
   useEffect(() => {
     loadData()
@@ -79,15 +91,11 @@ export default function EditProfilePage() {
 
       setUser(session.user)
 
-      const { data: profileData, error } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single()
-
-      if (error) {
-        console.error('Error loading profile:', error)
-      }
 
       if (profileData) {
         setForm({
@@ -129,22 +137,16 @@ export default function EditProfilePage() {
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
       
-      // Upload directement à la racine du bucket (pas dans un sous-dossier)
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, file, { 
-          upsert: true,
-          cacheControl: '3600'
-        })
+        .upload(fileName, file, { upsert: true, cacheControl: '3600' })
 
       if (uploadError) {
-        console.error('Upload error:', uploadError)
         setMessage({ type: 'error', text: 'Erreur upload: ' + uploadError.message })
         setUploading(false)
         return
       }
 
-      // Obtenir l'URL publique
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName)
@@ -153,7 +155,6 @@ export default function EditProfilePage() {
       setMessage({ type: 'success', text: 'Photo uploadée !' })
 
     } catch (error) {
-      console.error('Error uploading:', error)
       setMessage({ type: 'error', text: 'Erreur lors de l\'upload' })
     } finally {
       setUploading(false)
@@ -190,367 +191,416 @@ export default function EditProfilePage() {
         .eq('id', user.id)
 
       if (error) {
-        console.error('Save error:', error)
         setMessage({ type: 'error', text: 'Erreur: ' + error.message })
         setSaving(false)
         return
       }
 
       setMessage({ type: 'success', text: 'Profil mis à jour !' })
-      
-      setTimeout(() => {
-        router.push('/dashboard/me')
-      }, 1000)
+      setTimeout(() => router.push('/dashboard/me'), 1000)
 
     } catch (error) {
-      console.error('Error saving profile:', error)
       setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde' })
     } finally {
       setSaving(false)
     }
   }
 
-  // Couleur automatique basée sur le nom
-  const avatarColor = getColorForName(form.name)
+  const avatarColor = getAvatarColor(form.name)
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>✏️</div>
-        <div style={{ color: '#64748b' }}>Chargement...</div>
+      <div className="loading-page">
+        <div className="loading-dots">
+          {PLAYER_COLORS.map((c, i) => (
+            <div key={i} className="loading-dot" style={{ background: c, animationDelay: `${i * 0.1}s` }} />
+          ))}
+        </div>
+        <div className="loading-text">Chargement...</div>
+        <style jsx>{`
+          .loading-page { padding: 40px; text-align: center; font-family: 'Satoshi', -apple-system, sans-serif; }
+          .loading-dots { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+          .loading-dot { width: 14px; height: 14px; border-radius: 5px; animation: loadBounce 1.4s ease-in-out infinite; }
+          .loading-text { color: ${COLORS.gray}; font-size: 14px; }
+          @keyframes loadBounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-12px); } }
+        `}</style>
       </div>
     )
   }
 
   return (
-    <div>
+    <div className="edit-page">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <Link href="/dashboard/me" style={{ 
-            color: '#64748b', 
-            textDecoration: 'none', 
-            fontSize: 14,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            marginBottom: 8
-          }}>
-            ← Annuler
-          </Link>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#1a1a2e' }}>
-            Modifier le profil
-          </h1>
+      <div className="header">
+        <div className="header-left">
+          <Link href="/dashboard/me" className="back-link">← Annuler</Link>
+          <h1 className="title">Modifier le profil</h1>
         </div>
-        <button
-          onClick={saveProfile}
-          disabled={saving}
-          style={{
-            padding: '10px 20px',
-            background: saving ? '#e2e8f0' : 'linear-gradient(135deg, #22c55e, #16a34a)',
-            color: saving ? '#94a3b8' : '#fff',
-            border: 'none',
-            borderRadius: 10,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: saving ? 'not-allowed' : 'pointer'
-          }}
-        >
+        <button onClick={saveProfile} disabled={saving} className={`save-btn ${saving ? 'loading' : ''}`}>
           {saving ? 'Enregistrement...' : 'Enregistrer'}
         </button>
       </div>
 
       {/* Message */}
       {message && (
-        <div style={{
-          padding: 14,
-          borderRadius: 12,
-          marginBottom: 20,
-          background: message.type === 'success' ? '#f0fdf4' : '#fef2f2',
-          border: `1px solid ${message.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
-          color: message.type === 'success' ? '#166534' : '#dc2626',
-          fontSize: 14
-        }}>
-          {message.text}
-        </div>
+        <div className={`message ${message.type}`}>{message.text}</div>
       )}
 
       {/* Avatar Section */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-        border: '1px solid #e2e8f0',
-        textAlign: 'center'
-      }}>
-        {/* Avatar actuel */}
-        <div style={{ marginBottom: 16 }}>
+      <div className="card avatar-section">
+        <div className="avatar-preview">
           {form.avatar_url ? (
-            <img
-              src={form.avatar_url}
-              alt="Avatar"
-              style={{
-                width: 100,
-                height: 100,
-                borderRadius: '50%',
-                objectFit: 'cover',
-                border: `3px solid ${avatarColor}`
-              }}
-            />
+            <img src={form.avatar_url} alt="Avatar" className="avatar-img" style={{ borderColor: avatarColor }} />
           ) : (
-            <div style={{
-              width: 100,
-              height: 100,
-              borderRadius: '50%',
-              background: `linear-gradient(135deg, ${avatarColor}, ${avatarColor}cc)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 44,
-              fontWeight: 700,
-              color: '#fff',
-              margin: '0 auto',
-              border: '3px solid #e2e8f0'
-            }}>
+            <div className="avatar-letter" style={{ background: avatarColor }}>
               {form.name?.[0]?.toUpperCase() || '?'}
             </div>
           )}
         </div>
 
-        {/* Boutons photo */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          style={{ display: 'none' }}
-        />
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            style={{
-              padding: '10px 16px',
-              background: '#f1f5f9',
-              color: '#475569',
-              border: 'none',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
+        <div className="avatar-buttons">
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="btn-secondary">
             {uploading ? '⏳ Upload...' : '📷 Ajouter une photo'}
           </button>
-
           {form.avatar_url && (
-            <button
-              onClick={removePhoto}
-              style={{
-                padding: '10px 16px',
-                background: '#fef2f2',
-                color: '#dc2626',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              🗑️ Retirer
-            </button>
+            <button onClick={removePhoto} className="btn-danger">🗑️ Retirer</button>
           )}
         </div>
-
-        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10 }}>
-          Sans photo, ton avatar affiche ta première lettre avec une couleur unique
-        </div>
+        <div className="avatar-hint">Sans photo, ton avatar affiche ta première lettre</div>
       </div>
 
       {/* Infos de base */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-        border: '1px solid #e2e8f0'
-      }}>
-        {/* Nom */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
-            Nom *
-          </label>
+      <div className="card">
+        <div className="form-group">
+          <label>Nom *</label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Ton prénom ou pseudo"
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              border: '1px solid #e2e8f0',
-              borderRadius: 12,
-              fontSize: 15,
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
           />
         </div>
 
-        {/* Bio */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
-            Bio
-          </label>
+        <div className="form-group">
+          <label>Bio</label>
           <textarea
             value={form.bio || ''}
             onChange={(e) => setForm({ ...form, bio: e.target.value })}
             placeholder="Quelques mots sur toi..."
             rows={3}
             maxLength={200}
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              border: '1px solid #e2e8f0',
-              borderRadius: 12,
-              fontSize: 15,
-              outline: 'none',
-              resize: 'vertical',
-              boxSizing: 'border-box',
-              fontFamily: 'inherit'
-            }}
           />
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4, textAlign: 'right' }}>
-            {(form.bio || '').length}/200
-          </div>
+          <div className="char-count">{(form.bio || '').length}/200</div>
         </div>
 
-        {/* Ville */}
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>
-            Ville
-          </label>
+        <div className="form-group">
+          <label>Ville</label>
           <input
             type="text"
             value={form.city || ''}
             onChange={(e) => setForm({ ...form, city: e.target.value })}
             placeholder="Ex: Metz"
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              border: '1px solid #e2e8f0',
-              borderRadius: 12,
-              fontSize: 15,
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
           />
         </div>
       </div>
 
       {/* Niveau */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-        border: '1px solid #e2e8f0'
-      }}>
-        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 12 }}>
-          ⭐ Niveau : {form.level}/10
-        </label>
-        
+      <div className="card">
+        <label className="card-label">⭐ Niveau : {form.level}/10</label>
         <input
           type="range"
           min="1"
           max="10"
           value={form.level}
           onChange={(e) => setForm({ ...form, level: parseInt(e.target.value) })}
-          style={{
-            width: '100%',
-            height: 8,
-            borderRadius: 4,
-            outline: 'none',
-            cursor: 'pointer',
-            accentColor: '#22c55e'
-          }}
+          className="level-slider"
         />
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Débutant</span>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Expert</span>
+        <div className="level-labels">
+          <span>Débutant</span>
+          <span>Expert</span>
         </div>
       </div>
 
       {/* Position */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-        border: '1px solid #e2e8f0'
-      }}>
-        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 12 }}>
-          🎯 Position préférée
-        </label>
-        
-        <div style={{ display: 'flex', gap: 8 }}>
-          {positionOptions.map(opt => (
+      <div className="card">
+        <label className="card-label">🎯 Position préférée</label>
+        <div className="option-btns">
+          {POSITION_OPTIONS.map(opt => (
             <button
               key={opt.id}
               onClick={() => setForm({ ...form, position: opt.id })}
-              style={{
-                flex: 1,
-                padding: '14px 12px',
-                border: form.position === opt.id ? '2px solid #1a1a2e' : '1px solid #e2e8f0',
-                borderRadius: 12,
-                background: form.position === opt.id ? '#f8fafc' : '#fff',
-                cursor: 'pointer',
-                textAlign: 'center'
-              }}
+              className={`option-btn ${form.position === opt.id ? 'selected' : ''}`}
             >
-              <div style={{ fontSize: 24, marginBottom: 4 }}>{opt.emoji}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>{opt.label}</div>
+              <div className="option-emoji">{opt.emoji}</div>
+              <div className="option-label">{opt.label}</div>
             </button>
           ))}
         </div>
       </div>
 
       {/* Ambiance */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-        border: '1px solid #e2e8f0'
-      }}>
-        <label style={{ fontSize: 13, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 12 }}>
-          🎮 Ambiance de jeu
-        </label>
-        
-        <div style={{ display: 'flex', gap: 8 }}>
-          {ambianceOptions.map(opt => (
+      <div className="card">
+        <label className="card-label">🎮 Ambiance de jeu</label>
+        <div className="option-btns">
+          {AMBIANCE_OPTIONS.map(opt => (
             <button
               key={opt.id}
               onClick={() => setForm({ ...form, ambiance: opt.id })}
+              className={`option-btn ${form.ambiance === opt.id ? 'selected' : ''}`}
               style={{
-                flex: 1,
-                padding: '14px 12px',
-                border: form.ambiance === opt.id ? `2px solid ${opt.color}` : '1px solid #e2e8f0',
-                borderRadius: 12,
-                background: form.ambiance === opt.id ? opt.color + '15' : '#fff',
-                cursor: 'pointer',
-                textAlign: 'center'
+                borderColor: form.ambiance === opt.id ? opt.color : COLORS.border,
+                background: form.ambiance === opt.id ? `${opt.color}15` : COLORS.card
               }}
             >
-              <div style={{ fontSize: 24, marginBottom: 4 }}>{opt.emoji}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>{opt.label}</div>
+              <div className="option-emoji">{opt.emoji}</div>
+              <div className="option-label">{opt.label}</div>
             </button>
           ))}
         </div>
       </div>
+
+      <style jsx>{`
+        .edit-page {
+          font-family: 'Satoshi', -apple-system, sans-serif;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+        }
+
+        .header-left {}
+
+        .back-link {
+          color: ${COLORS.gray};
+          text-decoration: none;
+          font-size: 14px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          margin-bottom: 8px;
+        }
+
+        .title {
+          font-size: 24px;
+          font-weight: 700;
+          margin: 0;
+          color: ${COLORS.ink};
+        }
+
+        .save-btn {
+          padding: 10px 20px;
+          background: ${COLORS.ink};
+          color: ${COLORS.white};
+          border: none;
+          border-radius: 100px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+        }
+
+        .save-btn.loading {
+          background: ${COLORS.border};
+          color: ${COLORS.muted};
+          cursor: not-allowed;
+        }
+
+        .message {
+          padding: 14px;
+          border-radius: 12px;
+          margin-bottom: 20px;
+          font-size: 14px;
+        }
+
+        .message.success {
+          background: ${COLORS.p3Soft};
+          color: ${COLORS.p3};
+        }
+
+        .message.error {
+          background: ${COLORS.p1Soft};
+          color: ${COLORS.p1};
+        }
+
+        .card {
+          background: ${COLORS.card};
+          border-radius: 16px;
+          padding: 20px;
+          margin-bottom: 16px;
+          border: 1px solid ${COLORS.border};
+        }
+
+        .avatar-section {
+          text-align: center;
+        }
+
+        .avatar-preview {
+          margin-bottom: 16px;
+        }
+
+        .avatar-img {
+          width: 100px;
+          height: 100px;
+          border-radius: 28px;
+          object-fit: cover;
+          border: 3px solid;
+        }
+
+        .avatar-letter {
+          width: 100px;
+          height: 100px;
+          border-radius: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 44px;
+          font-weight: 700;
+          color: ${COLORS.white};
+          margin: 0 auto;
+        }
+
+        .avatar-buttons {
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+        }
+
+        .btn-secondary {
+          padding: 10px 16px;
+          background: ${COLORS.bgSoft};
+          color: ${COLORS.gray};
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+        }
+
+        .btn-danger {
+          padding: 10px 16px;
+          background: ${COLORS.p1Soft};
+          color: ${COLORS.p1};
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+        }
+
+        .avatar-hint {
+          font-size: 11px;
+          color: ${COLORS.muted};
+          margin-top: 10px;
+        }
+
+        .form-group {
+          margin-bottom: 16px;
+        }
+
+        .form-group:last-child {
+          margin-bottom: 0;
+        }
+
+        .form-group label {
+          font-size: 13px;
+          font-weight: 600;
+          color: ${COLORS.gray};
+          display: block;
+          margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+          width: 100%;
+          padding: 14px 16px;
+          border: 1px solid ${COLORS.border};
+          border-radius: 12px;
+          font-size: 15px;
+          outline: none;
+          box-sizing: border-box;
+          font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+          border-color: ${COLORS.ink};
+        }
+
+        .form-group textarea {
+          resize: vertical;
+        }
+
+        .char-count {
+          font-size: 12px;
+          color: ${COLORS.muted};
+          margin-top: 4px;
+          text-align: right;
+        }
+
+        .card-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: ${COLORS.gray};
+          display: block;
+          margin-bottom: 12px;
+        }
+
+        .level-slider {
+          width: 100%;
+          height: 8px;
+          border-radius: 4px;
+          outline: none;
+          cursor: pointer;
+          accent-color: ${COLORS.ink};
+        }
+
+        .level-labels {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 8px;
+          font-size: 12px;
+          color: ${COLORS.muted};
+        }
+
+        .option-btns {
+          display: flex;
+          gap: 8px;
+        }
+
+        .option-btn {
+          flex: 1;
+          padding: 14px 12px;
+          border: 2px solid ${COLORS.border};
+          border-radius: 12px;
+          background: ${COLORS.card};
+          cursor: pointer;
+          text-align: center;
+          font-family: inherit;
+        }
+
+        .option-btn.selected {
+          border-color: ${COLORS.ink};
+          background: ${COLORS.bgSoft};
+        }
+
+        .option-emoji {
+          font-size: 24px;
+          margin-bottom: 4px;
+        }
+
+        .option-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: ${COLORS.ink};
+        }
+      `}</style>
     </div>
   )
 }

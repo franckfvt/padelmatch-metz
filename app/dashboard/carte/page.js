@@ -2,13 +2,19 @@
 
 /**
  * ============================================
- * PAGE MA CARTE - JUNTO BRAND v4
+ * PAGE MA CARTE - 2×2 BRAND (OPTION A)
  * ============================================
  * 
- * Structure validée :
- * - 2 colonnes desktop (carte sticky + contenu scroll)
- * - Sections empilées visibles sans tabs
- * - Carte simplifiée sans stats
+ * Design : Interface sobre + avatars carrés arrondis colorés
+ * Layout : 2 colonnes (carte sticky + contenu scroll)
+ * 
+ * Fonctionnalités complètes :
+ * - Carte joueur avec avatar carré, nom, niveau, position, ambiance
+ * - Partage (QR code, lien, image téléchargeable, partage natif)
+ * - Stats (parties, victoires, défaites, win rate)
+ * - Badges avec progression
+ * - Parrainage avec compteur
+ * - Réglages complets + Déconnexion
  * 
  * ============================================
  */
@@ -18,36 +24,50 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-// === JUNTO DESIGN TOKENS ===
-const JUNTO = {
-  coral: '#ff5a5f',
-  coralSoft: '#fff0f0',
-  coralGlow: 'rgba(255, 90, 95, 0.25)',
-  slate: '#3d4f5f',
-  slateSoft: '#f0f3f5',
-  amber: '#ffb400',
-  amberSoft: '#fff8e5',
-  teal: '#00b8a9',
-  tealSoft: '#e5f9f7',
-  tealGlow: 'rgba(0, 184, 169, 0.25)',
+// === 2×2 DESIGN TOKENS ===
+const COLORS = {
+  // Players - LES SEULES COULEURS VIVES
+  p1: '#ff5a5f',  // Coral
+  p2: '#ffb400',  // Amber
+  p3: '#00b8a9',  // Teal
+  p4: '#7c5cff',  // Violet
+  
+  // Soft versions
+  p1Soft: '#fff0f0',
+  p2Soft: '#fff8e5',
+  p3Soft: '#e5f9f7',
+  p4Soft: '#f0edff',
+  
+  // Glows
+  p1Glow: 'rgba(255, 90, 95, 0.25)',
+  p3Glow: 'rgba(0, 184, 169, 0.25)',
+  
+  // Interface sobre
   ink: '#1a1a1a',
   dark: '#2d2d2d',
   gray: '#6b7280',
   muted: '#9ca3af',
-  white: '#ffffff',
+  
+  // Backgrounds
   bg: '#fafafa',
   bgSoft: '#f5f5f5',
+  card: '#ffffff',
+  cardDark: '#1a1a1a',
+  
+  // Borders
   border: '#e5e7eb',
+  
+  white: '#ffffff',
 }
 
-const AVATAR_COLORS = [JUNTO.coral, JUNTO.slate, JUNTO.amber, JUNTO.teal]
+const PLAYER_COLORS = [COLORS.p1, COLORS.p2, COLORS.p3, COLORS.p4]
 
 const AMBIANCE_CONFIG = {
-  chill: { emoji: '😌', label: 'Détente', color: JUNTO.teal },
-  loisir: { emoji: '😌', label: 'Détente', color: JUNTO.teal },
-  mix: { emoji: '⚡', label: 'Équilibré', color: JUNTO.amber },
-  competition: { emoji: '🔥', label: 'Compétition', color: JUNTO.coral },
-  compet: { emoji: '🔥', label: 'Compétition', color: JUNTO.coral }
+  chill: { emoji: '😌', label: 'Détente', color: COLORS.p3 },
+  loisir: { emoji: '😌', label: 'Détente', color: COLORS.p3 },
+  mix: { emoji: '⚡', label: 'Équilibré', color: COLORS.p2 },
+  competition: { emoji: '🔥', label: 'Compétition', color: COLORS.p1 },
+  compet: { emoji: '🔥', label: 'Compétition', color: COLORS.p1 }
 }
 
 const POSITION_CONFIG = {
@@ -62,14 +82,14 @@ const POSITION_CONFIG = {
 function FourDots({ size = 8, gap = 4, animate = true }) {
   return (
     <div style={{ display: 'flex', gap }}>
-      {AVATAR_COLORS.map((c, i) => (
+      {PLAYER_COLORS.map((c, i) => (
         <div 
           key={i} 
-          className={animate ? 'junto-dot' : ''}
+          className={animate ? 'dot-breathe' : ''}
           style={{ 
             width: size, 
             height: size, 
-            borderRadius: '50%', 
+            borderRadius: size > 10 ? 4 : '50%', 
             background: c,
             animationDelay: animate ? `${i * 0.15}s` : undefined
           }} 
@@ -79,16 +99,15 @@ function FourDots({ size = 8, gap = 4, animate = true }) {
   )
 }
 
-// === COMPOSANT: Carte Joueur (pour affichage ET export) ===
+// === COMPOSANT: Carte Joueur 2×2 (pour affichage ET export) ===
 function PlayerCard({ profile, avatarColor, ambiance, position, forExport = false }) {
   return (
     <div style={{
-      background: `linear-gradient(145deg, #4a5d6d 0%, ${JUNTO.slate} 100%)`,
-      borderRadius: forExport ? 0 : 24,
-      padding: forExport ? '48px 40px' : 32,
+      background: COLORS.cardDark,
+      borderRadius: forExport ? 0 : 28,
+      padding: forExport ? '48px 40px' : 36,
       position: 'relative',
-      boxShadow: forExport ? 'none' : '0 20px 50px rgba(0,0,0,0.3)',
-      border: forExport ? 'none' : '2px solid rgba(255,255,255,0.1)',
+      boxShadow: forExport ? 'none' : '0 24px 60px rgba(0,0,0,0.25)',
       width: forExport ? 400 : '100%',
       maxWidth: forExport ? 400 : 380,
       minHeight: forExport ? 540 : 'auto',
@@ -97,37 +116,25 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
       justifyContent: 'center',
       boxSizing: 'border-box'
     }}>
-      {/* Barre latérale unie */}
-      {!forExport && (
-        <div style={{
-          position: 'absolute',
-          left: 0,
-          top: 28,
-          bottom: 28,
-          width: 6,
-          background: JUNTO.coral,
-          borderRadius: '0 4px 4px 0'
-        }} />
-      )}
 
       {/* Contenu */}
       <div style={{ textAlign: 'center' }}>
-        {/* Avatar */}
+        
+        {/* Avatar carré arrondi */}
         <div style={{
           width: forExport ? 100 : 100,
           height: forExport ? 100 : 100,
           borderRadius: 24,
-          background: profile?.avatar_url ? 'transparent' : avatarColor,
-          margin: forExport ? '0 auto 24px' : '0 auto 20px',
+          background: profile?.avatar_url ? COLORS.bgSoft : avatarColor,
+          margin: forExport ? '0 auto 24px' : '0 auto 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: forExport ? 44 : 42,
+          fontSize: forExport ? 44 : 44,
           fontWeight: 700,
-          color: JUNTO.white,
-          border: '4px solid rgba(255,255,255,0.2)',
+          color: COLORS.white,
           overflow: 'hidden',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.25)'
+          boxShadow: '0 12px 32px rgba(0,0,0,0.3)'
         }}>
           {profile?.avatar_url 
             ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
@@ -137,49 +144,49 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
 
         {/* Nom */}
         <h2 style={{ 
-          fontSize: forExport ? 28 : 26, 
+          fontSize: forExport ? 28 : 28, 
           fontWeight: 800, 
-          color: JUNTO.white, 
+          color: COLORS.white, 
           margin: '0 0 8px',
           letterSpacing: -0.5
         }}>
           {profile?.name || 'Joueur'}
         </h2>
 
-        {/* Ville */}
+        {/* Ville & Numéro membre */}
         <div style={{ 
           fontSize: 14, 
           color: 'rgba(255,255,255,0.5)', 
-          marginBottom: forExport ? 28 : 24,
+          marginBottom: forExport ? 28 : 28,
           minHeight: 20
         }}>
           {profile?.city ? (
             <>📍 {profile.city}{profile?.signup_number && ` · Membre #${profile.signup_number}`}</>
           ) : (
-            forExport ? '🎾 Joueur Junto' : null
+            forExport ? '🎾 Joueur 2×2' : null
           )}
         </div>
 
         {/* Niveau - Badge principal */}
         <div style={{
           display: 'inline-block',
-          background: 'rgba(0, 184, 169, 0.15)',
-          border: `2px solid ${JUNTO.teal}`,
+          background: `${COLORS.p3}20`,
+          border: `2px solid ${COLORS.p3}`,
           borderRadius: 20,
-          padding: forExport ? '20px 40px' : '18px 36px',
-          marginBottom: forExport ? 28 : 24
+          padding: forExport ? '20px 44px' : '20px 44px',
+          marginBottom: forExport ? 28 : 28
         }}>
           <div style={{ 
-            fontSize: forExport ? 48 : 48, 
+            fontSize: forExport ? 52 : 52, 
             fontWeight: 900, 
-            color: '#4eeee0', 
+            color: COLORS.p3, 
             lineHeight: 1 
           }}>
             {profile?.level || '?'}
           </div>
           <div style={{ 
             fontSize: 11, 
-            color: '#4eeee0', 
+            color: COLORS.p3, 
             marginTop: 8, 
             fontWeight: 600, 
             letterSpacing: 2,
@@ -195,7 +202,7 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
           justifyContent: 'center', 
           gap: 10, 
           flexWrap: 'wrap',
-          marginBottom: forExport ? 28 : 24
+          marginBottom: forExport ? 28 : 28
         }}>
           <span style={{ 
             background: 'rgba(255,255,255,0.1)', 
@@ -208,7 +215,7 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
             {position.emoji} {position.label}
           </span>
           <span style={{ 
-            background: `${ambiance.color}25`, 
+            background: `${ambiance.color}30`, 
             color: ambiance.color, 
             padding: '10px 18px', 
             borderRadius: 100, 
@@ -219,23 +226,30 @@ function PlayerCard({ profile, avatarColor, ambiance, position, forExport = fals
           </span>
         </div>
 
-        {/* Logo Junto */}
+        {/* Logo 2×2 */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center',
-          paddingTop: forExport ? 24 : 20,
+          paddingTop: forExport ? 24 : 24,
           borderTop: '1px solid rgba(255,255,255,0.1)'
         }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: 10,
-            background: 'rgba(0,0,0,0.2)',
-            padding: forExport ? '12px 24px' : '10px 20px',
+            gap: 12,
+            background: 'rgba(255,255,255,0.05)',
+            padding: forExport ? '12px 24px' : '12px 24px',
             borderRadius: 100
           }}>
-            <span style={{ fontSize: forExport ? 18 : 16, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>junto</span>
-            <FourDots size={forExport ? 7 : 6} gap={forExport ? 4 : 3} animate={!forExport} />
+            <span style={{ 
+              fontSize: forExport ? 18 : 18, 
+              fontWeight: 900, 
+              color: 'rgba(255,255,255,0.7)',
+              letterSpacing: -1
+            }}>
+              2×2
+            </span>
+            <FourDots size={forExport ? 7 : 7} gap={forExport ? 4 : 4} animate={!forExport} />
           </div>
         </div>
       </div>
@@ -248,6 +262,7 @@ export default function MaCartePage() {
   const router = useRouter()
   const exportRef = useRef(null)
   
+  // États
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -268,10 +283,12 @@ export default function MaCartePage() {
   const [userBadges, setUserBadges] = useState([])
   const [allBadgesCount, setAllBadgesCount] = useState(15)
 
+  // Chargement initial
   useEffect(() => {
     loadData()
   }, [])
 
+  // === CHARGEMENT DES DONNÉES ===
   async function loadData() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
@@ -281,6 +298,7 @@ export default function MaCartePage() {
 
     setUser(session.user)
 
+    // Profil
     const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
@@ -291,7 +309,7 @@ export default function MaCartePage() {
 
     const today = new Date().toISOString().split('T')[0]
 
-    // Stats
+    // Stats - Participations aux matchs
     const { data: participations } = await supabase
       .from('match_participants')
       .select(`match_id, team, matches!inner (id, match_date, winner)`)
@@ -311,6 +329,7 @@ export default function MaCartePage() {
 
     const winRate = matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0
 
+    // Matchs organisés
     const { count: organized } = await supabase
       .from('matches')
       .select('id', { count: 'exact', head: true })
@@ -318,7 +337,7 @@ export default function MaCartePage() {
 
     setStats({ matchesPlayed, wins, losses, winRate, organized: organized || 0 })
 
-    // Badges
+    // Badges de l'utilisateur
     const { data: badges } = await supabase
       .from('user_badges')
       .select(`badge_id, earned_at, badge_definitions (id, name, emoji, description)`)
@@ -327,6 +346,7 @@ export default function MaCartePage() {
 
     setUserBadges(badges || [])
 
+    // Total des badges disponibles
     const { count: totalBadges } = await supabase
       .from('badge_definitions')
       .select('id', { count: 'exact', head: true })
@@ -341,7 +361,7 @@ export default function MaCartePage() {
 
   function generateQRCode() {
     if (qrCodeUrl || !profileUrl) return qrCodeUrl
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(profileUrl)}&bgcolor=ffffff&color=1e293b&margin=10`
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(profileUrl)}&bgcolor=ffffff&color=1a1a1a&margin=10`
     setQrCodeUrl(url)
     return url
   }
@@ -352,14 +372,17 @@ export default function MaCartePage() {
   }
 
   async function handleNativeShare() {
-    const shareText = `🎾 Mon profil Junto\n⭐ Niveau ${profile?.level || '?'}\n📍 ${profile?.city || 'France'}\n\n👉 ${profileUrl}`
+    const shareText = `🎾 Mon profil 2×2\n⭐ Niveau ${profile?.level || '?'}\n📍 ${profile?.city || 'France'}\n\n👉 ${profileUrl}`
     
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${profile?.name} - Junto`, text: shareText, url: profileUrl })
+        await navigator.share({ title: `${profile?.name} - 2×2`, text: shareText, url: profileUrl })
         return
-      } catch (err) {}
+      } catch (err) {
+        // Fallback si annulé
+      }
     }
+    // Fallback WhatsApp
     window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')
   }
 
@@ -391,7 +414,7 @@ export default function MaCartePage() {
       element.style.display = 'block'
       element.style.width = '400px'
       element.style.height = '540px'
-      element.style.background = JUNTO.slate
+      element.style.background = COLORS.cardDark
       element.style.padding = '0'
       element.style.overflow = 'hidden'
       
@@ -399,7 +422,7 @@ export default function MaCartePage() {
       await new Promise(r => setTimeout(r, 300))
       
       const canvas = await html2canvas(element, {
-        backgroundColor: JUNTO.slate,
+        backgroundColor: COLORS.cardDark,
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -415,7 +438,7 @@ export default function MaCartePage() {
       
       // Télécharger
       const link = document.createElement('a')
-      link.download = `junto-${(profile?.name || 'carte').toLowerCase().replace(/\s+/g, '-')}.png`
+      link.download = `2x2-${(profile?.name || 'carte').toLowerCase().replace(/\s+/g, '-')}.png`
       link.href = canvas.toDataURL('image/png', 1.0)
       document.body.appendChild(link)
       link.click()
@@ -430,40 +453,44 @@ export default function MaCartePage() {
     }
   }
 
+  // === DÉCONNEXION ===
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/auth')
   }
 
+  // === PARRAINAGE ===
   const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/join?ref=${user?.id?.slice(0, 8)}` : ''
 
   async function shareReferral() {
-    const text = `🎾 Rejoins-moi sur Junto, l'app pour organiser des parties de padel !\n\n👉 ${referralLink}`
+    const text = `🎾 Rejoins-moi sur 2×2, l'app pour organiser des parties de padel !\n\n👉 ${referralLink}`
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Rejoins Junto !', text, url: referralLink })
+        await navigator.share({ title: 'Rejoins 2×2 !', text, url: referralLink })
         return
-      } catch (err) {}
+      } catch (err) {
+        // Fallback
+      }
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
-  // Helpers
+  // === HELPERS ===
   function getAvatarColor(name) {
-    if (!name) return JUNTO.coral
-    return AVATAR_COLORS[name.charCodeAt(0) % 4]
+    if (!name) return COLORS.p1
+    return PLAYER_COLORS[name.charCodeAt(0) % 4]
   }
 
   const avatarColor = getAvatarColor(profile?.name)
   const ambiance = AMBIANCE_CONFIG[profile?.ambiance] || AMBIANCE_CONFIG.mix
   const position = POSITION_CONFIG[profile?.position] || POSITION_CONFIG.both
 
-  // Loading
+  // === LOADING STATE ===
   if (loading) {
     return (
       <div className="loading-screen">
         <div className="loading-dots">
-          {AVATAR_COLORS.map((c, i) => (
+          {PLAYER_COLORS.map((c, i) => (
             <div key={i} className="loading-dot" style={{ background: c, animationDelay: `${i * 0.1}s` }} />
           ))}
         </div>
@@ -479,9 +506,9 @@ export default function MaCartePage() {
             gap: 8px;
           }
           .loading-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            border-radius: 6px;
             animation: loadBounce 1.4s ease-in-out infinite;
           }
           @keyframes loadBounce {
@@ -493,6 +520,7 @@ export default function MaCartePage() {
     )
   }
 
+  // === RENDER ===
   return (
     <div className="carte-page">
       
@@ -538,7 +566,7 @@ export default function MaCartePage() {
             </div>
 
             <div className="modal-actions">
-              <button className="btn-coral" onClick={handleNativeShare}>📤 Partager</button>
+              <button className="btn-primary" onClick={handleNativeShare}>📤 Partager</button>
               <div className="modal-actions-row">
                 <button className="btn-gray" onClick={copyLink}>
                   {copied ? '✓ Copié !' : '🔗 Copier'}
@@ -573,7 +601,7 @@ export default function MaCartePage() {
             </div>
 
             <div className="card-actions">
-              <button className="btn-coral full" onClick={handleShare}>📤 Partager ma carte</button>
+              <button className="btn-primary full" onClick={handleShare}>📤 Partager ma carte</button>
               <div className="card-actions-row">
                 <button className="btn-outline" onClick={downloadCard} disabled={downloading}>
                   {downloading ? '⏳ ...' : '📷 Télécharger'}
@@ -591,24 +619,24 @@ export default function MaCartePage() {
           
           {/* SECTION: Stats */}
           <div className="content-card">
-            <div className="card-bar teal" />
+            <div className="card-bar p3" />
             <div className="card-body">
               <h3 className="section-title">📊 Mes statistiques</h3>
               <div className="stats-grid">
                 <div className="stat-item">
-                  <div className="stat-value slate">{stats.matchesPlayed}</div>
+                  <div className="stat-value ink">{stats.matchesPlayed}</div>
                   <div className="stat-label">Parties</div>
                 </div>
                 <div className="stat-item">
-                  <div className="stat-value teal">{stats.wins}</div>
+                  <div className="stat-value p3">{stats.wins}</div>
                   <div className="stat-label">Victoires</div>
                 </div>
                 <div className="stat-item">
-                  <div className="stat-value coral">{stats.losses}</div>
+                  <div className="stat-value p1">{stats.losses}</div>
                   <div className="stat-label">Défaites</div>
                 </div>
                 <div className="stat-item">
-                  <div className="stat-value amber">{stats.winRate}%</div>
+                  <div className="stat-value p2">{stats.winRate}%</div>
                   <div className="stat-label">Win rate</div>
                 </div>
               </div>
@@ -617,7 +645,7 @@ export default function MaCartePage() {
 
           {/* SECTION: Badges */}
           <div className="content-card">
-            <div className="card-bar amber" />
+            <div className="card-bar p2" />
             <div className="card-body">
               <div className="section-header">
                 <h3 className="section-title">🏅 Mes badges</h3>
@@ -653,7 +681,7 @@ export default function MaCartePage() {
 
           {/* SECTION: Parrainage */}
           <div className="content-card">
-            <div className="card-bar teal" />
+            <div className="card-bar p3" />
             <div className="card-body">
               <h3 className="section-title">🎁 Parrainage</h3>
               <div className="referral-box">
@@ -665,14 +693,14 @@ export default function MaCartePage() {
                   <div className="referral-title">Invite tes potes !</div>
                   <div className="referral-text">Débloque des badges exclusifs en invitant tes amis</div>
                 </div>
-                <button className="btn-teal" onClick={shareReferral}>📤 Inviter</button>
+                <button className="btn-p3" onClick={shareReferral}>📤 Inviter</button>
               </div>
             </div>
           </div>
 
           {/* SECTION: Réglages */}
           <div className="content-card">
-            <div className="card-bar slate" />
+            <div className="card-bar ink" />
             <div className="card-body no-padding">
               <div className="settings-header">
                 <h3 className="section-title">⚙️ Réglages</h3>
@@ -700,22 +728,22 @@ export default function MaCartePage() {
 
           {/* Footer */}
           <div className="page-footer">
-            Junto v1.0 · Made with 🎾 in France
+            2×2 v1.0 · Made with 🎾 in France
           </div>
         </div>
       </div>
 
       {/* === STYLES === */}
       <style jsx global>{`
-        @keyframes junto-dot {
+        @keyframes dot-breathe {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.3); opacity: 0.7; }
         }
-        .junto-dot { animation: junto-dot 3s ease-in-out infinite; }
+        .dot-breathe { animation: dot-breathe 3s ease-in-out infinite; }
 
         .carte-page {
           font-family: 'Satoshi', -apple-system, sans-serif;
-          background: ${JUNTO.bg};
+          background: ${COLORS.bg};
           min-height: 100vh;
           padding-bottom: 100px;
         }
@@ -757,7 +785,7 @@ export default function MaCartePage() {
         .page-title {
           font-size: 22px;
           font-weight: 700;
-          color: ${JUNTO.ink};
+          color: ${COLORS.ink};
           margin: 0;
           display: flex;
           align-items: center;
@@ -765,11 +793,11 @@ export default function MaCartePage() {
         }
 
         .btn-edit {
-          background: ${JUNTO.white};
-          border: 2px solid ${JUNTO.border};
+          background: ${COLORS.white};
+          border: 2px solid ${COLORS.border};
           border-radius: 100px;
           padding: 10px 18px;
-          color: ${JUNTO.gray};
+          color: ${COLORS.gray};
           font-size: 13px;
           font-weight: 600;
           text-decoration: none;
@@ -777,8 +805,8 @@ export default function MaCartePage() {
         }
 
         .btn-edit:hover {
-          border-color: ${JUNTO.coral};
-          color: ${JUNTO.coral};
+          border-color: ${COLORS.ink};
+          color: ${COLORS.ink};
         }
 
         .card-wrapper {
@@ -794,24 +822,23 @@ export default function MaCartePage() {
           gap: 12px;
         }
 
-        .btn-coral {
-          background: ${JUNTO.coral};
-          color: ${JUNTO.white};
+        .btn-primary {
+          background: ${COLORS.ink};
+          color: ${COLORS.white};
           border: none;
           padding: 16px;
           border-radius: 14px;
           font-size: 15px;
           font-weight: 700;
           cursor: pointer;
-          box-shadow: 0 8px 24px ${JUNTO.coralGlow};
           transition: all 0.2s;
         }
 
-        .btn-coral.full { width: 100%; }
+        .btn-primary.full { width: 100%; }
 
-        .btn-coral:hover {
+        .btn-primary:hover {
           transform: translateY(-2px);
-          box-shadow: 0 12px 28px ${JUNTO.coralGlow};
+          box-shadow: 0 12px 28px rgba(0,0,0,0.15);
         }
 
         .card-actions-row {
@@ -821,9 +848,9 @@ export default function MaCartePage() {
         }
 
         .btn-outline {
-          background: ${JUNTO.white};
-          color: ${JUNTO.gray};
-          border: 2px solid ${JUNTO.border};
+          background: ${COLORS.white};
+          color: ${COLORS.gray};
+          border: 2px solid ${COLORS.border};
           padding: 12px;
           border-radius: 12px;
           font-size: 14px;
@@ -833,8 +860,8 @@ export default function MaCartePage() {
         }
 
         .btn-outline:hover {
-          border-color: ${JUNTO.ink};
-          color: ${JUNTO.ink};
+          border-color: ${COLORS.ink};
+          color: ${COLORS.ink};
         }
 
         .btn-outline:disabled {
@@ -844,19 +871,19 @@ export default function MaCartePage() {
 
         /* Content cards */
         .content-card {
-          background: ${JUNTO.white};
+          background: ${COLORS.white};
           border-radius: 20px;
-          border: 2px solid ${JUNTO.border};
           overflow: hidden;
         }
 
         .card-bar {
           height: 4px;
         }
-        .card-bar.teal { background: ${JUNTO.teal}; }
-        .card-bar.amber { background: ${JUNTO.amber}; }
-        .card-bar.coral { background: ${JUNTO.coral}; }
-        .card-bar.slate { background: ${JUNTO.slate}; }
+        .card-bar.p1 { background: ${COLORS.p1}; }
+        .card-bar.p2 { background: ${COLORS.p2}; }
+        .card-bar.p3 { background: ${COLORS.p3}; }
+        .card-bar.p4 { background: ${COLORS.p4}; }
+        .card-bar.ink { background: ${COLORS.ink}; }
 
         .card-body {
           padding: 24px;
@@ -876,7 +903,7 @@ export default function MaCartePage() {
         .section-title {
           font-size: 16px;
           font-weight: 700;
-          color: ${JUNTO.ink};
+          color: ${COLORS.ink};
           margin: 0;
           display: flex;
           align-items: center;
@@ -884,9 +911,9 @@ export default function MaCartePage() {
         }
 
         .section-badge {
-          background: ${JUNTO.tealSoft};
-          color: ${JUNTO.teal};
-          padding: 4px 12px;
+          background: ${COLORS.bgSoft};
+          color: ${COLORS.gray};
+          padding: 6px 14px;
           border-radius: 100px;
           font-size: 13px;
           font-weight: 700;
@@ -903,7 +930,7 @@ export default function MaCartePage() {
         .stat-item {
           text-align: center;
           padding: 20px 12px;
-          background: ${JUNTO.bgSoft};
+          background: ${COLORS.bgSoft};
           border-radius: 14px;
         }
 
@@ -911,14 +938,15 @@ export default function MaCartePage() {
           font-size: 28px;
           font-weight: 800;
         }
-        .stat-value.slate { color: ${JUNTO.slate}; }
-        .stat-value.teal { color: ${JUNTO.teal}; }
-        .stat-value.coral { color: ${JUNTO.coral}; }
-        .stat-value.amber { color: ${JUNTO.amber}; }
+        .stat-value.ink { color: ${COLORS.ink}; }
+        .stat-value.p1 { color: ${COLORS.p1}; }
+        .stat-value.p2 { color: ${COLORS.p2}; }
+        .stat-value.p3 { color: ${COLORS.p3}; }
+        .stat-value.p4 { color: ${COLORS.p4}; }
 
         .stat-label {
           font-size: 11px;
-          color: ${JUNTO.muted};
+          color: ${COLORS.muted};
           margin-top: 4px;
           font-weight: 500;
         }
@@ -934,12 +962,12 @@ export default function MaCartePage() {
         .badge-item {
           text-align: center;
           padding: 16px 8px;
-          background: ${JUNTO.amberSoft};
+          background: ${COLORS.p2Soft};
           border-radius: 14px;
         }
 
         .badge-item.locked {
-          background: ${JUNTO.bgSoft};
+          background: ${COLORS.bgSoft};
           opacity: 0.5;
         }
 
@@ -950,7 +978,7 @@ export default function MaCartePage() {
 
         .badge-name {
           font-size: 11px;
-          color: ${JUNTO.gray};
+          color: ${COLORS.gray};
           font-weight: 500;
         }
 
@@ -958,13 +986,14 @@ export default function MaCartePage() {
           display: block;
           text-align: center;
           margin-top: 16px;
-          color: ${JUNTO.gray};
+          color: ${COLORS.ink};
           font-size: 14px;
+          font-weight: 600;
           text-decoration: none;
         }
 
         .link-more:hover {
-          color: ${JUNTO.ink};
+          text-decoration: underline;
         }
 
         .empty-badges {
@@ -980,7 +1009,7 @@ export default function MaCartePage() {
 
         .empty-text {
           font-size: 14px;
-          color: ${JUNTO.gray};
+          color: ${COLORS.gray};
         }
 
         /* Referral */
@@ -988,8 +1017,7 @@ export default function MaCartePage() {
           display: flex;
           align-items: center;
           gap: 20px;
-          background: linear-gradient(135deg, ${JUNTO.tealSoft} 0%, #d1fae5 100%);
-          border: 2px solid ${JUNTO.teal};
+          background: ${COLORS.p3Soft};
           border-radius: 16px;
           padding: 20px 24px;
           margin-top: 16px;
@@ -1000,14 +1028,14 @@ export default function MaCartePage() {
         }
 
         .referral-number {
-          font-size: 36px;
+          font-size: 32px;
           font-weight: 800;
-          color: ${JUNTO.teal};
+          color: ${COLORS.p3};
         }
 
         .referral-label {
           font-size: 12px;
-          color: #047857;
+          color: ${COLORS.p3};
         }
 
         .referral-info {
@@ -1017,18 +1045,18 @@ export default function MaCartePage() {
         .referral-title {
           font-size: 16px;
           font-weight: 700;
-          color: ${JUNTO.teal};
+          color: ${COLORS.ink};
           margin-bottom: 4px;
         }
 
         .referral-text {
           font-size: 13px;
-          color: #047857;
+          color: ${COLORS.gray};
         }
 
-        .btn-teal {
-          background: ${JUNTO.teal};
-          color: ${JUNTO.white};
+        .btn-p3 {
+          background: ${COLORS.p3};
+          color: ${COLORS.white};
           border: none;
           padding: 14px 24px;
           border-radius: 12px;
@@ -1036,7 +1064,7 @@ export default function MaCartePage() {
           font-weight: 700;
           cursor: pointer;
           white-space: nowrap;
-          box-shadow: 0 4px 16px ${JUNTO.tealGlow};
+          box-shadow: 0 4px 16px ${COLORS.p3Glow};
         }
 
         /* Settings */
@@ -1053,14 +1081,14 @@ export default function MaCartePage() {
           display: flex;
           align-items: center;
           padding: 16px 24px;
-          border-top: 1px solid ${JUNTO.border};
+          border-top: 1px solid ${COLORS.border};
           text-decoration: none;
-          color: ${JUNTO.ink};
+          color: ${COLORS.ink};
           transition: background 0.2s;
         }
 
         .settings-item:hover {
-          background: ${JUNTO.bgSoft};
+          background: ${COLORS.bgSoft};
         }
 
         .settings-icon {
@@ -1074,7 +1102,7 @@ export default function MaCartePage() {
         }
 
         .settings-arrow {
-          color: ${JUNTO.muted};
+          color: ${COLORS.muted};
           font-size: 20px;
         }
 
@@ -1085,8 +1113,8 @@ export default function MaCartePage() {
         .btn-logout {
           width: 100%;
           background: transparent;
-          color: ${JUNTO.coral};
-          border: 2px solid ${JUNTO.coral};
+          color: ${COLORS.p1};
+          border: 2px solid ${COLORS.p1};
           padding: 14px;
           border-radius: 14px;
           font-size: 15px;
@@ -1096,13 +1124,13 @@ export default function MaCartePage() {
         }
 
         .btn-logout:hover {
-          background: ${JUNTO.coralSoft};
+          background: ${COLORS.p1Soft};
         }
 
         .page-footer {
           text-align: center;
           padding: 24px 0;
-          color: ${JUNTO.muted};
+          color: ${COLORS.muted};
           font-size: 13px;
         }
 
@@ -1119,7 +1147,7 @@ export default function MaCartePage() {
         }
 
         .modal-box {
-          background: ${JUNTO.white};
+          background: ${COLORS.white};
           border-radius: 24px;
           padding: 32px;
           width: 100%;
@@ -1134,31 +1162,31 @@ export default function MaCartePage() {
           width: 36px;
           height: 36px;
           border-radius: 50%;
-          background: ${JUNTO.bgSoft};
+          background: ${COLORS.bgSoft};
           border: none;
           font-size: 18px;
-          color: ${JUNTO.gray};
+          color: ${COLORS.gray};
           cursor: pointer;
         }
 
         .modal-title {
           font-size: 20px;
           font-weight: 700;
-          color: ${JUNTO.ink};
+          color: ${COLORS.ink};
           margin: 0 0 4px;
           text-align: center;
         }
 
         .modal-subtitle {
           font-size: 14px;
-          color: ${JUNTO.muted};
+          color: ${COLORS.muted};
           margin: 0 0 24px;
           text-align: center;
         }
 
         .qr-box {
-          background: ${JUNTO.white};
-          border: 2px solid ${JUNTO.border};
+          background: ${COLORS.white};
+          border: 2px solid ${COLORS.border};
           border-radius: 16px;
           padding: 24px;
           margin-bottom: 20px;
@@ -1177,7 +1205,7 @@ export default function MaCartePage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: ${JUNTO.muted};
+          color: ${COLORS.muted};
         }
 
         .modal-profile {
@@ -1185,7 +1213,7 @@ export default function MaCartePage() {
           align-items: center;
           gap: 14px;
           padding: 14px;
-          background: ${JUNTO.bgSoft};
+          background: ${COLORS.bgSoft};
           border-radius: 14px;
           margin-bottom: 20px;
         }
@@ -1193,13 +1221,13 @@ export default function MaCartePage() {
         .modal-avatar {
           width: 48px;
           height: 48px;
-          border-radius: 12px;
+          border-radius: 14px;
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 20px;
           font-weight: 700;
-          color: ${JUNTO.white};
+          color: ${COLORS.white};
           overflow: hidden;
         }
 
@@ -1212,12 +1240,12 @@ export default function MaCartePage() {
         .modal-name {
           font-size: 16px;
           font-weight: 600;
-          color: ${JUNTO.ink};
+          color: ${COLORS.ink};
         }
 
         .modal-level {
           font-size: 13px;
-          color: ${JUNTO.muted};
+          color: ${COLORS.muted};
         }
 
         .modal-actions {
@@ -1234,12 +1262,12 @@ export default function MaCartePage() {
 
         .btn-gray {
           padding: 14px;
-          background: ${JUNTO.bgSoft};
-          border: 2px solid ${JUNTO.border};
+          background: ${COLORS.bgSoft};
+          border: 2px solid ${COLORS.border};
           border-radius: 12px;
           font-size: 14px;
           font-weight: 600;
-          color: ${JUNTO.ink};
+          color: ${COLORS.ink};
           cursor: pointer;
         }
 
@@ -1307,7 +1335,7 @@ export default function MaCartePage() {
             padding: 20px 16px;
           }
 
-          .btn-teal {
+          .btn-p3 {
             width: 100%;
           }
         }
