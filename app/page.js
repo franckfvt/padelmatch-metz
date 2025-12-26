@@ -101,9 +101,13 @@ function AnimatedSection({ children, className = '', delay = 0 }) {
 // === PAGE PRINCIPALE ===
 export default function LandingPage() {
   const [scrollY, setScrollY] = useState(0)
+  const [headerSolid, setHeaderSolid] = useState(false)
 
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY)
+    const handleScroll = () => {
+      setScrollY(window.scrollY)
+      setHeaderSolid(window.scrollY > 100)
+    }
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
@@ -111,6 +115,21 @@ export default function LandingPage() {
   return (
     <div className="landing">
       
+      {/* ================================================ */}
+      {/* HEADER STICKY                                   */}
+      {/* ================================================ */}
+      <header className={`site-header ${headerSolid ? 'solid' : ''}`}>
+        <div className="header-inner">
+          <Link href="/" className="header-logo">
+            <span className="header-logo-text">2×2</span>
+            <FourDots size={8} gap={4} />
+          </Link>
+          <Link href="/auth" className="header-cta">
+            Se connecter
+          </Link>
+        </div>
+      </header>
+
       {/* ================================================ */}
       {/* ACTE 1 : L'OUVERTURE                            */}
       {/* ================================================ */}
@@ -320,6 +339,40 @@ export default function LandingPage() {
       </section>
 
       {/* ================================================ */}
+      {/* STATS : Preuves sociales subtiles               */}
+      {/* ================================================ */}
+      <section className="act act-stats">
+        <div className="act-content">
+          <AnimatedSection>
+            <p className="stats-intro">Déjà adopté par la communauté</p>
+          </AnimatedSection>
+          
+          <div className="stats-grid">
+            <AnimatedSection delay={100}>
+              <div className="stat-item">
+                <span className="stat-value">500+</span>
+                <span className="stat-label-small">joueurs actifs</span>
+              </div>
+            </AnimatedSection>
+            
+            <AnimatedSection delay={200}>
+              <div className="stat-item">
+                <span className="stat-value">2000+</span>
+                <span className="stat-label-small">parties organisées</span>
+              </div>
+            </AnimatedSection>
+            
+            <AnimatedSection delay={300}>
+              <div className="stat-item">
+                <span className="stat-value">30s</span>
+                <span className="stat-label-small">pour créer une partie</span>
+              </div>
+            </AnimatedSection>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================ */}
       {/* FEATURES : Résumé sobre                         */}
       {/* ================================================ */}
       <section className="act act-features">
@@ -454,6 +507,62 @@ export default function LandingPage() {
           color: ${COLORS.white};
         }
 
+        /* ========== HEADER STICKY ========== */
+        .site-header {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 1000;
+          padding: 16px 24px;
+          transition: background 0.3s, backdrop-filter 0.3s, box-shadow 0.3s;
+        }
+
+        .site-header.solid {
+          background: rgba(10, 10, 10, 0.9);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          box-shadow: 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .header-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .header-logo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          text-decoration: none;
+          color: ${COLORS.white};
+        }
+
+        .header-logo-text {
+          font-size: 24px;
+          font-weight: 900;
+          letter-spacing: -1px;
+        }
+
+        .header-cta {
+          padding: 10px 24px;
+          background: ${COLORS.white};
+          color: ${COLORS.ink};
+          font-size: 14px;
+          font-weight: 600;
+          text-decoration: none;
+          border-radius: 100px;
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .header-cta:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(255,255,255,0.2);
+        }
+
         /* Animated sections */
         .animated-section {
           opacity: 0;
@@ -486,6 +595,7 @@ export default function LandingPage() {
           min-height: 100vh;
           background: ${COLORS.ink};
           position: relative;
+          padding-top: 100px;
         }
 
         .logo-large {
@@ -1021,6 +1131,19 @@ export default function LandingPage() {
 
         /* ========== RESPONSIVE ========== */
         @media (max-width: 768px) {
+          .site-header {
+            padding: 12px 16px;
+          }
+
+          .header-logo-text {
+            font-size: 20px;
+          }
+
+          .header-cta {
+            padding: 8px 18px;
+            font-size: 13px;
+          }
+
           .stats-grid {
             grid-template-columns: repeat(3, 1fr);
             gap: 20px;
