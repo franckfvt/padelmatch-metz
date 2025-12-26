@@ -2,7 +2,7 @@
 
 /**
  * ============================================
- * LAYOUT DASHBOARD - JUNTO BRAND
+ * LAYOUT DASHBOARD - 2×2 BRAND
  * ============================================
  */
 
@@ -71,7 +71,7 @@ export default function DashboardLayout({ children }) {
 
   const navItems = [
     { href: '/dashboard/parties', label: 'Parties', icon: '🎾' },
-    { href: '/dashboard/joueurs', label: 'Joueurs', icon: '👥' },
+    { href: '/dashboard/activite', label: 'Activité', icon: '⚡' },
     { href: '/dashboard/carte', label: 'Ma carte', icon: '🎴' },
   ]
 
@@ -87,8 +87,7 @@ export default function DashboardLayout({ children }) {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           
           <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="logo-text" style={{ fontSize: 22, fontWeight: 700, color: COLORS.ink, letterSpacing: -1 }}>junto</span>
-            <FourDots size={8} gap={4} />
+            <span className="logo-text" style={{ fontSize: 24, fontWeight: 900, color: COLORS.ink, letterSpacing: -2 }}>2×2</span>
           </Link>
 
           <nav className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -111,12 +110,12 @@ export default function DashboardLayout({ children }) {
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, position: 'relative'
             }}>🔔</button>
 
-            <Link href="/dashboard/me" className="user-avatar-desktop" style={{
+            <Link href="/dashboard/carte" className="user-avatar-desktop" style={{
               width: 42, height: 42, borderRadius: '50%',
               background: profile?.avatar_url ? 'transparent' : getAvatarColor(profile?.name),
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: COLORS.white, fontWeight: 700, fontSize: 15, textDecoration: 'none',
-              border: pathname.startsWith('/dashboard/me') ? `3px solid ${COLORS.primary}` : '3px solid transparent',
+              border: pathname.startsWith('/dashboard/carte') ? `3px solid ${COLORS.primary}` : '3px solid transparent',
               overflow: 'hidden'
             }}>
               {profile?.avatar_url ? <img src={`${profile.avatar_url}?t=${profile.updated_at || Date.now()}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : profile?.name?.[0]?.toUpperCase() || '?'}
@@ -145,19 +144,6 @@ export default function DashboardLayout({ children }) {
             <span style={{ fontSize: 11, fontWeight: isActive(item) ? 700 : 500 }}>{item.label}</span>
           </Link>
         ))}
-        <Link href="/dashboard/me" style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 16,
-          textDecoration: 'none', color: pathname.startsWith('/dashboard/me') ? COLORS.primary : COLORS.muted,
-          background: pathname.startsWith('/dashboard/me') ? COLORS.primarySoft : 'transparent', minWidth: 64
-        }}>
-          <div style={{
-            width: 24, height: 24, borderRadius: '50%', background: profile?.avatar_url ? 'transparent' : getAvatarColor(profile?.name),
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.white, fontWeight: 700, fontSize: 11, overflow: 'hidden'
-          }}>
-            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : profile?.name?.[0]?.toUpperCase() || '?'}
-          </div>
-          <span style={{ fontSize: 11, fontWeight: pathname.startsWith('/dashboard/me') ? 700 : 500 }}>Moi</span>
-        </Link>
       </nav>
 
       {/* NOTIFICATIONS PANEL */}

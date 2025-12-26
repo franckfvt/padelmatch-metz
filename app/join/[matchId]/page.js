@@ -2,11 +2,11 @@
 
 /**
  * ============================================
- * PAGE PUBLIQUE REJOINDRE UN MATCH - JUNTO
+ * PAGE PUBLIQUE REJOINDRE UN MATCH - 2×2
  * ============================================
  * 
  * Page d'arrivée via lien partagé.
- * Style Junto avec équipes A/B.
+ * Dark mode pour conversion maximale.
  * 
  * ============================================
  */
@@ -16,31 +16,49 @@ import { supabase } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
-// === JUNTO DESIGN TOKENS ===
-const JUNTO = {
+// === 2×2 DESIGN TOKENS (DARK MODE) ===
+const COLORS = {
+  // Players
+  p1: '#ff5a5f',
+  p2: '#ffb400',
+  p3: '#00b8a9',
+  p4: '#7c5cff',
+  
+  // Core
   coral: '#ff5a5f',
-  coralSoft: '#fff0f0',
-  coralGlow: 'rgba(255, 90, 95, 0.25)',
-  slate: '#3d4f5f',
-  slateDark: '#2a3a48',
+  coralSoft: 'rgba(255, 90, 95, 0.15)',
+  coralGlow: 'rgba(255, 90, 95, 0.4)',
   amber: '#ffb400',
-  amberSoft: '#fff8e5',
+  amberSoft: 'rgba(255, 180, 0, 0.15)',
   teal: '#00b8a9',
-  tealSoft: '#e5f9f7',
+  tealSoft: 'rgba(0, 184, 169, 0.15)',
   tealGlow: '#4eeee0',
+  violet: '#7c5cff',
+  violetSoft: 'rgba(124, 92, 255, 0.15)',
+  
+  // Dark mode backgrounds
   ink: '#1a1a1a',
-  gray: '#6b7280',
-  muted: '#9ca3af',
+  inkSoft: '#2a2a2a',
+  inkSofter: '#333333',
+  
+  // Text
   white: '#ffffff',
-  bg: '#fafafa',
-  border: '#e5e7eb',
+  textPrimary: '#ffffff',
+  textSecondary: 'rgba(255, 255, 255, 0.7)',
+  textMuted: 'rgba(255, 255, 255, 0.5)',
+  
+  // Borders
+  border: 'rgba(255, 255, 255, 0.1)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+  
+  // Teams
   teamA: '#22c55e',
-  teamABg: '#f0fdf4',
+  teamABg: 'rgba(34, 197, 94, 0.1)',
   teamB: '#3b82f6',
-  teamBBg: '#eff6ff',
+  teamBBg: 'rgba(59, 130, 246, 0.1)',
 }
 
-const AVATAR_COLORS = [JUNTO.coral, JUNTO.slate, JUNTO.amber, JUNTO.teal]
+const AVATAR_COLORS = [COLORS.p1, COLORS.p2, COLORS.p3, COLORS.p4]
 
 const AMBIANCE_CONFIG = {
   loisir: { label: 'Détente', emoji: '😌' },
@@ -55,7 +73,7 @@ function FourDots({ size = 8, gap = 4 }) {
   return (
     <div style={{ display: 'flex', gap }}>
       {AVATAR_COLORS.map((c, i) => (
-        <div key={i} className="junto-dot" style={{ 
+        <div key={i} className="dot-pulse" style={{ 
           width: size, 
           height: size, 
           borderRadius: '50%', 
@@ -68,7 +86,7 @@ function FourDots({ size = 8, gap = 4 }) {
 }
 
 function getAvatarColor(name) {
-  if (!name) return JUNTO.coral
+  if (!name) return COLORS.p1
   return AVATAR_COLORS[name.charCodeAt(0) % 4]
 }
 
@@ -290,7 +308,7 @@ export default function JoinMatchPage() {
         <div style={{ textAlign: 'center' }}>
           <div style={styles.loadingDots}>
             {AVATAR_COLORS.map((c, i) => (
-              <div key={i} className="junto-loading-dot" style={{ 
+              <div key={i} className="loading-dot" style={{ 
                 ...styles.loadingDot, 
                 background: c, 
                 animationDelay: `${i * 0.1}s` 
@@ -312,7 +330,7 @@ export default function JoinMatchPage() {
           <div style={{ fontSize: 56, marginBottom: 20 }}>🎾</div>
           <h1 style={styles.errorTitle}>Partie introuvable</h1>
           <p style={styles.errorText}>Cette partie n'existe pas ou a été annulée.</p>
-          <Link href="/" style={styles.errorBtn}>Découvrir Junto</Link>
+          <Link href="/" style={styles.errorBtn}>Découvrir 2×2</Link>
         </div>
       </div>
     )
@@ -323,11 +341,10 @@ export default function JoinMatchPage() {
     <div style={styles.page}>
       <div style={styles.container}>
         
-        {/* Header Junto */}
+        {/* Header 2×2 */}
         <div style={styles.header}>
           <div style={styles.logo}>
-            <span>junto</span>
-            <FourDots size={8} gap={4} />
+            <span style={{ fontWeight: 900, letterSpacing: -2 }}>2×2</span>
           </div>
         </div>
 
@@ -387,7 +404,7 @@ export default function JoinMatchPage() {
           <div style={styles.teamsGrid}>
             {/* Équipe A */}
             <div style={{ ...styles.teamColumn, ...styles.teamA }}>
-              <div style={{ ...styles.teamHeader, color: JUNTO.teamA }}>🅰️ Équipe A</div>
+              <div style={{ ...styles.teamHeader, color: COLORS.teamA }}>🅰️ Équipe A</div>
               {teamA.map((player, idx) => (
                 <div key={idx} style={styles.teamPlayer}>
                   <div style={{ 
@@ -417,7 +434,7 @@ export default function JoinMatchPage() {
             
             {/* Équipe B */}
             <div style={{ ...styles.teamColumn, ...styles.teamB }}>
-              <div style={{ ...styles.teamHeader, color: JUNTO.teamB }}>🅱️ Équipe B</div>
+              <div style={{ ...styles.teamHeader, color: COLORS.teamB }}>🅱️ Équipe B</div>
               {teamB.map((player, idx) => (
                 <div key={idx} style={styles.teamPlayer}>
                   <div style={{ 
@@ -448,7 +465,7 @@ export default function JoinMatchPage() {
         {alreadyJoined ? (
           <div style={styles.alreadyJoinedBox}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: JUNTO.teal }}>Tu es inscrit !</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.teal }}>Tu es inscrit !</div>
             <Link href={`/dashboard/match/${matchId}`} style={styles.goToMatchBtn}>
               Voir la partie →
             </Link>
@@ -456,21 +473,21 @@ export default function JoinMatchPage() {
         ) : isPending ? (
           <div style={styles.pendingBox}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: JUNTO.amber }}>Demande en attente</div>
-            <p style={{ fontSize: 14, color: JUNTO.gray, marginTop: 8 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.amber }}>Demande en attente</div>
+            <p style={{ fontSize: 14, color: COLORS.textMuted, marginTop: 8 }}>
               L'organisateur doit valider ta demande
             </p>
           </div>
         ) : match.status === 'full' ? (
           <div style={styles.fullBox}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>😢</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: JUNTO.gray }}>Partie complète</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.textSecondary }}>Partie complète</div>
           </div>
         ) : user ? (
           <div style={styles.ctaSection}>
             {/* Choix équipe */}
             <div style={styles.teamChoice}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: JUNTO.ink, marginBottom: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.white, marginBottom: 10 }}>
                 Rejoindre quelle équipe ?
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -478,9 +495,9 @@ export default function JoinMatchPage() {
                   onClick={() => setSelectedTeam('A')}
                   style={{
                     ...styles.teamBtn,
-                    background: selectedTeam === 'A' ? `linear-gradient(135deg, ${JUNTO.teamA}, #16a34a)` : JUNTO.bg,
-                    color: selectedTeam === 'A' ? '#fff' : JUNTO.gray,
-                    border: selectedTeam === 'A' ? 'none' : `2px solid ${JUNTO.border}`
+                    background: selectedTeam === 'A' ? `linear-gradient(135deg, ${COLORS.teamA}, #16a34a)` : COLORS.inkSoft,
+                    color: selectedTeam === 'A' ? '#fff' : COLORS.textSecondary,
+                    border: selectedTeam === 'A' ? 'none' : `2px solid ${COLORS.border}`
                   }}
                 >
                   🅰️ Équipe A
@@ -489,9 +506,9 @@ export default function JoinMatchPage() {
                   onClick={() => setSelectedTeam('B')}
                   style={{
                     ...styles.teamBtn,
-                    background: selectedTeam === 'B' ? `linear-gradient(135deg, ${JUNTO.teamB}, #2563eb)` : JUNTO.bg,
-                    color: selectedTeam === 'B' ? '#fff' : JUNTO.gray,
-                    border: selectedTeam === 'B' ? 'none' : `2px solid ${JUNTO.border}`
+                    background: selectedTeam === 'B' ? `linear-gradient(135deg, ${COLORS.teamB}, #2563eb)` : COLORS.inkSoft,
+                    color: selectedTeam === 'B' ? '#fff' : COLORS.textSecondary,
+                    border: selectedTeam === 'B' ? 'none' : `2px solid ${COLORS.border}`
                   }}
                 >
                   🅱️ Équipe B
@@ -523,17 +540,17 @@ export default function JoinMatchPage() {
       </div>
 
       <style jsx global>{`
-        @keyframes junto-dot {
+        @keyframes dot-pulse {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.3); opacity: 0.7; }
         }
-        .junto-dot { animation: junto-dot 3s ease-in-out infinite; }
+        .dot-pulse { animation: dot-pulse 3s ease-in-out infinite; }
         
-        @keyframes junto-loading {
+        @keyframes loading-bounce {
           0%, 80%, 100% { transform: translateY(0); }
           40% { transform: translateY(-12px); }
         }
-        .junto-loading-dot { animation: junto-loading 1.4s ease-in-out infinite; }
+        .loading-dot { animation: loading-bounce 1.4s ease-in-out infinite; }
       `}</style>
     </div>
   )
@@ -541,18 +558,18 @@ export default function JoinMatchPage() {
 
 // === STYLES ===
 const loadingStyles = `
-  @keyframes junto-loading {
+  @keyframes loading-bounce {
     0%, 80%, 100% { transform: translateY(0); }
     40% { transform: translateY(-12px); }
   }
-  .junto-loading-dot { animation: junto-loading 1.4s ease-in-out infinite; }
+  .loading-dot { animation: loading-bounce 1.4s ease-in-out infinite; }
 `
 
 const styles = {
-  // Page
+  // Page - DARK MODE
   page: {
     minHeight: '100vh',
-    background: `linear-gradient(180deg, ${JUNTO.slate} 0%, ${JUNTO.slateDark} 45%, ${JUNTO.bg} 45%)`,
+    background: COLORS.ink,
     padding: '32px 20px 60px',
     fontFamily: "'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
   },
@@ -571,19 +588,20 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 22,
-    fontWeight: 700
+    color: COLORS.white,
+    fontSize: 28,
+    fontWeight: 900,
+    letterSpacing: -2
   },
   
-  // Match Card
+  // Match Card - DARK
   matchCard: {
-    background: `linear-gradient(145deg, #4a5d6d 0%, ${JUNTO.slate} 100%)`,
+    background: COLORS.inkSoft,
     borderRadius: 28,
     padding: '28px 24px',
     position: 'relative',
-    boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
-    border: '2px solid rgba(255,255,255,0.1)',
+    boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+    border: `1px solid ${COLORS.border}`,
     marginBottom: 20
   },
   matchCardAccent: {
@@ -592,21 +610,21 @@ const styles = {
     top: 24,
     bottom: 24,
     width: 6,
-    background: JUNTO.coral,
+    background: COLORS.coral,
     borderRadius: '0 4px 4px 0'
   },
   dateBadge: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 8,
-    background: 'rgba(0, 184, 169, 0.15)',
-    border: `2px solid ${JUNTO.teal}`,
+    background: COLORS.tealSoft,
+    border: `2px solid ${COLORS.teal}`,
     borderRadius: 100,
     padding: '10px 18px',
     marginBottom: 20,
     fontSize: 14,
     fontWeight: 700,
-    color: JUNTO.tealGlow
+    color: COLORS.tealGlow
   },
   matchInfo: {
     textAlign: 'center',
@@ -615,12 +633,12 @@ const styles = {
   matchTitle: {
     fontSize: 22,
     fontWeight: 800,
-    color: JUNTO.white,
+    color: COLORS.white,
     margin: '0 0 8px'
   },
   matchLocation: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.textMuted,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -633,7 +651,7 @@ const styles = {
     alignItems: 'center',
     gap: 14,
     padding: 16,
-    background: 'rgba(255,255,255,0.08)',
+    background: 'rgba(255,255,255,0.05)',
     borderRadius: 16,
     marginBottom: 20
   },
@@ -646,7 +664,7 @@ const styles = {
     justifyContent: 'center',
     fontSize: 20,
     fontWeight: 700,
-    color: JUNTO.white,
+    color: COLORS.white,
     overflow: 'hidden'
   },
   avatarImg: {
@@ -660,15 +678,15 @@ const styles = {
   organizerName: {
     fontSize: 15,
     fontWeight: 700,
-    color: JUNTO.white
+    color: COLORS.white
   },
   organizerMeta: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)'
+    color: COLORS.textMuted
   },
   organizerBadge: {
     padding: '6px 12px',
-    background: JUNTO.amber,
+    background: COLORS.amber,
     borderRadius: 100,
     fontSize: 11,
     fontWeight: 700,
@@ -684,29 +702,29 @@ const styles = {
   },
   tag: {
     padding: '10px 16px',
-    background: 'rgba(255,255,255,0.1)',
+    background: 'rgba(255,255,255,0.08)',
     borderRadius: 100,
     fontSize: 13,
     fontWeight: 600,
-    color: 'rgba(255,255,255,0.85)'
+    color: COLORS.textSecondary
   },
   tagAmber: {
-    background: 'rgba(255, 180, 0, 0.2)',
-    color: JUNTO.amber
+    background: COLORS.amberSoft,
+    color: COLORS.amber
   },
   
-  // Teams
+  // Teams - DARK VERSION
   teamsSection: {
-    background: JUNTO.white,
+    background: COLORS.inkSoft,
     borderRadius: 24,
     padding: 24,
-    border: `2px solid ${JUNTO.border}`,
+    border: `1px solid ${COLORS.border}`,
     marginBottom: 20
   },
   teamsTitle: {
     fontSize: 16,
     fontWeight: 700,
-    color: JUNTO.ink,
+    color: COLORS.white,
     marginBottom: 16,
     textAlign: 'center'
   },
@@ -718,13 +736,13 @@ const styles = {
   teamColumn: {
     padding: 16,
     borderRadius: 16,
-    background: JUNTO.bg
+    background: COLORS.inkSofter
   },
   teamA: {
-    border: `2px solid ${JUNTO.teamA}`
+    border: `2px solid ${COLORS.teamA}`
   },
   teamB: {
-    border: `2px solid ${JUNTO.teamB}`
+    border: `2px solid ${COLORS.teamB}`
   },
   teamHeader: {
     fontSize: 14,
@@ -739,7 +757,7 @@ const styles = {
     alignItems: 'center',
     gap: 10,
     padding: 10,
-    background: JUNTO.white,
+    background: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
     marginBottom: 8
   },
@@ -752,33 +770,33 @@ const styles = {
     justifyContent: 'center',
     fontSize: 14,
     fontWeight: 700,
-    color: JUNTO.white,
+    color: COLORS.white,
     overflow: 'hidden'
   },
   teamPlayerName: {
     fontSize: 14,
     fontWeight: 600,
-    color: JUNTO.ink
+    color: COLORS.white
   },
   teamPlayerLevel: {
     fontSize: 12,
-    color: JUNTO.muted
+    color: COLORS.textMuted
   },
   teamEmpty: {
     padding: 16,
-    border: `2px dashed ${JUNTO.border}`,
+    border: `2px dashed ${COLORS.border}`,
     borderRadius: 12,
     textAlign: 'center',
-    color: JUNTO.muted,
+    color: COLORS.textMuted,
     fontSize: 13
   },
   
-  // CTA
+  // CTA - DARK
   ctaSection: {
-    background: JUNTO.white,
+    background: COLORS.inkSoft,
     borderRadius: 20,
     padding: 24,
-    border: `2px solid ${JUNTO.border}`
+    border: `1px solid ${COLORS.border}`
   },
   teamChoice: {
     marginBottom: 20
@@ -794,41 +812,41 @@ const styles = {
   joinBtn: {
     width: '100%',
     padding: 18,
-    background: JUNTO.coral,
-    color: JUNTO.white,
+    background: COLORS.white,
+    color: COLORS.ink,
     border: 'none',
     borderRadius: 16,
     fontSize: 17,
     fontWeight: 700,
     cursor: 'pointer',
-    boxShadow: `0 8px 24px ${JUNTO.coralGlow}`
+    boxShadow: '0 8px 24px rgba(255, 255, 255, 0.15)'
   },
   
-  // Login prompt
+  // Login prompt - DARK
   loginPrompt: {
-    background: JUNTO.white,
+    background: COLORS.inkSoft,
     borderRadius: 20,
     padding: 28,
     textAlign: 'center',
-    border: `2px solid ${JUNTO.border}`
+    border: `1px solid ${COLORS.border}`
   },
   loginTitle: {
     fontSize: 18,
     fontWeight: 700,
-    color: JUNTO.ink,
+    color: COLORS.white,
     margin: '0 0 8px'
   },
   loginText: {
     fontSize: 14,
-    color: JUNTO.gray,
+    color: COLORS.textSecondary,
     margin: '0 0 20px'
   },
   loginBtn: {
     display: 'block',
     width: '100%',
     padding: 16,
-    background: JUNTO.coral,
-    color: JUNTO.white,
+    background: COLORS.white,
+    color: COLORS.ink,
     border: 'none',
     borderRadius: 14,
     fontSize: 16,
@@ -841,9 +859,9 @@ const styles = {
     display: 'block',
     width: '100%',
     padding: 14,
-    background: JUNTO.white,
-    color: JUNTO.ink,
-    border: `2px solid ${JUNTO.border}`,
+    background: 'transparent',
+    color: COLORS.white,
+    border: `2px solid ${COLORS.border}`,
     borderRadius: 14,
     fontSize: 15,
     fontWeight: 600,
@@ -851,38 +869,38 @@ const styles = {
     textAlign: 'center'
   },
   
-  // Status boxes
+  // Status boxes - DARK
   alreadyJoinedBox: {
-    background: JUNTO.tealSoft,
+    background: COLORS.tealSoft,
     borderRadius: 20,
     padding: 28,
     textAlign: 'center',
-    border: `2px solid ${JUNTO.teal}`
+    border: `2px solid ${COLORS.teal}`
   },
   goToMatchBtn: {
     display: 'inline-block',
     marginTop: 16,
     padding: '14px 28px',
-    background: JUNTO.teal,
-    color: JUNTO.white,
+    background: COLORS.teal,
+    color: COLORS.white,
     borderRadius: 12,
     textDecoration: 'none',
     fontWeight: 700,
     fontSize: 15
   },
   pendingBox: {
-    background: JUNTO.amberSoft,
+    background: COLORS.amberSoft,
     borderRadius: 20,
     padding: 28,
     textAlign: 'center',
-    border: `2px solid ${JUNTO.amber}`
+    border: `2px solid ${COLORS.amber}`
   },
   fullBox: {
-    background: JUNTO.bg,
+    background: COLORS.inkSoft,
     borderRadius: 20,
     padding: 28,
     textAlign: 'center',
-    border: `2px solid ${JUNTO.border}`
+    border: `1px solid ${COLORS.border}`
   },
   
   // Footer
@@ -892,13 +910,13 @@ const styles = {
     paddingTop: 32
   },
   
-  // Loading
+  // Loading - DARK
   loadingPage: {
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: `linear-gradient(180deg, ${JUNTO.slate} 0%, ${JUNTO.slateDark} 100%)`,
+    background: COLORS.ink,
     fontFamily: "'Satoshi', -apple-system, sans-serif"
   },
   loadingDots: {
@@ -913,40 +931,40 @@ const styles = {
     borderRadius: '50%'
   },
   
-  // Error
+  // Error - DARK
   errorPage: {
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: JUNTO.bg,
+    background: COLORS.ink,
     padding: 20,
     fontFamily: "'Satoshi', -apple-system, sans-serif"
   },
   errorCard: {
-    background: JUNTO.white,
+    background: COLORS.inkSoft,
     borderRadius: 24,
     padding: '48px 40px',
     textAlign: 'center',
     maxWidth: 360,
-    border: `2px solid ${JUNTO.border}`
+    border: `1px solid ${COLORS.border}`
   },
   errorTitle: {
     fontSize: 22,
     fontWeight: 700,
-    color: JUNTO.ink,
+    color: COLORS.white,
     margin: '0 0 8px'
   },
   errorText: {
     fontSize: 14,
-    color: JUNTO.gray,
+    color: COLORS.textSecondary,
     margin: '0 0 28px'
   },
   errorBtn: {
     display: 'inline-block',
     padding: '16px 32px',
-    background: JUNTO.coral,
-    color: JUNTO.white,
+    background: COLORS.white,
+    color: COLORS.ink,
     borderRadius: 100,
     textDecoration: 'none',
     fontWeight: 700,

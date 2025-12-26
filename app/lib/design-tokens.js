@@ -1,11 +1,14 @@
 /**
  * ============================================
- * DESIGN TOKENS - JUNTO
+ * DESIGN TOKENS - 2×2
  * ============================================
  * 
- * Brand Guidelines v1.0
- * Palette: Urbain Sport
+ * Brand Guidelines v2.0
+ * 4 joueurs = 4 couleurs
  * Typography: Satoshi
+ * 
+ * Principe: Interface sobre (noir/blanc/gris)
+ * Les seules couleurs viennent des avatars joueurs
  * 
  * Usage:
  * import { COLORS, RADIUS, SHADOWS, ANIMATIONS } from '@/app/lib/design-tokens'
@@ -14,37 +17,51 @@
  */
 
 // ============================================
-// COULEURS - PALETTE URBAIN SPORT
+// COULEURS - PALETTE 2×2
 // ============================================
 export const COLORS = {
-  // PRIMARY - Junto Coral (Joueur 1 - Toi)
+  // PRIMARY - Coral (Joueur 1)
   primary: '#ff5a5f',
   primaryDark: '#e54549',
   primarySoft: '#fff0f0',
   primaryGlow: 'rgba(255, 90, 95, 0.25)',
   
-  // SECONDARY - Slate (Joueur 2 - Partenaire)
-  secondary: '#3d4f5f',
-  secondaryDark: '#2d3a47',
-  secondarySoft: '#f0f3f5',
-  
-  // ACCENT 1 - Amber (Joueur 3 - Rival)
+  // AMBER (Joueur 2)
   amber: '#ffb400',
   amberDark: '#cc9000',
   amberSoft: '#fff8e5',
+  amberGlow: 'rgba(255, 180, 0, 0.25)',
   
-  // ACCENT 2 - Teal (Joueur 4 - Quatrième)
+  // TEAL (Joueur 3)
   teal: '#00b8a9',
   tealDark: '#009387',
   tealSoft: '#e5f9f7',
+  tealGlow: 'rgba(0, 184, 169, 0.25)',
   
-  // BACKGROUNDS
+  // VIOLET (Joueur 4) - NOUVEAU
+  violet: '#7c5cff',
+  violetDark: '#6347e0',
+  violetSoft: '#f3f0ff',
+  violetGlow: 'rgba(124, 92, 255, 0.25)',
+  
+  // SECONDARY - Violet (pour compatibilité)
+  secondary: '#7c5cff',
+  secondaryDark: '#6347e0',
+  secondarySoft: '#f3f0ff',
+  
+  // BACKGROUNDS - Light mode
   bg: '#fafafa',
   bgSoft: '#f5f5f5',
   card: '#ffffff',
+  paper: '#ffffff',
+  paperSoft: '#fafafa',
+  
+  // BACKGROUNDS - Dark mode (pour pages publiques)
+  ink: '#1a1a1a',
+  inkSoft: '#2a2a2a',
+  inkSofter: '#333333',
   
   // TEXT
-  ink: '#1a1a1a',
   dark: '#2d2d2d',
   gray: '#6b7280',
   muted: '#9ca3af',
@@ -52,46 +69,57 @@ export const COLORS = {
   // BORDERS
   border: '#e5e7eb',
   borderLight: '#f1f5f9',
+  borderDark: 'rgba(255, 255, 255, 0.1)',
   
   // STATES
-  success: '#00b8a9',  // Teal
+  success: '#00b8a9',
   successSoft: '#e5f9f7',
-  danger: '#ff5a5f',   // Junto Coral
+  danger: '#ff5a5f',
   dangerSoft: '#fff0f0',
-  warning: '#ffb400',  // Amber
+  warning: '#ffb400',
   warningSoft: '#fff8e5',
-  warningLight: '#fff8e5', // Legacy alias
-  info: '#3d4f5f',     // Slate
-  infoSoft: '#f0f3f5',
+  warningLight: '#fff8e5',
+  info: '#7c5cff',
+  infoSoft: '#f3f0ff',
   
   // WHITE
   white: '#ffffff',
   
-  // LEGACY COMPATIBILITY (à migrer progressivement)
+  // ============================================
+  // LES 4 JOUEURS - Couleurs 2×2
+  // ============================================
+  player1: '#ff5a5f',  // Coral
+  player2: '#ffb400',  // Amber
+  player3: '#00b8a9',  // Teal
+  player4: '#7c5cff',  // Violet
+  
+  // Raccourcis
+  p1: '#ff5a5f',
+  p2: '#ffb400',
+  p3: '#00b8a9',
+  p4: '#7c5cff',
+  
+  // LEGACY COMPATIBILITY
   accent: '#ff5a5f',
   accentLight: '#fff0f0',
   accentDark: '#e54549',
-  accentText: '#cc4548', // Legacy
+  accentText: '#cc4548',
   text: '#1a1a1a',
   textMuted: '#6b7280',
   textLight: '#9ca3af',
+  slate: '#3d4f5f',
+  slateSoft: '#f0f3f5',
   
-  // 4 JOUEURS - Couleurs des dots
-  player1: '#ff5a5f',  // Coral - Toi
-  player2: '#3d4f5f',  // Slate - Partenaire
-  player3: '#ffb400',  // Amber - Rival
-  player4: '#00b8a9',  // Teal - Quatrième
-  
-  // Avatars (palette pour les joueurs)
-  avatars: ['#ff5a5f', '#3d4f5f', '#ffb400', '#00b8a9', '#a855f7', '#ec4899', '#06b6d4', '#14b8a6']
+  // Avatars (4 couleurs principales + variations)
+  avatars: ['#ff5a5f', '#ffb400', '#00b8a9', '#7c5cff', '#ec4899', '#06b6d4', '#f97316', '#84cc16']
 }
 
 // ============================================
-// LES 4 POINTS - BRAND DNA
+// LES 4 POINTS - BRAND DNA 2×2
 // ============================================
 export const FOUR_DOTS = {
   colors: [COLORS.player1, COLORS.player2, COLORS.player3, COLORS.player4],
-  labels: ['Toi', 'Partenaire', 'Rival', 'Quatrième'],
+  labels: ['Joueur 1', 'Joueur 2', 'Joueur 3', 'Joueur 4'],
   size: {
     xs: 6,
     sm: 8,
@@ -132,8 +160,10 @@ export const SHADOWS = {
   
   // Glow colorés (pour boutons au hover)
   primaryGlow: '0 12px 24px rgba(255, 90, 95, 0.25)',
+  amberGlow: '0 12px 24px rgba(255, 180, 0, 0.25)',
   tealGlow: '0 12px 24px rgba(0, 184, 169, 0.25)',
-  slateGlow: '0 12px 24px rgba(61, 79, 95, 0.25)',
+  violetGlow: '0 12px 24px rgba(124, 92, 255, 0.25)',
+  slateGlow: '0 12px 24px rgba(124, 92, 255, 0.25)', // Legacy -> violet
   
   // Card hover
   cardHover: '0 20px 40px rgba(0,0,0,0.08)'
@@ -241,8 +271,8 @@ export function getPlayerColor(index) {
 // ============================================
 export const AMBIANCE_CONFIG = {
   loisir: { emoji: '😎', label: 'Détente', color: COLORS.teal },
-  mix: { emoji: '⚡', label: 'Équilibré', color: COLORS.secondary },
-  compet: { emoji: '🏆', label: 'Compétitif', color: COLORS.amber }
+  mix: { emoji: '⚡', label: 'Équilibré', color: COLORS.amber },
+  compet: { emoji: '🏆', label: 'Compétitif', color: COLORS.primary }
 }
 
 export const POSITION_CONFIG = {
@@ -315,7 +345,7 @@ export const CARD_STYLES = {
   },
   accentBar: {
     height: 4,
-    background: `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.amber})`
+    background: `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.violet})`
   }
 }
 
