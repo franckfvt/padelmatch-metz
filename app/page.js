@@ -20,6 +20,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 // === 2×2 DESIGN TOKENS ===
 const COLORS = {
@@ -100,8 +102,27 @@ function AnimatedSection({ children, className = '', delay = 0 }) {
 
 // === PAGE PRINCIPALE ===
 export default function LandingPage() {
+  const router = useRouter()
   const [scrollY, setScrollY] = useState(0)
   const [headerSolid, setHeaderSolid] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  // Vérifier si déjà connecté → rediriger vers dashboard
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          router.replace('/dashboard')
+          return
+        }
+      } catch (error) {
+        console.error('Session check error:', error)
+      }
+      setCheckingAuth(false)
+    }
+    checkSession()
+  }, [router])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -111,6 +132,41 @@ export default function LandingPage() {
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Loading pendant la vérification
+  if (checkingAuth) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: COLORS.ink,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {PLAYER_COLORS.map((c, i) => (
+            <div 
+              key={i} 
+              style={{ 
+                width: 14, 
+                height: 14, 
+                borderRadius: 4, 
+                background: c,
+                animation: 'pulse 1.4s ease-in-out infinite',
+                animationDelay: `${i * 0.1}s`
+              }} 
+            />
+          ))}
+        </div>
+        <style jsx>{`
+          @keyframes pulse {
+            0%, 80%, 100% { transform: scale(1); opacity: 1; }
+            40% { transform: scale(1.2); opacity: 0.7; }
+          }
+        `}</style>
+      </div>
+    )
+  }
 
   return (
     <div className="landing">
@@ -339,40 +395,6 @@ export default function LandingPage() {
       </section>
 
       {/* ================================================ */}
-      {/* STATS : Preuves sociales subtiles               */}
-      {/* ================================================ */}
-      <section className="act act-stats">
-        <div className="act-content">
-          <AnimatedSection>
-            <p className="stats-intro">Déjà adopté par la communauté</p>
-          </AnimatedSection>
-          
-          <div className="stats-grid">
-            <AnimatedSection delay={100}>
-              <div className="stat-item">
-                <span className="stat-value">500+</span>
-                <span className="stat-label-small">joueurs actifs</span>
-              </div>
-            </AnimatedSection>
-            
-            <AnimatedSection delay={200}>
-              <div className="stat-item">
-                <span className="stat-value">2000+</span>
-                <span className="stat-label-small">parties organisées</span>
-              </div>
-            </AnimatedSection>
-            
-            <AnimatedSection delay={300}>
-              <div className="stat-item">
-                <span className="stat-value">30s</span>
-                <span className="stat-label-small">pour créer une partie</span>
-              </div>
-            </AnimatedSection>
-          </div>
-        </div>
-      </section>
-
-      {/* ================================================ */}
       {/* FEATURES : Résumé sobre                         */}
       {/* ================================================ */}
       <section className="act act-features">
@@ -467,6 +489,13 @@ export default function LandingPage() {
           font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
           -webkit-font-smoothing: antialiased;
           overflow-x: hidden;
+          background: ${COLORS.ink};
+        }
+
+        /* Reset liens - IMPORTANT */
+        a {
+          text-decoration: none;
+          color: inherit;
         }
 
         /* Animations */
@@ -533,11 +562,13 @@ export default function LandingPage() {
           justify-content: space-between;
         }
 
-        .header-logo {
+        .header-logo,
+        .header-logo:link,
+        .header-logo:visited {
           display: flex;
           align-items: center;
           gap: 10px;
-          text-decoration: none;
+          text-decoration: none !important;
           color: ${COLORS.white};
         }
 
@@ -547,13 +578,15 @@ export default function LandingPage() {
           letter-spacing: -1px;
         }
 
-        .header-cta {
+        .header-cta,
+        .header-cta:link,
+        .header-cta:visited {
           padding: 10px 24px;
           background: ${COLORS.white};
           color: ${COLORS.ink};
           font-size: 14px;
           font-weight: 600;
-          text-decoration: none;
+          text-decoration: none !important;
           border-radius: 100px;
           transition: transform 0.2s, box-shadow 0.2s;
         }
@@ -561,6 +594,7 @@ export default function LandingPage() {
         .header-cta:hover {
           transform: translateY(-2px);
           box-shadow: 0 8px 20px rgba(255,255,255,0.2);
+          text-decoration: none !important;
         }
 
         /* Animated sections */
@@ -943,49 +977,6 @@ export default function LandingPage() {
           font-weight: 600;
         }
 
-        /* ========== STATS ========== */
-        .act-stats {
-          background: ${COLORS.light};
-          color: ${COLORS.ink};
-          min-height: auto;
-          padding: 80px 24px;
-        }
-
-        .stats-intro {
-          font-size: 14px;
-          color: ${COLORS.muted};
-          text-transform: uppercase;
-          letter-spacing: 2px;
-          margin-bottom: 40px;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 40px;
-          max-width: 600px;
-          margin: 0 auto;
-        }
-
-        .stat-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .stat-value {
-          font-size: clamp(32px, 7vw, 48px);
-          font-weight: 900;
-          color: ${COLORS.ink};
-        }
-
-        .stat-label-small {
-          font-size: 13px;
-          color: ${COLORS.gray};
-          text-align: center;
-        }
-
         /* ========== FEATURES ========== */
         .act-features {
           background: ${COLORS.white};
@@ -1059,14 +1050,16 @@ export default function LandingPage() {
           margin-bottom: 40px;
         }
 
-        .cta-main {
+        .cta-main,
+        .cta-main:link,
+        .cta-main:visited {
           display: inline-block;
           padding: 20px 48px;
           background: ${COLORS.white};
           color: ${COLORS.ink};
           font-size: 18px;
           font-weight: 700;
-          text-decoration: none;
+          text-decoration: none !important;
           border-radius: 100px;
           transition: transform 0.3s, box-shadow 0.3s;
         }
@@ -1074,6 +1067,7 @@ export default function LandingPage() {
         .cta-main:hover {
           transform: translateY(-3px);
           box-shadow: 0 20px 40px rgba(255,255,255,0.2);
+          text-decoration: none !important;
         }
 
         .cta-sub {
@@ -1113,15 +1107,18 @@ export default function LandingPage() {
           margin-bottom: 24px;
         }
 
-        .footer-links a {
+        .footer-links a,
+        .footer-links a:link,
+        .footer-links a:visited {
           color: ${COLORS.muted};
-          text-decoration: none;
+          text-decoration: none !important;
           font-size: 14px;
           transition: color 0.2s;
         }
 
         .footer-links a:hover {
           color: ${COLORS.white};
+          text-decoration: none !important;
         }
 
         .footer-copy {
@@ -1139,14 +1136,11 @@ export default function LandingPage() {
             font-size: 20px;
           }
 
-          .header-cta {
+          .header-cta,
+          .header-cta:link,
+          .header-cta:visited {
             padding: 8px 18px;
             font-size: 13px;
-          }
-
-          .stats-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
           }
 
           .features-list {
