@@ -71,8 +71,8 @@ export default function DashboardLayout({ children }) {
 
   const navItems = [
     { href: '/dashboard/parties', label: 'Parties', icon: '🎾' },
-    { href: '/dashboard/activite', label: 'Activité', icon: '⚡' },
-    { href: '/dashboard/carte', label: 'Ma carte', icon: '🎴' },
+    { href: '/dashboard/stats', label: 'Stats', icon: '📊' },
+    { href: '/dashboard/carte', label: 'Ma Carte', icon: '🪪' },
   ]
 
   const isActive = (item) => pathname.startsWith(item.href)
