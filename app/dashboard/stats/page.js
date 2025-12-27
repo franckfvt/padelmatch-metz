@@ -21,6 +21,18 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { 
+  getPlayerLevel, 
+  getLevelProgress, 
+  getNextLevel,
+  getUnlockedBadges, 
+  getNextBadges,
+  calculateFullStats,
+  getStreakMessage,
+  PERFORMANCE_BADGES,
+  BADGE_CATEGORIES
+} from '@/app/lib/gamification'
+import { ShareModal, Confetti, ProfileCard, MonthlyRecapCard } from '@/app/components/ShareCards'
 
 // === DESIGN TOKENS WARM ===
 const COLORS = {
@@ -66,9 +78,36 @@ export default function StatsPage() {
     losses: 0,
     winRate: 0,
     currentStreak: 0,
-    streakType: 'none',
+    currentStreakType: 'none',
+    bestWinStreak: 0,
     thisMonth: 0,
-    lastMonth: 0
+    lastMonth: 0,
+    organized: 0,
+    uniquePartners: 0,
+    consecutiveWeeks: 0
+  })
+  
+  // Gamification
+  const [playerLevel, setPlayerLevel] = useState(null)
+  const [levelProgress, setLevelProgress] = useState(null)
+  const [unlockedBadges, setUnlockedBadges] = useState([])
+  const [nextBadges, setNextBadges] = useState([])
+  const [showBadgesModal, setShowBadgesModal] = useState(false)
+  
+  // Progression mensuelle (8 dernières semaines)
+  const [weeklyProgress, setWeeklyProgress] = useState([])
+  
+  // Partage
+  const [shareModal, setShareModal] = useState({ open: false, type: null })
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [monthlyRecap, setMonthlyRecap] = useState(null)
+  
+  // Objectifs mensuels
+  const [monthlyGoals, setMonthlyGoals] = useState({
+    games: { target: 8, current: 0 },
+    wins: { target: 5, current: 0 },
+    streak: { target: 3, current: 0 },
+    partners: { target: 3, current: 0 }
   })
   
   // Historique
@@ -107,9 +146,31 @@ export default function StatsPage() {
       .single()
     setProfile(profileData)
 
-    // Charger les stats et l'historique
+    // Charger les stats complètes avec gamification
+    const fullStats = await calculateFullStats(supabase, userId)
+    setStats(fullStats)
+    
+    // Niveau et progression
+    const level = getPlayerLevel(fullStats.totalGames)
+    setPlayerLevel(level)
+    setLevelProgress(getLevelProgress(fullStats.totalGames))
+    
+    // Badges
+    const unlocked = getUnlockedBadges(fullStats)
+    setUnlockedBadges(unlocked)
+    setNextBadges(getNextBadges(fullStats, 3))
+    
+    // Progression hebdomadaire
+    await loadWeeklyProgress(userId)
+    
+    // Récap mensuel
+    await loadMonthlyRecap(userId, fullStats, profileData)
+    
+    // Objectifs mensuels
+    await loadMonthlyGoals(userId, fullStats)
+    
+    // Autres données
     await Promise.all([
-      loadStats(userId),
       loadRecentGames(userId),
       loadActivityFeed(userId, profileData?.city),
       loadRecentPartners(userId)
@@ -118,97 +179,178 @@ export default function StatsPage() {
     setLoading(false)
   }
 
-  async function loadStats(userId) {
+  async function loadWeeklyProgress(userId) {
+    // Récupérer les parties des 8 dernières semaines
+    const weeks = []
     const today = new Date()
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
-
-    // Parties organisées
-    const { data: orgMatches } = await supabase
-      .from('matches')
-      .select('id, match_date, winner, organizer_team, status')
-      .eq('organizer_id', userId)
-      .in('status', ['completed', 'open', 'full'])
-
-    // Participations
-    const { data: participations } = await supabase
-      .from('match_participants')
-      .select('match_id, team, matches!inner(id, match_date, winner, status)')
-      .eq('user_id', userId)
-      .eq('status', 'confirmed')
-      .in('matches.status', ['completed', 'open', 'full'])
-
-    // Fusionner et dédupliquer
-    const allGames = []
-    const seenIds = new Set()
-
-    ;(orgMatches || []).forEach(m => {
-      if (!seenIds.has(m.id)) {
-        seenIds.add(m.id)
-        allGames.push({ ...m, myTeam: m.organizer_team || 'A' })
-      }
-    })
-
-    ;(participations || []).forEach(p => {
-      if (!seenIds.has(p.match_id)) {
-        seenIds.add(p.match_id)
-        allGames.push({ 
-          id: p.match_id, 
-          match_date: p.matches.match_date,
-          winner: p.matches.winner,
-          status: p.matches.status,
-          myTeam: p.team 
-        })
-      }
-    })
-
-    // Calculer les stats
-    const completedGames = allGames.filter(g => g.status === 'completed' && g.winner)
-    const wins = completedGames.filter(g => g.winner === g.myTeam).length
-    const losses = completedGames.length - wins
-
-    // Ce mois / mois dernier
-    const thisMonthGames = allGames.filter(g => {
-      const d = new Date(g.match_date)
-      return d >= startOfMonth
-    }).length
-
-    const lastMonthGames = allGames.filter(g => {
-      const d = new Date(g.match_date)
-      return d >= startOfLastMonth && d <= endOfLastMonth
-    }).length
-
-    // Calculer la série actuelle
-    const sortedCompleted = completedGames
-      .sort((a, b) => new Date(b.match_date) - new Date(a.match_date))
     
-    let streak = 0
-    let streakType = 'none'
-    
-    if (sortedCompleted.length > 0) {
-      const firstResult = sortedCompleted[0].winner === sortedCompleted[0].myTeam ? 'win' : 'loss'
-      streakType = firstResult
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(today)
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay() - (i * 7))
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 6)
       
-      for (const game of sortedCompleted) {
-        const isWin = game.winner === game.myTeam
-        if ((streakType === 'win' && isWin) || (streakType === 'loss' && !isWin)) {
-          streak++
-        } else {
-          break
-        }
-      }
+      weeks.push({
+        start: weekStart.toISOString().split('T')[0],
+        end: weekEnd.toISOString().split('T')[0],
+        label: `S${8-i}`
+      })
     }
 
-    setStats({
-      totalGames: allGames.length,
-      wins,
-      losses,
-      winRate: completedGames.length > 0 ? Math.round((wins / completedGames.length) * 100) : 0,
-      currentStreak: streak,
-      streakType,
-      thisMonth: thisMonthGames,
-      lastMonth: lastMonthGames
+    // Compter les parties par semaine
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('id, match_date')
+      .eq('organizer_id', userId)
+      .gte('match_date', weeks[0].start)
+      .lte('match_date', weeks[7].end)
+
+    const { data: participations } = await supabase
+      .from('match_participants')
+      .select('match_id, matches!inner(id, match_date)')
+      .eq('user_id', userId)
+      .eq('status', 'confirmed')
+      .gte('matches.match_date', weeks[0].start)
+      .lte('matches.match_date', weeks[7].end)
+
+    // Fusionner et dédupliquer
+    const allGames = new Map()
+    ;(matches || []).forEach(m => allGames.set(m.id, m.match_date))
+    ;(participations || []).forEach(p => {
+      if (!allGames.has(p.match_id)) {
+        allGames.set(p.match_id, p.matches.match_date)
+      }
+    })
+
+    // Compter par semaine
+    const weekCounts = weeks.map(week => {
+      let count = 0
+      allGames.forEach((date) => {
+        if (date >= week.start && date <= week.end) count++
+      })
+      return { ...week, count }
+    })
+
+    setWeeklyProgress(weekCounts)
+  }
+
+  async function loadMonthlyRecap(userId, fullStats, profileData) {
+    // Calculer le partenaire préféré du mois
+    const today = new Date()
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+                        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+    
+    // Récupérer les parties du mois avec les partenaires
+    const { data: monthMatches } = await supabase
+      .from('match_participants')
+      .select(`
+        team,
+        matches!inner(id, match_date, organizer_id, 
+          match_participants(user_id, team, profiles!match_participants_user_id_fkey(name))
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'confirmed')
+      .gte('matches.match_date', startOfMonth.toISOString().split('T')[0])
+
+    // Compter les partenaires
+    const partnerCounts = new Map()
+    ;(monthMatches || []).forEach(p => {
+      const myTeam = p.team
+      p.matches?.match_participants?.forEach(mp => {
+        if (mp.user_id !== userId && mp.team === myTeam && mp.profiles?.name) {
+          const count = partnerCounts.get(mp.profiles.name) || 0
+          partnerCounts.set(mp.profiles.name, count + 1)
+        }
+      })
+    })
+
+    // Trouver le top partenaire
+    let topPartner = null
+    let maxCount = 0
+    partnerCounts.forEach((count, name) => {
+      if (count > maxCount) {
+        maxCount = count
+        topPartner = name
+      }
+    })
+
+    setMonthlyRecap({
+      month: `${monthNames[today.getMonth()]} ${today.getFullYear()}`,
+      totalGames: fullStats.thisMonth,
+      wins: fullStats.wins,
+      losses: fullStats.losses,
+      winRate: fullStats.winRate,
+      bestStreak: fullStats.bestWinStreak,
+      topPartner,
+      playerName: profileData?.name,
+      playerLevel: getPlayerLevel(fullStats.totalGames)
+    })
+  }
+
+  async function loadMonthlyGoals(userId, fullStats) {
+    const today = new Date()
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    
+    // Calculer les victoires ce mois
+    const { data: monthMatches } = await supabase
+      .from('matches')
+      .select('id, winner, organizer_team')
+      .eq('organizer_id', userId)
+      .eq('status', 'completed')
+      .gte('match_date', startOfMonth.toISOString().split('T')[0])
+
+    const { data: monthParticipations } = await supabase
+      .from('match_participants')
+      .select('team, matches!inner(id, winner, match_date, status)')
+      .eq('user_id', userId)
+      .eq('status', 'confirmed')
+      .eq('matches.status', 'completed')
+      .gte('matches.match_date', startOfMonth.toISOString().split('T')[0])
+
+    // Compter les victoires
+    let monthWins = 0
+    const seenIds = new Set()
+    
+    ;(monthMatches || []).forEach(m => {
+      if (!seenIds.has(m.id)) {
+        seenIds.add(m.id)
+        if (m.winner === (m.organizer_team || 'A')) monthWins++
+      }
+    })
+    
+    ;(monthParticipations || []).forEach(p => {
+      if (!seenIds.has(p.matches.id)) {
+        seenIds.add(p.matches.id)
+        if (p.matches.winner === p.team) monthWins++
+      }
+    })
+
+    // Compter les nouveaux partenaires ce mois
+    const { data: monthPartners } = await supabase
+      .from('match_participants')
+      .select(`
+        matches!inner(id, match_date, match_participants(user_id))
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'confirmed')
+      .gte('matches.match_date', startOfMonth.toISOString().split('T')[0])
+
+    const uniquePartnersThisMonth = new Set()
+    ;(monthPartners || []).forEach(p => {
+      p.matches?.match_participants?.forEach(mp => {
+        if (mp.user_id !== userId) {
+          uniquePartnersThisMonth.add(mp.user_id)
+        }
+      })
+    })
+
+    setMonthlyGoals({
+      games: { target: 8, current: fullStats.thisMonth },
+      wins: { target: 5, current: monthWins },
+      streak: { target: 3, current: fullStats.currentStreak },
+      partners: { target: 3, current: uniquePartnersThisMonth.size }
     })
   }
 
@@ -437,12 +579,28 @@ export default function StatsPage() {
         })
       }
 
-      // Refresh les données
+      // Refresh les données incluant la gamification
+      const fullStats = await calculateFullStats(supabase, user.id)
+      setStats(fullStats)
+      
+      // Mettre à jour niveau et badges
+      const level = getPlayerLevel(fullStats.totalGames)
+      setPlayerLevel(level)
+      setLevelProgress(getLevelProgress(fullStats.totalGames))
+      
+      const unlocked = getUnlockedBadges(fullStats)
+      setUnlockedBadges(unlocked)
+      setNextBadges(getNextBadges(fullStats, 3))
+      
       await Promise.all([
-        loadStats(user.id),
-        loadRecentGames(user.id)
+        loadRecentGames(user.id),
+        loadWeeklyProgress(user.id),
+        loadMonthlyGoals(user.id, fullStats)
       ])
 
+      // Confetti si victoire !
+      const isWin = newGame.result === 'win'
+      
       // Reset et fermer
       setNewGame({
         result: 'win',
@@ -453,6 +611,14 @@ export default function StatsPage() {
         customDate: ''
       })
       setShowAddModal(false)
+      
+      // Déclencher confetti après fermeture
+      if (isWin) {
+        setTimeout(() => {
+          setShowConfetti(true)
+          setTimeout(() => setShowConfetti(false), 3000)
+        }, 300)
+      }
 
     } catch (error) {
       console.error('Erreur:', error)
@@ -534,6 +700,67 @@ export default function StatsPage() {
     )
   }
 
+  function GoalProgress({ emoji, label, current, target, color }) {
+    const percent = Math.min((current / target) * 100, 100)
+    const isComplete = current >= target
+    
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14
+      }}>
+        <div style={{
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          background: isComplete ? `${color}20` : COLORS.bgSoft,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 18
+        }}>
+          {isComplete ? '✓' : emoji}
+        </div>
+        
+        <div style={{ flex: 1 }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: 6
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+              {label}
+            </span>
+            <span style={{ 
+              fontSize: 13, 
+              fontWeight: 700, 
+              color: isComplete ? color : COLORS.gray 
+            }}>
+              {current}/{target}
+            </span>
+          </div>
+          
+          <div style={{ 
+            height: 6, 
+            background: COLORS.bgSoft, 
+            borderRadius: 100,
+            overflow: 'hidden'
+          }}>
+            <div style={{ 
+              height: '100%', 
+              width: `${percent}%`,
+              background: isComplete ? color : `${color}80`,
+              borderRadius: 100,
+              transition: 'width 0.5s ease'
+            }} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // === LOADING ===
   if (loading) {
     return (
@@ -576,11 +803,28 @@ export default function StatsPage() {
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            marginBottom: 20
+            marginBottom: 16
           }}>
-            <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, color: COLORS.ink }}>
-              Stats
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, color: COLORS.ink }}>
+                Stats
+              </h1>
+              {playerLevel && (
+                <span style={{
+                  background: `${playerLevel.color}20`,
+                  color: playerLevel.color,
+                  padding: '6px 12px',
+                  borderRadius: 100,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}>
+                  {playerLevel.emoji} {playerLevel.name}
+                </span>
+              )}
+            </div>
             <button 
               onClick={() => setShowAddModal(true)}
               style={{
@@ -602,17 +846,99 @@ export default function StatsPage() {
             </button>
           </div>
 
+          {/* Barre de progression niveau */}
+          {levelProgress && playerLevel && (
+            <div style={{ 
+              background: COLORS.card, 
+              borderRadius: 16, 
+              padding: '12px 16px',
+              marginBottom: 16,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: 8
+              }}>
+                <span style={{ fontSize: 13, color: COLORS.gray }}>
+                  {stats.totalGames} parties jouées
+                </span>
+                {getNextLevel(stats.totalGames) && (
+                  <span style={{ fontSize: 12, color: COLORS.muted }}>
+                    Encore {levelProgress.remaining} pour {getNextLevel(stats.totalGames).emoji} {getNextLevel(stats.totalGames).name}
+                  </span>
+                )}
+              </div>
+              <div style={{ 
+                height: 8, 
+                background: COLORS.bgSoft, 
+                borderRadius: 100,
+                overflow: 'hidden'
+              }}>
+                <div style={{ 
+                  height: '100%', 
+                  width: `${levelProgress.percent}%`,
+                  background: `linear-gradient(90deg, ${playerLevel.color}, ${playerLevel.color}aa)`,
+                  borderRadius: 100,
+                  transition: 'width 0.5s ease'
+                }} />
+              </div>
+            </div>
+          )}
+
           {/* Stats rapides */}
           <div style={{ display: 'flex', gap: 12 }}>
             <StatBox value={stats.totalGames} label="Parties" />
             <StatBox value={stats.wins} label="Victoires" color={COLORS.green} />
-            <StatBox 
-              value={stats.currentStreak} 
-              suffix={stats.streakType === 'win' ? '🔥' : ''}
-              label="Série" 
-              color={stats.streakType === 'win' ? COLORS.p2 : COLORS.gray}
-            />
+            <div style={{
+              background: COLORS.card,
+              borderRadius: 20,
+              padding: '20px 16px',
+              textAlign: 'center',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+              flex: 1,
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {stats.currentStreakType === 'win' && stats.currentStreak >= 3 && (
+                <div style={{
+                  position: 'absolute',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  background: `linear-gradient(135deg, ${COLORS.p2}10, ${COLORS.p1}10)`,
+                  pointerEvents: 'none'
+                }} />
+              )}
+              <div style={{ 
+                fontSize: 28, 
+                fontWeight: 900, 
+                color: stats.currentStreakType === 'win' ? COLORS.p2 : COLORS.gray,
+                lineHeight: 1,
+                position: 'relative'
+              }}>
+                {stats.currentStreak}{stats.currentStreakType === 'win' ? '🔥' : ''}
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 6, position: 'relative' }}>
+                {stats.currentStreakType === 'win' ? 'Série victoires' : 'Série'}
+              </div>
+            </div>
           </div>
+          
+          {/* Message de série */}
+          {getStreakMessage(stats.currentStreak, stats.currentStreakType) && (
+            <div style={{
+              background: `linear-gradient(135deg, ${COLORS.p2}15, ${COLORS.p1}15)`,
+              borderRadius: 12,
+              padding: '12px 16px',
+              marginTop: 12,
+              textAlign: 'center',
+              fontSize: 14,
+              fontWeight: 600,
+              color: COLORS.ink
+            }}>
+              {getStreakMessage(stats.currentStreak, stats.currentStreakType)}
+            </div>
+          )}
         </div>
 
         {/* === ONGLETS === */}
@@ -665,6 +991,256 @@ export default function StatsPage() {
         {/* === ONGLET MES STATS === */}
         {activeTab === 'stats' && (
           <div>
+            {/* Progression hebdomadaire */}
+            {weeklyProgress.length > 0 && (
+              <div style={{
+                background: COLORS.card,
+                borderRadius: 24,
+                padding: 24,
+                marginBottom: 16,
+                boxShadow: '0 2px 16px rgba(0,0,0,0.04)'
+              }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: COLORS.ink }}>
+                  📈 Progression
+                </h3>
+                
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 80, marginBottom: 12 }}>
+                  {weeklyProgress.map((week, i) => {
+                    const maxCount = Math.max(...weeklyProgress.map(w => w.count), 1)
+                    const height = (week.count / maxCount) * 100
+                    const isCurrentWeek = i === weeklyProgress.length - 1
+                    
+                    return (
+                      <div 
+                        key={i}
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                      >
+                        <span style={{ 
+                          fontSize: 11, 
+                          fontWeight: 600, 
+                          color: isCurrentWeek ? COLORS.p4 : COLORS.muted 
+                        }}>
+                          {week.count || ''}
+                        </span>
+                        <div 
+                          style={{
+                            width: '100%',
+                            height: `${Math.max(height, 8)}%`,
+                            background: isCurrentWeek ? COLORS.p4 : COLORS.bgSoft,
+                            borderRadius: 6,
+                            transition: 'all 0.3s ease',
+                            minHeight: 8
+                          }}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  fontSize: 11, 
+                  color: COLORS.muted 
+                }}>
+                  <span>8 dernières semaines</span>
+                  <span style={{ 
+                    color: stats.thisMonth > 0 ? COLORS.green : COLORS.muted, 
+                    fontWeight: 600 
+                  }}>
+                    {stats.thisMonth} ce mois
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Badges */}
+            <div style={{
+              background: COLORS.card,
+              borderRadius: 24,
+              padding: 24,
+              marginBottom: 16,
+              boxShadow: '0 2px 16px rgba(0,0,0,0.04)'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: 16 
+              }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                  🏅 Badges ({unlockedBadges.length}/{PERFORMANCE_BADGES.length})
+                </h3>
+                <button 
+                  onClick={() => setShowBadgesModal(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 13,
+                    color: COLORS.p4,
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Voir tout
+                </button>
+              </div>
+              
+              {unlockedBadges.length === 0 ? (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '20px',
+                  background: COLORS.bgSoft,
+                  borderRadius: 16
+                }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>🎯</div>
+                  <p style={{ color: COLORS.gray, margin: 0, fontSize: 13 }}>
+                    Joue des parties pour débloquer des badges !
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {unlockedBadges.slice(0, 6).map((badge) => (
+                    <div 
+                      key={badge.id}
+                      title={badge.description}
+                      style={{
+                        background: COLORS.bgSoft,
+                        borderRadius: 12,
+                        padding: '10px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: COLORS.ink
+                      }}
+                    >
+                      <span style={{ fontSize: 18 }}>{badge.emoji}</span>
+                      {badge.name}
+                    </div>
+                  ))}
+                  {unlockedBadges.length > 6 && (
+                    <div style={{
+                      background: COLORS.bgSoft,
+                      borderRadius: 12,
+                      padding: '10px 14px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: COLORS.muted
+                    }}>
+                      +{unlockedBadges.length - 6}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Prochains badges */}
+              {nextBadges.length > 0 && (
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
+                  <p style={{ fontSize: 12, color: COLORS.muted, margin: '0 0 10px' }}>
+                    Prochains badges à débloquer :
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {nextBadges.map((badge) => (
+                      <div 
+                        key={badge.id}
+                        title={badge.description}
+                        style={{
+                          background: COLORS.white,
+                          border: `1px dashed ${COLORS.border}`,
+                          borderRadius: 12,
+                          padding: '8px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 12,
+                          color: COLORS.muted,
+                          opacity: 0.7
+                        }}
+                      >
+                        <span style={{ fontSize: 16, filter: 'grayscale(100%)' }}>{badge.emoji}</span>
+                        {badge.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Objectifs mensuels */}
+            <div style={{
+              background: COLORS.card,
+              borderRadius: 24,
+              padding: 24,
+              marginBottom: 16,
+              boxShadow: '0 2px 16px rgba(0,0,0,0.04)'
+            }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: COLORS.ink }}>
+                🎯 Objectifs du mois
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Objectif parties */}
+                <GoalProgress 
+                  emoji="🎾"
+                  label="Parties jouées"
+                  current={monthlyGoals.games.current}
+                  target={monthlyGoals.games.target}
+                  color={COLORS.p3}
+                />
+                
+                {/* Objectif victoires */}
+                <GoalProgress 
+                  emoji="🏆"
+                  label="Victoires"
+                  current={monthlyGoals.wins.current}
+                  target={monthlyGoals.wins.target}
+                  color={COLORS.green}
+                />
+                
+                {/* Objectif série */}
+                <GoalProgress 
+                  emoji="🔥"
+                  label="Série en cours"
+                  current={monthlyGoals.streak.current}
+                  target={monthlyGoals.streak.target}
+                  color={COLORS.p2}
+                />
+                
+                {/* Objectif partenaires */}
+                <GoalProgress 
+                  emoji="🤝"
+                  label="Partenaires différents"
+                  current={monthlyGoals.partners.current}
+                  target={monthlyGoals.partners.target}
+                  color={COLORS.p4}
+                />
+              </div>
+              
+              {/* Message de motivation */}
+              {Object.values(monthlyGoals).filter(g => g.current >= g.target).length === 4 && (
+                <div style={{
+                  marginTop: 16,
+                  padding: '12px 16px',
+                  background: `linear-gradient(135deg, ${COLORS.green}15, ${COLORS.p3}15)`,
+                  borderRadius: 12,
+                  textAlign: 'center',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: COLORS.ink
+                }}>
+                  🎉 Tous les objectifs atteints ! Champion !
+                </div>
+              )}
+            </div>
+
             {/* Détails */}
             <div style={{
               background: COLORS.card,
@@ -683,19 +1259,75 @@ export default function StatsPage() {
                   <div style={{ fontSize: 12, color: COLORS.muted }}>Taux victoire</div>
                 </div>
                 <div style={{ background: COLORS.bgSoft, borderRadius: 16, padding: 16 }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.ink }}>{stats.thisMonth}</div>
-                  <div style={{ fontSize: 12, color: COLORS.muted }}>Ce mois-ci</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.ink }}>{stats.bestWinStreak}</div>
+                  <div style={{ fontSize: 12, color: COLORS.muted }}>Record série 🔥</div>
                 </div>
                 <div style={{ background: COLORS.bgSoft, borderRadius: 16, padding: 16 }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.ink }}>{stats.losses}</div>
-                  <div style={{ fontSize: 12, color: COLORS.muted }}>Défaites</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.ink }}>{stats.organized}</div>
+                  <div style={{ fontSize: 12, color: COLORS.muted }}>Organisées</div>
                 </div>
                 <div style={{ background: COLORS.bgSoft, borderRadius: 16, padding: 16 }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: stats.thisMonth > stats.lastMonth ? COLORS.green : COLORS.gray }}>
-                    {stats.thisMonth > stats.lastMonth ? '+' : ''}{stats.thisMonth - stats.lastMonth}
-                  </div>
-                  <div style={{ fontSize: 12, color: COLORS.muted }}>vs mois dernier</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.ink }}>{stats.uniquePartners}</div>
+                  <div style={{ fontSize: 12, color: COLORS.muted }}>Partenaires</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Partager */}
+            <div style={{
+              background: `linear-gradient(135deg, ${COLORS.p4}15, ${COLORS.p3}15)`,
+              borderRadius: 24,
+              padding: 24,
+              marginBottom: 16,
+              border: `1px solid ${COLORS.p4}30`
+            }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 12px', color: COLORS.ink }}>
+                📤 Partager
+              </h3>
+              <p style={{ fontSize: 13, color: COLORS.gray, margin: '0 0 16px' }}>
+                Montre ta progression à tes amis !
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setShareModal({ open: true, type: 'profile' })}
+                  style={{
+                    flex: 1,
+                    padding: '14px 16px',
+                    background: COLORS.white,
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: 14,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: COLORS.ink,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
+                  }}
+                >
+                  🪪 Ma carte
+                </button>
+                <button
+                  onClick={() => setShareModal({ open: true, type: 'recap' })}
+                  style={{
+                    flex: 1,
+                    padding: '14px 16px',
+                    background: COLORS.ink,
+                    border: 'none',
+                    borderRadius: 14,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: COLORS.white,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
+                  }}
+                >
+                  📊 Récap du mois
+                </button>
               </div>
             </div>
 
@@ -844,6 +1476,150 @@ export default function StatsPage() {
           </div>
         )}
       </div>
+
+      {/* === MODAL BADGES === */}
+      {showBadgesModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 16
+          }}
+          onClick={() => setShowBadgesModal(false)}
+        >
+          <div 
+            style={{
+              background: COLORS.card,
+              borderRadius: 28,
+              width: '100%',
+              maxWidth: 500,
+              maxHeight: '85vh',
+              overflow: 'auto',
+              padding: 24
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: 24
+            }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: COLORS.ink }}>
+                🏅 Tous les badges
+              </h2>
+              <button 
+                onClick={() => setShowBadgesModal(false)}
+                style={{
+                  width: 36, height: 36,
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: COLORS.bgSoft,
+                  fontSize: 20,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: COLORS.gray
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ 
+                background: COLORS.bgSoft, 
+                borderRadius: 12, 
+                padding: '12px 16px',
+                textAlign: 'center',
+                marginBottom: 20
+              }}>
+                <span style={{ fontSize: 24, fontWeight: 800, color: COLORS.ink }}>
+                  {unlockedBadges.length}
+                </span>
+                <span style={{ color: COLORS.muted }}> / {PERFORMANCE_BADGES.length} débloqués</span>
+              </div>
+
+              {BADGE_CATEGORIES.map(category => {
+                const categoryBadges = PERFORMANCE_BADGES.filter(b => b.category === category.id)
+                const unlockedInCategory = categoryBadges.filter(b => 
+                  unlockedBadges.some(ub => ub.id === b.id)
+                )
+                
+                return (
+                  <div key={category.id} style={{ marginBottom: 20 }}>
+                    <div style={{ 
+                      fontSize: 14, 
+                      fontWeight: 700, 
+                      color: COLORS.ink,
+                      marginBottom: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span>{category.name}</span>
+                      <span style={{ 
+                        fontSize: 12, 
+                        color: COLORS.muted,
+                        fontWeight: 500
+                      }}>
+                        {unlockedInCategory.length}/{categoryBadges.length}
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {categoryBadges.map(badge => {
+                        const isUnlocked = unlockedBadges.some(ub => ub.id === badge.id)
+                        
+                        return (
+                          <div 
+                            key={badge.id}
+                            style={{
+                              background: isUnlocked ? COLORS.bgSoft : COLORS.white,
+                              border: isUnlocked ? 'none' : `1px dashed ${COLORS.border}`,
+                              borderRadius: 12,
+                              padding: '10px 14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              opacity: isUnlocked ? 1 : 0.5
+                            }}
+                          >
+                            <span style={{ 
+                              fontSize: 18,
+                              filter: isUnlocked ? 'none' : 'grayscale(100%)'
+                            }}>
+                              {badge.emoji}
+                            </span>
+                            <div>
+                              <div style={{ 
+                                fontSize: 13, 
+                                fontWeight: 600, 
+                                color: isUnlocked ? COLORS.ink : COLORS.muted 
+                              }}>
+                                {badge.name}
+                              </div>
+                              <div style={{ fontSize: 11, color: COLORS.muted }}>
+                                {badge.description}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* === MODAL AJOUTER PARTIE === */}
       {showAddModal && (
@@ -1101,6 +1877,26 @@ export default function StatsPage() {
           </div>
         </div>
       )}
+
+      {/* === MODAL PARTAGE === */}
+      <ShareModal
+        isOpen={shareModal.open}
+        onClose={() => setShareModal({ open: false, type: null })}
+        type={shareModal.type}
+        data={shareModal.type === 'profile' ? {
+          name: profile?.name,
+          level: profile?.level || 'Intermédiaire',
+          city: profile?.city || '',
+          totalGames: stats.totalGames,
+          wins: stats.wins,
+          winRate: stats.winRate,
+          currentStreak: stats.currentStreak,
+          playerLevel
+        } : shareModal.type === 'recap' ? monthlyRecap : {}}
+      />
+
+      {/* === CONFETTI === */}
+      <Confetti active={showConfetti} />
 
       <style jsx global>{`
         body {
