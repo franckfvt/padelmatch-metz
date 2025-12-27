@@ -22,6 +22,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { VictoryCard, Confetti } from '@/app/components/ShareCards'
 
 // === 2×2 DESIGN TOKENS ===
 const COLORS = {
@@ -118,6 +119,14 @@ export default function MatchDetailPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteTeam, setInviteTeam] = useState('A')
   const [inviteSending, setInviteSending] = useState(false)
+  
+  // États score
+  const [showScoreModal, setShowScoreModal] = useState(false)
+  const [scoreA, setScoreA] = useState('')
+  const [scoreB, setScoreB] = useState('')
+  const [savingScore, setSavingScore] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [showVictoryCard, setShowVictoryCard] = useState(false)
 
   // === DATA LOADING ===
   useEffect(() => { loadData() }, [matchId])
@@ -299,6 +308,84 @@ export default function MatchDetailPage() {
     setModal(null); router.push('/dashboard/parties')
   }
 
+  // === SCORE FUNCTIONS ===
+  function isMatchPast() {
+    if (!match?.match_date) return false
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const matchDate = new Date(match.match_date)
+    matchDate.setHours(0, 0, 0, 0)
+    return matchDate < today
+  }
+
+  function needsScore() {
+    return isMatchPast() && match?.status !== 'cancelled' && match?.score_a === null && match?.score_b === null
+  }
+
+  function getUserTeam() {
+    if (match?.organizer_id === user?.id) return match?.organizer_team || 'A'
+    const myParticipation = participants.find(p => p.user_id === user?.id && p.status === 'confirmed')
+    return myParticipation?.team || 'A'
+  }
+
+  async function saveScore() {
+    if (!scoreA || !scoreB) { alert('Entre les deux scores'); return }
+    setSavingScore(true)
+    try {
+      const scoreANum = parseInt(scoreA)
+      const scoreBNum = parseInt(scoreB)
+      const winner = scoreANum > scoreBNum ? 'A' : 'B'
+      
+      const { error } = await supabase.from('matches').update({
+        score_a: scoreANum, score_b: scoreBNum, winner: winner, status: 'completed'
+      }).eq('id', parseInt(matchId))
+      
+      if (error) throw error
+      
+      setShowScoreModal(false)
+      setScoreA('')
+      setScoreB('')
+      await loadData()
+      
+      // Confetti si victoire
+      const userTeam = getUserTeam()
+      if (userTeam === winner) {
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 3000)
+        setTimeout(() => setShowVictoryCard(true), 500)
+      }
+    } catch (err) {
+      console.error('Erreur score:', err)
+      alert('Erreur lors de la sauvegarde')
+    } finally {
+      setSavingScore(false)
+    }
+  }
+
+  function getVictoryCardData() {
+    const teamA = [], teamB = []
+    if (match?.profiles) {
+      const orgTeam = match?.organizer_team || 'A'
+      if (orgTeam === 'A') teamA.push(match.profiles.name)
+      else teamB.push(match.profiles.name)
+    }
+    confirmedParticipants.forEach(p => {
+      if (p.team === 'A') teamA.push(p.profiles?.name)
+      else teamB.push(p.profiles?.name)
+    })
+    const userTeam = getUserTeam()
+    const didWin = userTeam === match?.winner
+    return {
+      player1: didWin ? teamA[0] : teamB[0],
+      player2: didWin ? teamA[1] : teamB[1],
+      opponent1: didWin ? teamB[0] : teamA[0],
+      opponent2: didWin ? teamB[1] : teamA[1],
+      score: didWin ? `${match?.score_a}-${match?.score_b}` : `${match?.score_b}-${match?.score_a}`,
+      location: match?.clubs?.name || match?.city || 'Padel',
+      date: new Date(match?.match_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    }
+  }
+
   // === PLAYERS DATA ===
   const orgaPlayer = { 
     isOrganizer: true, profiles: match?.profiles, team: match?.organizer_team || 'A', 
@@ -473,6 +560,78 @@ export default function MatchDetailPage() {
           
           {/* === COLONNE PRINCIPALE === */}
           <main className="main-column">
+            
+            {/* BLOC SCORE - Si match terminé */}
+            {isOrganizer() && needsScore() && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(255,90,95,0.1), rgba(255,180,0,0.1))',
+                border: '2px dashed rgba(255,90,95,0.4)',
+                borderRadius: 20,
+                padding: 24,
+                marginBottom: 20,
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📝</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink, marginBottom: 4 }}>
+                  Partie terminée !
+                </div>
+                <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 20 }}>
+                  Enregistre le score pour mettre à jour tes stats
+                </div>
+                <button
+                  onClick={() => setShowScoreModal(true)}
+                  style={{
+                    padding: '16px 32px',
+                    background: COLORS.p1,
+                    color: COLORS.white,
+                    border: 'none',
+                    borderRadius: 100,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(255, 90, 95, 0.3)'
+                  }}
+                >
+                  ✏️ Entrer le score
+                </button>
+              </div>
+            )}
+            
+            {/* Score affiché si enregistré */}
+            {match?.score_a !== null && match?.score_b !== null && (
+              <div style={{
+                background: getUserTeam() === match.winner ? COLORS.p3Soft : COLORS.p1Soft,
+                borderRadius: 20,
+                padding: 24,
+                marginBottom: 20,
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 8 }}>
+                  {getUserTeam() === match.winner ? '🏆 Victoire !' : '😔 Défaite'}
+                </div>
+                <div style={{ fontSize: 44, fontWeight: 900, color: COLORS.ink }}>
+                  {match.score_a} - {match.score_b}
+                </div>
+                {getUserTeam() === match.winner && (
+                  <button
+                    onClick={() => setShowVictoryCard(true)}
+                    style={{
+                      marginTop: 16,
+                      padding: '12px 24px',
+                      background: COLORS.ink,
+                      color: COLORS.white,
+                      border: 'none',
+                      borderRadius: 100,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    📤 Partager ma victoire
+                  </button>
+                )}
+              </div>
+            )}
             
             {/* CARTE MATCH 2×2 */}
             <div className="match-card">
@@ -883,6 +1042,127 @@ export default function MatchDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Score */}
+      {showScoreModal && (
+        <div className="modal-overlay" onClick={() => setShowScoreModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">📝 Entrer le score</h3>
+            <p className="modal-subtitle" style={{ marginBottom: 24 }}>
+              {formatDateFull(match.match_date)}
+            </p>
+            
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 13, color: COLORS.gray, marginBottom: 8 }}>Équipe A</div>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={scoreA}
+                  onChange={e => setScoreA(e.target.value)}
+                  placeholder="0"
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 16,
+                    border: `2px solid ${COLORS.border}`,
+                    fontSize: 36,
+                    fontWeight: 900,
+                    textAlign: 'center',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              
+              <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.muted }}>-</div>
+              
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 13, color: COLORS.gray, marginBottom: 8 }}>Équipe B</div>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={scoreB}
+                  onChange={e => setScoreB(e.target.value)}
+                  placeholder="0"
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 16,
+                    border: `2px solid ${COLORS.border}`,
+                    fontSize: 36,
+                    fontWeight: 900,
+                    textAlign: 'center',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+            
+            <button 
+              onClick={saveScore}
+              disabled={savingScore}
+              className="btn-modal-primary"
+            >
+              {savingScore ? '⏳ Enregistrement...' : '✓ Enregistrer le score'}
+            </button>
+            <button onClick={() => setShowScoreModal(false)} className="btn-modal-close">
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Carte Victoire */}
+      {showVictoryCard && (
+        <div className="modal-overlay" onClick={() => setShowVictoryCard(false)}>
+          <div className="modal-box large" onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+            <h3 className="modal-title">🏆 Félicitations !</h3>
+            <p className="modal-subtitle" style={{ marginBottom: 20 }}>
+              Partage ta victoire avec tes amis
+            </p>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20, transform: 'scale(0.85)', transformOrigin: 'top center' }}>
+              <VictoryCard {...getVictoryCardData()} format="feed" />
+            </div>
+            
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={async () => {
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: 'Victoire ! 🏆',
+                        text: `J'ai gagné ${match.score_a}-${match.score_b} au padel ! 🎾`,
+                        url: window.location.href
+                      })
+                    } catch (err) {}
+                  }
+                }}
+                className="btn-modal-primary"
+                style={{ flex: 1, marginBottom: 0 }}
+              >
+                📤 Partager
+              </button>
+              <button 
+                onClick={() => setShowVictoryCard(false)} 
+                className="btn-modal-close"
+                style={{ flex: 1, marginTop: 0 }}
+              >
+                Fermer
+              </button>
+            </div>
+            
+            <p style={{ fontSize: 12, color: COLORS.muted, marginTop: 16 }}>
+              💡 Fais une capture d'écran pour sauvegarder l'image
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Confetti */}
+      <Confetti active={showConfetti} />
 
       {/* === STYLES === */}
       <style jsx global>{`
