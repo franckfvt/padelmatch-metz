@@ -316,7 +316,7 @@ export default function PartiesPage() {
       )
     }
     
-    // TOUJOURS avatar coloré - jamais de photo (concept 2×2)
+    // TOUJOURS avatar coloré, juste la lettre (concept 2×2)
     return (
       <div className="avatar-slot" style={{
         width: isMini ? dimensions : '100%',
@@ -336,25 +336,11 @@ export default function PartiesPage() {
         flexShrink: 0
       }}>
         <span>{player.name?.[0]?.toUpperCase()}</span>
-        {showName && !isMini && (
-          <span style={{ 
-            fontSize: nameSize, 
-            marginTop: 3, 
-            color: 'rgba(255,255,255,0.9)',
-            fontWeight: 600,
-            maxWidth: '90%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
-            {getFirstName(player.name)}
-          </span>
-        )}
       </div>
     )
   }
 
-  // Avatar rond pour sidebar/liste (plus petit) - TOUJOURS COLORÉ
+  // Avatar rond pour sidebar/liste - TOUJOURS COLORÉ
   function AvatarRound({ player, size = 44, index = 0 }) {
     const bgColor = PLAYER_COLORS[index % 4]
     
