@@ -2,15 +2,14 @@
 
 /**
  * ============================================
- * PAGE PARTIES - 2×2 BRAND V2
+ * PAGE PARTIES - 2×2 BRAND (OPTION A)
  * ============================================
  * 
- * Design épuré et vivant :
- * - Cards avec bordure gauche colorée (ambiance)
- * - Avatars carrés arrondis en ligne
- * - Bandeau actions en attente (amber)
- * - Historique en grille compacte
- * - Mobile-first
+ * Design : Interface sobre + avatars carrés arrondis colorés
+ * Les SEULES couleurs = avatars des joueurs
+ * 
+ * Avatars : Carrés arrondis avec initiale + prénom
+ * Couleurs : Coral, Amber, Teal, Violet
  * 
  * ============================================
  */
@@ -22,46 +21,32 @@ import Link from 'next/link'
 
 // === 2×2 DESIGN TOKENS ===
 const COLORS = {
-  // Players
+  // Players - LES SEULES COULEURS
   p1: '#ff5a5f',  // Coral
   p2: '#ffb400',  // Amber
   p3: '#00b8a9',  // Teal
   p4: '#7c5cff',  // Violet
   
-  // Soft versions
-  p1Soft: '#fff0f0',
-  p2Soft: '#fff8e6',
-  p3Soft: '#e6f9f7',
-  p4Soft: '#f3f0ff',
-  
-  // Interface
+  // Interface sobre
   ink: '#1a1a1a',
+  dark: '#2d2d2d',
   gray: '#6b7280',
   muted: '#9ca3af',
+  light: '#d1d5db',
   
   // Backgrounds
-  bg: '#fafafa',
+  bg: '#f5f5f5',
   card: '#ffffff',
+  cardHover: '#eeeeee',
   
   // Borders
   border: '#e5e7eb',
+  borderLight: '#f3f4f6',
+  
   white: '#ffffff',
 }
 
 const PLAYER_COLORS = [COLORS.p1, COLORS.p2, COLORS.p3, COLORS.p4]
-
-// Couleur ambiance pour bordure
-const AMBIANCE_COLORS = {
-  loisir: COLORS.p3,    // Teal - Détente
-  mix: COLORS.p2,       // Amber - Équilibré
-  compet: COLORS.p1,    // Coral - Compétitif
-}
-
-const AMBIANCE_EMOJI = {
-  loisir: '😌',
-  mix: '⚡',
-  compet: '🔥',
-}
 
 export default function PartiesPage() {
   const router = useRouter()
@@ -70,14 +55,22 @@ export default function PartiesPage() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   
+  const [showAllMatches, setShowAllMatches] = useState(false)
+  const [filterDate, setFilterDate] = useState('week')
+  const [filterCity, setFilterCity] = useState('all')
+  const [cities, setCities] = useState([])
+  
+  const [availableMatches, setAvailableMatches] = useState([])
   const [myUpcomingMatches, setMyUpcomingMatches] = useState([])
-  const [pastMatches, setPastMatches] = useState([])
   
   const [pendingActions, setPendingActions] = useState({
     invitesForMe: [],
     requestsToReview: [],
     invitesToFollow: []
   })
+  
+  const [stats, setStats] = useState({ total: 0, organized: 0, wins: 0 })
+  const [favoritePlayers, setFavoritePlayers] = useState([])
 
   useEffect(() => { loadData() }, [])
 
@@ -90,9 +83,12 @@ export default function PartiesPage() {
     const userId = session.user.id
     const today = new Date().toISOString().split('T')[0]
 
-    // Charger profil et matchs
-    const [profileResult, orgMatchesResult, partMatchesResult] = await Promise.all([
+    const [profileResult, availableResult, orgMatchesResult, partMatchesResult] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).single(),
+      supabase.from('matches')
+        .select(`*, clubs (id, name, city), profiles!matches_organizer_id_fkey (id, name, avatar_url), match_participants (id, user_id, status, profiles!match_participants_user_id_fkey (id, name, avatar_url))`)
+        .eq('status', 'open').gt('spots_available', 0).gte('match_date', today).neq('organizer_id', userId)
+        .order('match_date', { ascending: true }).limit(20),
       supabase.from('matches')
         .select(`*, clubs (name, city), profiles!matches_organizer_id_fkey (id, name, avatar_url), match_participants (id, user_id, team, status, profiles!match_participants_user_id_fkey (id, name, avatar_url))`)
         .eq('organizer_id', userId).gte('match_date', today).order('match_date', { ascending: true }),
@@ -101,9 +97,22 @@ export default function PartiesPage() {
         .eq('user_id', userId).eq('status', 'confirmed').gte('matches.match_date', today)
     ])
 
-    setProfile(profileResult.data)
+    const profileData = profileResult.data
+    setProfile(profileData)
 
-    // Combiner matchs organisés et participations
+    const filteredAvailable = (availableResult.data || []).filter(m => 
+      !m.match_participants?.some(p => p.user_id === userId)
+    )
+    setAvailableMatches(filteredAvailable)
+
+    const citiesSet = new Set()
+    filteredAvailable.forEach(m => { 
+      if (m.clubs?.city) citiesSet.add(m.clubs.city)
+      if (m.city) citiesSet.add(m.city) 
+    })
+    setCities(Array.from(citiesSet).sort())
+    if (profileData?.city) setFilterCity(profileData.city)
+
     const allUpcoming = [...(orgMatchesResult.data || [])]
     const orgIds = new Set(allUpcoming.map(m => m.id))
     ;(partMatchesResult.data || []).forEach(p => { 
@@ -118,85 +127,104 @@ export default function PartiesPage() {
     })
     setMyUpcomingMatches(allUpcoming)
     
-    // Charger actions en attente
-    await loadPendingActions(userId)
-    
-    // Charger historique
-    await loadPastMatches(userId, today)
+    await loadPendingActions(userId, orgMatchesResult.data || [])
     
     setLoading(false)
+    loadSidebarData(userId, today)
   }
 
-  async function loadPendingActions(userId) {
-    // Invitations reçues (où je suis invité)
-    const { data: myInvites } = await supabase
-      .from('match_participants')
-      .select(`*, matches!inner (id, match_date, match_time, ambiance, clubs (name)), profiles!matches_organizer_id_fkey:matches!inner(profiles!matches_organizer_id_fkey(id, name))`)
-      .eq('user_id', userId)
-      .eq('status', 'pending')
-
-    // Demandes à valider (sur mes matchs)
-    const { data: myMatches } = await supabase
-      .from('matches')
-      .select('id')
-      .eq('organizer_id', userId)
-
-    const matchIds = (myMatches || []).map(m => m.id)
-    
-    let requestsToReview = []
-    if (matchIds.length > 0) {
-      const { data: pendingRequests } = await supabase
-        .from('match_participants')
-        .select(`*, matches!inner (id, match_date, match_time, clubs (name)), profiles!match_participants_user_id_fkey (id, name, level)`)
-        .in('match_id', matchIds)
-        .eq('status', 'pending')
-        .neq('user_id', userId)
-      
-      requestsToReview = pendingRequests || []
+  async function loadPendingActions(userId, myMatches) {
+    const matchIds = myMatches.map(m => m.id)
+    if (matchIds.length === 0) {
+      setPendingActions({ invitesForMe: [], requestsToReview: [], invitesToFollow: [] })
+      return
     }
 
-    setPendingActions({
-      invitesForMe: myInvites || [],
-      requestsToReview,
-      invitesToFollow: []
-    })
-  }
-
-  async function loadPastMatches(userId, today) {
-    const { data } = await supabase
+    const { data: pendingRequests } = await supabase
       .from('match_participants')
-      .select(`match_id, team, matches!inner (id, match_date, match_time, winner, ambiance, clubs (name), match_participants (user_id, team, profiles!match_participants_user_id_fkey (id, name)))`)
-      .eq('user_id', userId)
-      .eq('status', 'confirmed')
-      .lt('matches.match_date', today)
-      .order('matches(match_date)', { ascending: false })
-      .limit(10)
+      .select(`*, matches!inner (id, match_date, match_time, clubs (name)), profiles!match_participants_user_id_fkey (id, name, avatar_url, level)`)
+      .in('match_id', matchIds)
+      .eq('status', 'pending')
 
-    const matches = (data || []).map(p => ({
-      ...p.matches,
-      myTeam: p.team
-    }))
-    
-    // Dédupliquer
-    const seen = new Set()
-    const unique = matches.filter(m => {
-      if (seen.has(m.id)) return false
-      seen.add(m.id)
-      return true
+    const { data: pendingInvites } = await supabase
+      .from('pending_invites')
+      .select(`*, matches!inner (id, match_date, match_time, clubs (name))`)
+      .in('match_id', matchIds)
+      .eq('status', 'pending')
+
+    const invitesWithAge = (pendingInvites || []).map(inv => {
+      const created = new Date(inv.created_at)
+      const now = new Date()
+      const hoursSince = Math.floor((now - created) / (1000 * 60 * 60))
+      const daysSince = Math.floor(hoursSince / 24)
+      return { ...inv, hoursSince, daysSince }
     })
+
+    setPendingActions({
+      invitesForMe: [],
+      requestsToReview: pendingRequests || [],
+      invitesToFollow: invitesWithAge.filter(i => i.daysSince >= 2)
+    })
+  }
+
+  async function loadSidebarData(userId, today) {
+    const [pastResult, organizedCount, favoritesResult] = await Promise.all([
+      supabase.from('match_participants')
+        .select(`match_id, matches!inner (id, match_date, winner)`)
+        .eq('user_id', userId).lt('matches.match_date', today).limit(100),
+      supabase.from('matches')
+        .select('id', { count: 'exact', head: true })
+        .eq('organizer_id', userId),
+      supabase.from('player_favorites')
+        .select(`profiles!player_favorites_favorite_user_id_fkey (id, name, avatar_url, level, city)`)
+        .eq('user_id', userId).limit(5)
+    ])
     
-    setPastMatches(unique)
+    const uniquePast = new Set((pastResult.data || []).map(p => p.match_id))
+    const wins = (pastResult.data || []).filter(p => p.matches?.winner).length
+    setStats({ total: uniquePast.size, organized: organizedCount.count || 0, wins })
+    setFavoritePlayers((favoritesResult.data || []).map(f => f.profiles).filter(Boolean))
   }
 
-  // === ACTIONS ===
-  async function acceptInvite(invite) {
-    await supabase.from('match_participants').update({ status: 'confirmed' }).eq('id', invite.id)
-    loadData()
+  // === HELPERS ===
+  function getGreeting() {
+    const hour = new Date().getHours()
+    const firstName = profile?.name?.split(' ')[0] || ''
+    if (hour < 12) return `Bonjour ${firstName} 👋`
+    if (hour < 18) return `Salut ${firstName} 👋`
+    return `Bonsoir ${firstName} 👋`
   }
 
-  async function declineInvite(invite) {
-    await supabase.from('match_participants').delete().eq('id', invite.id)
-    loadData()
+  function formatDate(dateStr) {
+    if (!dateStr) return 'Flexible'
+    const date = new Date(dateStr)
+    const today = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    if (date.toDateString() === today.toDateString()) return "Aujourd'hui"
+    if (date.toDateString() === tomorrow.toDateString()) return 'Demain'
+    return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
+  }
+
+  function formatTime(timeStr) { return timeStr ? timeStr.slice(0, 5) : 'Flexible' }
+  function getMatchLocation(match) { return match.clubs?.name || match.city || 'Lieu à définir' }
+
+  function getMatchPlayers(match) {
+    const players = []
+    if (match.profiles) {
+      players.push({ id: match.organizer_id, name: match.profiles.name, avatar_url: match.profiles.avatar_url })
+    }
+    ;(match.match_participants || []).forEach(p => { 
+      if (p.user_id !== match.organizer_id && p.profiles && p.status === 'confirmed') {
+        players.push({ id: p.user_id, name: p.profiles.name, avatar_url: p.profiles.avatar_url }) 
+      }
+    })
+    return players
+  }
+
+  function getFirstName(name) {
+    if (!name) return ''
+    return name.split(' ')[0]
   }
 
   async function acceptRequest(req) {
@@ -209,69 +237,132 @@ export default function PartiesPage() {
     loadData()
   }
 
-  // === HELPERS ===
-  function formatDateShort(dateStr) {
-    if (!dateStr) return 'Flexible'
-    const date = new Date(dateStr)
-    const today = new Date()
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    
-    if (date.toDateString() === today.toDateString()) return "Auj."
-    if (date.toDateString() === tomorrow.toDateString()) return 'Dem.'
-    
-    const days = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM']
-    return days[date.getDay()] + ' ' + date.getDate()
+  async function cancelInvite(invite) {
+    await supabase.from('pending_invites').delete().eq('id', invite.id)
+    loadData()
   }
 
-  function formatDateCompact(dateStr) {
-    if (!dateStr) return ''
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  function getTotalPendingActions() {
+    return pendingActions.requestsToReview.length + pendingActions.invitesToFollow.length
   }
 
-  function formatTime(timeStr) { 
-    return timeStr ? timeStr.slice(0, 5) : '' 
-  }
-  
-  function getMatchLocation(match) { 
-    return match.clubs?.name || match.city || 'Lieu à définir' 
-  }
-
-  function getMatchPlayers(match) {
-    const players = []
-    if (match.profiles) {
-      players.push({ id: match.organizer_id, name: match.profiles.name })
+  // Filtres
+  const filteredAvailable = availableMatches.filter(match => {
+    if (filterCity !== 'all') {
+      const matchCity = (match.clubs?.city || match.city || '').toLowerCase()
+      if (matchCity !== filterCity.toLowerCase()) return false
     }
-    ;(match.match_participants || []).forEach(p => { 
-      if (p.user_id !== match.organizer_id && p.profiles && p.status === 'confirmed') {
-        players.push({ id: p.user_id, name: p.profiles.name }) 
+    if (match.match_date) {
+      const matchDate = new Date(match.match_date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const endOfWeek = new Date(today)
+      endOfWeek.setDate(endOfWeek.getDate() + 7)
+      
+      if (filterDate === 'today' && matchDate.toDateString() !== today.toDateString()) return false
+      if (filterDate === 'tomorrow' && matchDate.toDateString() !== tomorrow.toDateString()) return false
+      if (filterDate === 'week' && matchDate > endOfWeek) return false
+      if (filterDate === 'weekend') {
+        const day = matchDate.getDay()
+        if (day !== 0 && day !== 6) return false
       }
-    })
-    return players
-  }
+    }
+    return true
+  })
 
-  function getWinStatus(match) {
-    if (!match.winner || !match.myTeam) return null
-    return match.winner === match.myTeam ? 'win' : 'loss'
-  }
-
-  function getTotalPending() {
-    return pendingActions.invitesForMe.length + pendingActions.requestsToReview.length
-  }
+  const visibleMatches = myUpcomingMatches.slice(0, 3)
+  const hiddenMatches = myUpcomingMatches.slice(3)
 
   // === COMPOSANTS ===
   
-  // Avatar carré arrondi simple
-  function Avatar({ name, index = 0, size = 40 }) {
+  // Avatar carré arrondi - LA STAR DU DESIGN
+  function AvatarSlot({ player, index = 0, size = 'normal', showName = true }) {
     const bgColor = PLAYER_COLORS[index % 4]
-    const radius = Math.round(size * 0.28)
+    const isLarge = size === 'large'
+    const isMini = size === 'mini'
+    
+    const dimensions = isMini ? 32 : isLarge ? 'auto' : 48
+    const borderRadius = isMini ? 10 : isLarge ? 16 : 14
+    const fontSize = isMini ? 14 : isLarge ? 24 : 18
+    const nameSize = isLarge ? 12 : 10
+    
+    if (!player) {
+      return (
+        <div style={{
+          width: isMini ? dimensions : '100%',
+          height: isMini ? dimensions : undefined,
+          aspectRatio: isMini ? undefined : '1',
+          borderRadius,
+          background: COLORS.bg,
+          border: `2px dashed ${COLORS.border}`,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: COLORS.muted,
+          fontSize: isMini ? 12 : 18,
+          fontWeight: 600,
+          flexShrink: 0
+        }}>
+          <span>?</span>
+          {showName && !isMini && (
+            <span style={{ fontSize: nameSize, marginTop: 4, color: COLORS.muted }}>
+              {index === 0 ? '1 place' : ''}
+            </span>
+          )}
+        </div>
+      )
+    }
+    
+    // TOUJOURS avatar coloré - jamais de photo (concept 2×2)
+    return (
+      <div className="avatar-slot" style={{
+        width: isMini ? dimensions : '100%',
+        height: isMini ? dimensions : undefined,
+        aspectRatio: isMini ? undefined : '1',
+        borderRadius,
+        background: bgColor,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: COLORS.white,
+        fontSize,
+        fontWeight: 700,
+        overflow: 'hidden',
+        position: 'relative',
+        flexShrink: 0
+      }}>
+        <span>{player.name?.[0]?.toUpperCase()}</span>
+        {showName && !isMini && (
+          <span style={{ 
+            fontSize: nameSize, 
+            marginTop: 3, 
+            color: 'rgba(255,255,255,0.9)',
+            fontWeight: 600,
+            maxWidth: '90%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
+            {getFirstName(player.name)}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  // Avatar rond pour sidebar/liste (plus petit) - TOUJOURS COLORÉ
+  function AvatarRound({ player, size = 44, index = 0 }) {
+    const bgColor = PLAYER_COLORS[index % 4]
     
     return (
       <div style={{
         width: size,
         height: size,
-        borderRadius: radius,
+        borderRadius: '50%',
         background: bgColor,
         display: 'flex',
         alignItems: 'center',
@@ -279,657 +370,713 @@ export default function PartiesPage() {
         color: COLORS.white,
         fontSize: size * 0.4,
         fontWeight: 700,
+        overflow: 'hidden',
         flexShrink: 0
       }}>
-        {name?.[0]?.toUpperCase() || '?'}
+        {player?.name?.[0]?.toUpperCase() || '?'}
       </div>
     )
   }
 
-  // Slot vide
-  function EmptySlot({ size = 40 }) {
-    const radius = Math.round(size * 0.28)
-    
-    return (
-      <div style={{
-        width: size,
-        height: size,
-        borderRadius: radius,
-        background: COLORS.bg,
-        border: `2px dashed ${COLORS.border}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: COLORS.muted,
-        fontSize: size * 0.35,
-        fontWeight: 600,
-        flexShrink: 0
-      }}>
-        ?
-      </div>
-    )
-  }
-
-  // 4 Dots logo
-  function FourDots({ size = 10 }) {
-    return (
-      <div style={{ display: 'flex', gap: size * 0.5 }}>
-        {PLAYER_COLORS.map((c, i) => (
-          <div key={i} style={{ 
-            width: size, 
-            height: size, 
-            borderRadius: size * 0.3, 
-            background: c 
-          }} />
-        ))}
-      </div>
-    )
-  }
-
-  // Card match principale
+  // Match Card - avec grille d'avatars carrés
   function MatchCard({ match, isOrganizer = false }) {
     const players = getMatchPlayers(match)
+    const allSlots = [...players]
+    while (allSlots.length < 4) allSlots.push(null)
     const spotsLeft = 4 - players.length
-    const ambiance = match.ambiance || 'mix'
-    const borderColor = AMBIANCE_COLORS[ambiance] || COLORS.p2
     
     return (
-      <Link href={`/dashboard/match/${match.id}`} className="match-card-link">
-        <div className="match-card" style={{ borderLeftColor: borderColor }}>
+      <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
+        <div className="match-card" style={{ 
+          background: COLORS.bg,
+          borderRadius: 24, 
+          padding: 20,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          height: '100%'
+        }}>
           {/* Header */}
-          <div className="match-header">
-            <div className="match-date-block">
-              <span className="match-day">{formatDateShort(match.match_date)}</span>
-              <span className="match-time">{formatTime(match.match_time)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 13, color: COLORS.gray, fontWeight: 500, marginBottom: 2 }}>
+                {formatDate(match.match_date)}
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 900, color: COLORS.ink, letterSpacing: -1, lineHeight: 1 }}>
+                {formatTime(match.match_time)}
+              </div>
             </div>
-            <span className="match-ambiance">{AMBIANCE_EMOJI[ambiance]}</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {isOrganizer && (
+                <span style={{ 
+                  background: COLORS.white,
+                  color: COLORS.gray, 
+                  padding: '6px 12px', borderRadius: 100, 
+                  fontSize: 12, fontWeight: 600
+                }}>👑 Orga</span>
+              )}
+              {spotsLeft > 0 && (
+                <span style={{ 
+                  background: COLORS.white,
+                  color: COLORS.gray, 
+                  padding: '6px 12px', borderRadius: 100, 
+                  fontSize: 12, fontWeight: 600
+                }}>{spotsLeft} place{spotsLeft > 1 ? 's' : ''}</span>
+              )}
+            </div>
           </div>
           
           {/* Location */}
-          <div className="match-location">
+          <div style={{ fontSize: 15, color: COLORS.gray, marginBottom: 18 }}>
             📍 {getMatchLocation(match)}
           </div>
           
-          {/* Avatars row */}
-          <div className="match-players">
-            {[0, 1, 2, 3].map(idx => (
-              players[idx] 
-                ? <Avatar key={idx} name={players[idx].name} index={idx} size={44} />
-                : <EmptySlot key={idx} size={44} />
+          {/* Grille 4 avatars carrés */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(4, 1fr)', 
+            gap: 10 
+          }}>
+            {allSlots.map((player, idx) => (
+              <AvatarSlot key={idx} player={player} index={idx} size="large" showName={true} />
             ))}
-          </div>
-          
-          {/* Footer */}
-          <div className="match-footer">
-            {isOrganizer && <span className="match-badge badge-orga">👑 Orga</span>}
-            <span className={`match-status ${spotsLeft === 0 ? 'complete' : ''}`}>
-              {spotsLeft === 0 ? '✓ Complet' : `${4 - spotsLeft}/4 joueurs`}
-            </span>
           </div>
         </div>
       </Link>
     )
   }
 
-  // Card historique compacte
-  function HistoryCard({ match }) {
+  // Liste item compact
+  function MatchListItem({ match, isOrganizer = false }) {
     const players = getMatchPlayers(match)
-    const winStatus = getWinStatus(match)
+    const allSlots = [...players]
+    while (allSlots.length < 4) allSlots.push(null)
     
     return (
-      <Link href={`/dashboard/match/${match.id}`} className="history-card-link">
-        <div className="history-card">
-          <div className="history-date">{formatDateCompact(match.match_date)}</div>
-          <div className="history-dots">
-            {[0, 1, 2, 3].map(idx => (
-              <div 
-                key={idx} 
-                className="history-dot" 
-                style={{ background: players[idx] ? PLAYER_COLORS[idx] : COLORS.border }}
-              />
+      <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
+        <div className="match-list-item" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          padding: '14px 16px',
+          background: COLORS.bg,
+          borderRadius: 16,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease'
+        }}>
+          {/* Date/Heure */}
+          <div style={{ textAlign: 'center', minWidth: 55 }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
+          </div>
+          
+          {/* Location */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {getMatchLocation(match)}
+            </div>
+          </div>
+          
+          {/* Mini avatars carrés */}
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+            {allSlots.map((player, idx) => (
+              <AvatarSlot key={idx} player={player} index={idx} size="mini" showName={false} />
             ))}
           </div>
-          {winStatus && (
-            <div className={`history-result ${winStatus}`}>
-              {winStatus === 'win' ? 'Victoire' : 'Défaite'}
-            </div>
+          
+          {isOrganizer && (
+            <span style={{ 
+              background: COLORS.white,
+              color: COLORS.gray, 
+              padding: '4px 10px', borderRadius: 100, 
+              fontSize: 11, fontWeight: 600, flexShrink: 0
+            }}>👑</span>
           )}
         </div>
       </Link>
     )
   }
 
-  // Loading
+  // Card parties disponibles
+  function AvailableMatchItem({ match }) {
+    const players = getMatchPlayers(match)
+    const allSlots = [...players]
+    while (allSlots.length < 4) allSlots.push(null)
+    const spotsLeft = match.spots_available || (4 - players.length)
+    
+    return (
+      <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
+        <div className="available-item" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          padding: '14px 16px',
+          borderRadius: 16,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease'
+        }}>
+          {/* Date/Heure */}
+          <div style={{ textAlign: 'center', minWidth: 50 }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500 }}>{formatDate(match.match_date)}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.ink }}>{formatTime(match.match_time)}</div>
+          </div>
+          
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+              {getMatchLocation(match)}
+            </div>
+            <div style={{ fontSize: 13, color: COLORS.muted }}>
+              par {getFirstName(match.profiles?.name) || 'Anonyme'}
+            </div>
+          </div>
+          
+          {/* Mini avatars */}
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+            {allSlots.map((player, idx) => (
+              <AvatarSlot key={idx} player={player} index={idx} size="mini" showName={false} />
+            ))}
+          </div>
+          
+          {/* Places */}
+          <span style={{ 
+            fontSize: 14, fontWeight: 600, color: COLORS.gray,
+            whiteSpace: 'nowrap', minWidth: 60, textAlign: 'right'
+          }}>
+            {spotsLeft} place{spotsLeft > 1 ? 's' : ''}
+          </span>
+        </div>
+      </Link>
+    )
+  }
+
+  // === LOADING ===
   if (loading) {
     return (
-      <div className="loading-page">
-        <div className="loading-dots">
-          {PLAYER_COLORS.map((c, i) => (
-            <div key={i} className="loading-dot" style={{ background: c, animationDelay: `${i * 0.1}s` }} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {PLAYER_COLORS.map((color, i) => (
+            <div key={i} className="dot-loading" style={{ width: 16, height: 16, borderRadius: 6, background: color }} />
           ))}
         </div>
-        <style jsx>{`
-          .loading-page {
-            min-height: 60vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Satoshi', -apple-system, sans-serif;
-          }
-          .loading-dots {
-            display: flex;
-            gap: 10px;
-          }
-          .loading-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 5px;
-            animation: bounce 1.4s ease-in-out infinite;
-          }
-          @keyframes bounce {
-            0%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-12px); }
-          }
-        `}</style>
+        <div style={{ color: COLORS.gray, fontSize: 15 }}>Chargement...</div>
       </div>
     )
   }
 
   // === RENDER ===
   return (
-    <div className="parties-page">
-      
-      {/* Header */}
-      <header className="page-header">
-        <div className="header-left">
-          <h1 className="page-title">Parties</h1>
-          <FourDots size={10} />
-        </div>
-        <Link href="/dashboard/matches/create" className="btn-create">
-          + Créer
-        </Link>
-      </header>
+    <>
+      <div className="page-container">
+        
+        <div className="main-column">
+          
+          {/* Greeting */}
+          <h1 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 4px', color: COLORS.ink }}>
+            {getGreeting()}
+          </h1>
+          <p style={{ fontSize: 15, color: COLORS.gray, margin: '0 0 20px' }}>
+            {myUpcomingMatches.length} partie{myUpcomingMatches.length > 1 ? 's' : ''} à venir
+          </p>
 
-      {/* Section: Prochaines parties */}
-      <section className="section">
-        <div className="section-header">
-          <h2 className="section-title">Prochaines</h2>
-          {myUpcomingMatches.length > 0 && (
-            <span className="section-count">{myUpcomingMatches.length}</span>
-          )}
-        </div>
-
-        {/* Bandeau actions en attente */}
-        {getTotalPending() > 0 && (
-          <div className="pending-banner">
-            <div className="pending-header">
-              <span className="pending-icon">🔔</span>
-              <span className="pending-title">{getTotalPending()} en attente</span>
+          {/* ======================== */}
+          {/* HERO */}
+          {/* ======================== */}
+          <div style={{ 
+            background: COLORS.card,
+            borderRadius: 20, 
+            padding: 20,
+            marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 16,
+            flexWrap: 'wrap'
+          }}>
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink, margin: '0 0 4px' }}>
+                Organise une partie
+              </h2>
+              <p style={{ fontSize: 14, color: COLORS.gray, margin: 0 }}>
+                Invite tes potes à jouer
+              </p>
             </div>
             
-            {/* Invitations reçues */}
-            {pendingActions.invitesForMe.map(invite => (
-              <div key={invite.id} className="pending-item">
-                <div className="pending-info">
-                  <span className="pending-name">
-                    {invite.matches?.profiles?.name || 'Quelqu\'un'} t'invite
-                  </span>
-                  <span className="pending-detail">
-                    {formatDateShort(invite.matches?.match_date)} • {invite.matches?.clubs?.name}
-                  </span>
-                </div>
-                <div className="pending-actions">
-                  <button onClick={() => declineInvite(invite)} className="btn-decline">✕</button>
-                  <button onClick={() => acceptInvite(invite)} className="btn-accept">✓</button>
-                </div>
-              </div>
-            ))}
-            
-            {/* Demandes à valider */}
-            {pendingActions.requestsToReview.map(req => (
-              <div key={req.id} className="pending-item">
-                <div className="pending-info">
-                  <span className="pending-name">
-                    {req.profiles?.name} veut rejoindre
-                  </span>
-                  <span className="pending-detail">
-                    {formatDateShort(req.matches?.match_date)} • {req.matches?.clubs?.name}
-                  </span>
-                </div>
-                <div className="pending-actions">
-                  <button onClick={() => refuseRequest(req)} className="btn-decline">✕</button>
-                  <button onClick={() => acceptRequest(req)} className="btn-accept">✓</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Liste des matchs */}
-        {myUpcomingMatches.length === 0 ? (
-          <div className="empty-state">
-            <FourDots size={16} />
-            <p className="empty-text">Aucune partie prévue</p>
-            <Link href="/dashboard/matches/create" className="btn-empty">
-              Créer une partie
+            <Link href="/dashboard/matches/create" className="hero-btn" style={{ 
+              padding: '14px 24px', 
+              background: COLORS.ink, 
+              color: COLORS.white, 
+              borderRadius: 14, 
+              fontSize: 15, 
+              fontWeight: 700, 
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s ease'
+            }}>
+              + Créer une partie
             </Link>
           </div>
-        ) : (
-          <div className="matches-list">
-            {myUpcomingMatches.map(match => (
-              <MatchCard 
-                key={match.id} 
-                match={match} 
-                isOrganizer={match.organizer_id === user?.id}
-              />
-            ))}
-          </div>
-        )}
-      </section>
 
-      {/* Séparateur */}
-      {pastMatches.length > 0 && <div className="separator" />}
+          {/* ======================== */}
+          {/* TES PROCHAINES PARTIES */}
+          {/* ======================== */}
+          {myUpcomingMatches.length > 0 && (
+            <div style={{ 
+              background: COLORS.card,
+              borderRadius: 24, 
+              padding: 24,
+              marginBottom: 24
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                  🗓️ Tes prochaines parties
+                </h2>
+                <span style={{ 
+                  background: COLORS.ink, 
+                  color: COLORS.white,
+                  width: 28, height: 28, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, fontWeight: 700
+                }}>
+                  {myUpcomingMatches.length}
+                </span>
+              </div>
 
-      {/* Section: Historique */}
-      {pastMatches.length > 0 && (
-        <section className="section">
-          <div className="section-header">
-            <h2 className="section-title">Historique</h2>
-            <Link href="/dashboard/history" className="section-link">Voir tout →</Link>
+              {/* Cards grille */}
+              <div className="matches-grid">
+                {visibleMatches.map((match) => (
+                  <MatchCard key={match.id} match={match} isOrganizer={match.organizer_id === user?.id} />
+                ))}
+              </div>
+
+              {/* Liste pour les suivantes */}
+              {showAllMatches && hiddenMatches.length > 0 && (
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: 10, 
+                  paddingTop: 20, 
+                  marginTop: 20, 
+                  borderTop: `1px solid ${COLORS.border}` 
+                }}>
+                  {hiddenMatches.map((match) => (
+                    <MatchListItem key={match.id} match={match} isOrganizer={match.organizer_id === user?.id} />
+                  ))}
+                </div>
+              )}
+
+              {/* Bouton voir plus */}
+              {hiddenMatches.length > 0 && (
+                <button
+                  onClick={() => setShowAllMatches(!showAllMatches)}
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    background: COLORS.bg,
+                    border: 'none',
+                    borderRadius: 14,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: COLORS.gray,
+                    cursor: 'pointer',
+                    marginTop: 16,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {showAllMatches ? 'Voir moins ↑' : `Voir les ${hiddenMatches.length} autres parties ↓`}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ======================== */}
+          {/* ACTIONS EN ATTENTE - MAINTENANT SOUS LES PARTIES */}
+          {/* ======================== */}
+          {getTotalPendingActions() > 0 && (
+            <div style={{ 
+              background: COLORS.card,
+              border: `2px solid ${COLORS.ink}`,
+              borderRadius: 20, 
+              padding: 20,
+              marginBottom: 24
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                  🔔 Actions en attente
+                </h3>
+                <span style={{
+                  background: COLORS.p1, color: COLORS.white,
+                  width: 24, height: 24, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, fontWeight: 700
+                }}>
+                  {getTotalPendingActions()}
+                </span>
+              </div>
+              
+              {/* Demandes de joueurs */}
+              {pendingActions.requestsToReview.map((req, idx) => (
+                <div key={req.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  background: COLORS.bg,
+                  padding: '14px 16px',
+                  borderRadius: 16,
+                  marginBottom: 10
+                }}>
+                  <AvatarSlot player={req.profiles} index={idx} size="mini" showName={false} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ display: 'block', fontSize: 14, color: COLORS.ink }}>
+                      {getFirstName(req.profiles?.name)} veut rejoindre
+                    </strong>
+                    <span style={{ fontSize: 12, color: COLORS.gray }}>
+                      {formatDate(req.matches?.match_date)} · {req.matches?.clubs?.name || 'Lieu à définir'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button onClick={(e) => { e.preventDefault(); acceptRequest(req) }} style={{
+                      background: COLORS.ink, color: COLORS.white,
+                      padding: '10px 18px', borderRadius: 100,
+                      fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer'
+                    }}>OK</button>
+                    <button onClick={(e) => { e.preventDefault(); refuseRequest(req) }} style={{
+                      background: COLORS.white, color: COLORS.gray,
+                      padding: '10px 18px', borderRadius: 100,
+                      fontSize: 13, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
+                    }}>Non</button>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Invitations sans réponse */}
+              {pendingActions.invitesToFollow.map((inv, idx) => (
+                <div key={inv.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  background: COLORS.bg,
+                  padding: '14px 16px',
+                  borderRadius: 16,
+                  marginBottom: 10
+                }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    background: COLORS.p2, color: COLORS.white,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 700, flexShrink: 0
+                  }}>
+                    {(inv.invitee_name || inv.invited_name)?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ display: 'block', fontSize: 14, color: COLORS.ink }}>
+                      {getFirstName(inv.invitee_name || inv.invited_name) || 'Invité'} n'a pas répondu
+                    </strong>
+                    <span style={{ fontSize: 12, color: COLORS.muted }}>
+                      Invité il y a {inv.daysSince} jours · {formatDate(inv.matches?.match_date)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button style={{
+                      background: COLORS.white, color: COLORS.gray,
+                      padding: '8px 14px', borderRadius: 100,
+                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
+                    }}>Relancer</button>
+                    <button onClick={(e) => { e.preventDefault(); cancelInvite(inv) }} style={{
+                      background: COLORS.white, color: COLORS.gray,
+                      padding: '8px 14px', borderRadius: 100,
+                      fontSize: 12, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer'
+                    }}>Annuler</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ======================== */}
+          {/* PARTIES À REJOINDRE */}
+          {/* ======================== */}
+          <div style={{ 
+            background: COLORS.card,
+            borderRadius: 24, 
+            overflow: 'hidden',
+            marginBottom: 24
+          }}>
+            {/* Header */}
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                🎾 Parties à rejoindre
+              </h2>
+              <Link href="/dashboard/explore" style={{ fontSize: 14, color: COLORS.ink, textDecoration: 'none', fontWeight: 600 }}>
+                Voir tout →
+              </Link>
+            </div>
+
+            {/* Filtres */}
+            <div className="filters-row" style={{ display: 'flex', gap: 8, padding: '16px 24px', borderBottom: `1px solid ${COLORS.border}`, overflowX: 'auto' }}>
+              {[
+                { id: 'today', label: "Aujourd'hui" },
+                { id: 'tomorrow', label: 'Demain' },
+                { id: 'week', label: 'Cette semaine' },
+                { id: 'weekend', label: 'Weekend' }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setFilterDate(f.id)}
+                  className="filter-btn"
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: 100,
+                    border: 'none',
+                    background: filterDate === f.id ? COLORS.ink : COLORS.bg,
+                    color: filterDate === f.id ? COLORS.white : COLORS.gray,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Liste */}
+            {filteredAvailable.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '50px 20px' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+                <p style={{ color: COLORS.gray, margin: 0, fontSize: 15 }}>Aucune partie disponible</p>
+                <p style={{ color: COLORS.muted, margin: '8px 0 0', fontSize: 13 }}>Essaie un autre filtre ou crée ta propre partie</p>
+              </div>
+            ) : (
+              <div style={{ padding: '8px 12px' }}>
+                {filteredAvailable.slice(0, 5).map(match => (
+                  <AvailableMatchItem key={match.id} match={match} />
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* BOÎTE À IDÉES - Mobile */}
+          <Link href="/dashboard/ideas" className="ideas-mobile" style={{ textDecoration: 'none' }}>
+            <div style={{ 
+              background: COLORS.card,
+              borderRadius: 20, 
+              padding: 18,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14
+            }}>
+              <span style={{ fontSize: 28 }}>💡</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink }}>Boîte à idées</div>
+                <div style={{ fontSize: 13, color: COLORS.gray }}>Propose des améliorations</div>
+              </div>
+              <span style={{ color: COLORS.muted, fontSize: 20 }}>›</span>
+            </div>
+          </Link>
+        </div>
+
+        {/* ======================== */}
+        {/* SIDEBAR */}
+        {/* ======================== */}
+        <aside className="sidebar">
           
-          <div className="history-grid">
-            {pastMatches.slice(0, 6).map(match => (
-              <HistoryCard key={match.id} match={match} />
-            ))}
+          {/* Profil Card */}
+          <div style={{ 
+            background: COLORS.card,
+            borderRadius: 24, 
+            padding: 24,
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            {/* Avatar profil - TOUJOURS COLORÉ */}
+            <div style={{ 
+              width: 72, height: 72, borderRadius: 20, 
+              background: COLORS.p1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: COLORS.white, fontWeight: 700, fontSize: 28,
+              margin: '0 auto 14px', overflow: 'hidden'
+            }}>
+              {profile?.name?.[0]?.toUpperCase()}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink }}>{profile?.name}</div>
+            <div style={{ fontSize: 14, color: COLORS.gray, marginBottom: 20 }}>
+              Niveau {profile?.level || '?'} · {profile?.city || 'Non renseigné'}
+            </div>
+            
+            {/* Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              {[
+                { n: stats.total, l: 'Matchs' },
+                { n: stats.organized, l: 'Orga.' },
+                { n: stats.wins, l: 'Wins' }
+              ].map((s) => (
+                <div key={s.l} style={{ background: COLORS.bg, borderRadius: 14, padding: '16px 8px' }}>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: COLORS.ink }}>{s.n}</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted, fontWeight: 500, marginTop: 2 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </section>
-      )}
 
-      {/* === STYLES === */}
-      <style jsx>{`
-        .parties-page {
-          font-family: 'Satoshi', -apple-system, sans-serif;
-          padding-bottom: 100px;
+          {/* Joueurs favoris */}
+          <div style={{ 
+            background: COLORS.card,
+            borderRadius: 20, 
+            padding: 20,
+            marginBottom: 16
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink }}>
+                ⭐ Joueurs favoris
+              </h3>
+              <Link href="/dashboard/activite" style={{ fontSize: 13, color: COLORS.ink, textDecoration: 'none', fontWeight: 600 }}>
+                Voir
+              </Link>
+            </div>
+            
+            {favoritePlayers.length === 0 ? (
+              <p style={{ fontSize: 14, color: COLORS.muted, margin: 0 }}>Aucun favori pour l'instant</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {favoritePlayers.map((player, i) => (
+                  <Link href={`/player/${player.id}`} key={player.id} style={{ textDecoration: 'none' }}>
+                    <div className="favorite-row" style={{ 
+                      display: 'flex', alignItems: 'center', gap: 12, 
+                      cursor: 'pointer', padding: 10, marginLeft: -10, marginRight: -10,
+                      borderRadius: 14, transition: 'all 0.2s ease'
+                    }}>
+                      {/* Avatar TOUJOURS coloré */}
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 12,
+                        background: PLAYER_COLORS[i % 4],
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: COLORS.white, fontSize: 18, fontWeight: 700,
+                        overflow: 'hidden', flexShrink: 0
+                      }}>
+                        {player.name?.[0]?.toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{player.name}</div>
+                        <div style={{ fontSize: 12, color: COLORS.muted }}>Niv. {player.level} · {player.city || ''}</div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Boîte à idées */}
+          <Link href="/dashboard/ideas" style={{ textDecoration: 'none' }}>
+            <div className="ideas-card" style={{ 
+              background: COLORS.card,
+              borderRadius: 20, 
+              padding: 18,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}>
+              <span style={{ fontSize: 24 }}>💡</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>Boîte à idées</div>
+                <div style={{ fontSize: 12, color: COLORS.muted }}>Propose des améliorations</div>
+              </div>
+              <span style={{ color: COLORS.muted }}>›</span>
+            </div>
+          </Link>
+        </aside>
+      </div>
+
+      <style jsx global>{`
+        @keyframes dot-loading {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-12px); }
         }
+        .dot-loading { animation: dot-loading 1.4s ease-in-out infinite; }
+        .dot-loading:nth-child(1) { animation-delay: 0s; }
+        .dot-loading:nth-child(2) { animation-delay: 0.1s; }
+        .dot-loading:nth-child(3) { animation-delay: 0.2s; }
+        .dot-loading:nth-child(4) { animation-delay: 0.3s; }
 
-        /* Header */
-        .page-header {
+        .page-container {
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 28px;
+          gap: 24px;
+          max-width: 1200px;
+          margin: 0 auto;
         }
-
-        .header-left {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .page-title {
-          font-size: 28px;
-          font-weight: 800;
-          color: ${COLORS.ink};
-          margin: 0;
-          letter-spacing: -0.5px;
-        }
-
-        .btn-create {
-          padding: 12px 20px;
-          background: ${COLORS.ink};
-          color: ${COLORS.white};
-          border-radius: 100px;
-          font-size: 14px;
-          font-weight: 600;
-          text-decoration: none;
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn-create:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-        }
-
-        /* Sections */
-        .section {
-          margin-bottom: 32px;
-        }
-
-        .section-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-        }
-
-        .section-title {
-          font-size: 18px;
-          font-weight: 700;
-          color: ${COLORS.ink};
-          margin: 0;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .section-count {
-          background: ${COLORS.bg};
-          color: ${COLORS.gray};
-          padding: 4px 10px;
-          border-radius: 100px;
-          font-size: 13px;
-          font-weight: 600;
-        }
-
-        .section-link {
-          font-size: 14px;
-          color: ${COLORS.gray};
-          text-decoration: none;
-          font-weight: 500;
-        }
-
-        .section-link:hover {
-          color: ${COLORS.ink};
-        }
-
-        /* Pending banner */
-        .pending-banner {
-          background: ${COLORS.p2Soft};
-          border-radius: 16px;
-          padding: 16px;
-          margin-bottom: 16px;
-          border: 1px solid ${COLORS.p2}30;
-        }
-
-        .pending-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-
-        .pending-icon {
-          font-size: 16px;
-        }
-
-        .pending-title {
-          font-size: 14px;
-          font-weight: 700;
-          color: ${COLORS.ink};
-        }
-
-        .pending-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: ${COLORS.white};
-          border-radius: 12px;
-          padding: 12px;
-          margin-bottom: 8px;
-        }
-
-        .pending-item:last-child {
-          margin-bottom: 0;
-        }
-
-        .pending-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .pending-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: ${COLORS.ink};
-        }
-
-        .pending-detail {
-          font-size: 12px;
-          color: ${COLORS.gray};
-        }
-
-        .pending-actions {
-          display: flex;
-          gap: 8px;
-        }
-
-        .btn-decline, .btn-accept {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          border: none;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: transform 0.2s;
-        }
-
-        .btn-decline {
-          background: ${COLORS.bg};
-          color: ${COLORS.gray};
-        }
-
-        .btn-accept {
-          background: ${COLORS.p3};
-          color: ${COLORS.white};
-        }
-
-        .btn-decline:hover, .btn-accept:hover {
-          transform: scale(1.05);
-        }
-
-        /* Match cards */
-        .matches-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        :global(.match-card-link) {
-          text-decoration: none;
-          display: block;
-        }
-
-        :global(.match-card) {
-          background: ${COLORS.card};
-          border-radius: 16px;
-          padding: 16px;
-          border-left: 4px solid ${COLORS.p2};
-          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        :global(.match-card:hover) {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-        }
-
-        :global(.match-header) {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 8px;
-        }
-
-        :global(.match-date-block) {
-          display: flex;
-          align-items: baseline;
-          gap: 8px;
-        }
-
-        :global(.match-day) {
-          font-size: 15px;
-          font-weight: 700;
-          color: ${COLORS.ink};
-        }
-
-        :global(.match-time) {
-          font-size: 15px;
-          font-weight: 600;
-          color: ${COLORS.gray};
-        }
-
-        :global(.match-ambiance) {
-          font-size: 18px;
-        }
-
-        :global(.match-location) {
-          font-size: 14px;
-          color: ${COLORS.gray};
-          margin-bottom: 14px;
-        }
-
-        :global(.match-players) {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 14px;
-        }
-
-        :global(.match-footer) {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        :global(.match-badge) {
-          font-size: 12px;
-          font-weight: 600;
-          padding: 4px 10px;
-          border-radius: 100px;
-        }
-
-        :global(.badge-orga) {
-          background: ${COLORS.p4Soft};
-          color: ${COLORS.p4};
-        }
-
-        :global(.match-status) {
-          font-size: 13px;
-          color: ${COLORS.gray};
-          font-weight: 500;
-        }
-
-        :global(.match-status.complete) {
-          color: ${COLORS.p3};
-          font-weight: 600;
-        }
-
-        /* Empty state */
-        .empty-state {
-          text-align: center;
-          padding: 48px 24px;
-          background: ${COLORS.card};
-          border-radius: 20px;
-          border: 1px solid ${COLORS.border};
-        }
-
-        .empty-text {
-          color: ${COLORS.gray};
-          font-size: 15px;
-          margin: 16px 0 20px;
-        }
-
-        .btn-empty {
-          display: inline-block;
-          padding: 12px 24px;
-          background: ${COLORS.ink};
-          color: ${COLORS.white};
-          border-radius: 100px;
-          font-size: 14px;
-          font-weight: 600;
-          text-decoration: none;
-        }
-
-        /* Separator */
-        .separator {
-          height: 1px;
-          background: ${COLORS.border};
-          margin: 32px 0;
-        }
-
-        /* History grid */
-        .history-grid {
+        
+        .main-column { flex: 1; min-width: 0; }
+        .sidebar { width: 320px; flex-shrink: 0; display: none; }
+        
+        .matches-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
+          grid-template-columns: 1fr;
+          gap: 14px;
         }
-
-        :global(.history-card-link) {
-          text-decoration: none;
-        }
-
-        :global(.history-card) {
-          background: ${COLORS.card};
-          border-radius: 14px;
-          padding: 14px;
-          text-align: center;
-          border: 1px solid ${COLORS.border};
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        :global(.history-card:hover) {
+        
+        .match-card:hover {
+          background: ${COLORS.cardHover};
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(0,0,0,0.06);
         }
-
-        :global(.history-date) {
-          font-size: 13px;
-          font-weight: 600;
-          color: ${COLORS.ink};
-          margin-bottom: 10px;
+        
+        .match-list-item:hover {
+          background: ${COLORS.cardHover};
         }
-
-        :global(.history-dots) {
-          display: flex;
-          justify-content: center;
-          gap: 6px;
-          margin-bottom: 10px;
+        
+        .available-item:hover {
+          background: ${COLORS.bg};
         }
-
-        :global(.history-dot) {
-          width: 12px;
-          height: 12px;
-          border-radius: 4px;
+        
+        .avatar-slot {
+          transition: transform 0.2s ease;
         }
-
-        :global(.history-result) {
-          font-size: 12px;
-          font-weight: 600;
+        
+        .match-card:hover .avatar-slot {
+          transform: translateY(-2px);
         }
-
-        :global(.history-result.win) {
-          color: ${COLORS.p3};
+        
+        .favorite-row:hover { 
+          background: ${COLORS.bg}; 
         }
-
-        :global(.history-result.loss) {
-          color: ${COLORS.muted};
+        
+        .ideas-card:hover {
+          background: ${COLORS.bg};
         }
-
-        /* Responsive */
-        @media (min-width: 768px) {
-          .matches-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-          }
-
-          .history-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
+        
+        .hero-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
-
+        
+        .ideas-mobile { display: block; }
+        
+        .filters-row {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .filters-row::-webkit-scrollbar { display: none; }
+        
+        /* Tablet */
+        @media (min-width: 640px) {
+          .matches-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        /* Desktop */
         @media (min-width: 1024px) {
-          .matches-list {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
-          .history-grid {
-            grid-template-columns: repeat(4, 1fr);
-          }
+          .sidebar { display: block; }
+          .ideas-mobile { display: none; }
+          .matches-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        /* Large desktop */
+        @media (min-width: 1280px) {
+          .matches-grid { grid-template-columns: repeat(3, 1fr); }
         }
       `}</style>
-    </div>
+    </>
   )
 }
