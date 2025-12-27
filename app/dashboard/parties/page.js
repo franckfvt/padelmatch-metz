@@ -338,7 +338,7 @@ export default function PartiesPage() {
     )
   }
 
-  // Match Card WARM - avec header date séparé
+  // Match Card WARM v2 - Plus de punch, barre de couleur
   function MatchCard({ match, isOrganizer = false }) {
     const players = getMatchPlayers(match)
     const allSlots = [...players]
@@ -346,79 +346,272 @@ export default function PartiesPage() {
     const spotsLeft = 4 - players.length
     const dateInfo = formatDateShort(match.match_date)
     
+    // Couleur de la barre selon le statut
+    const accentColor = spotsLeft === 0 ? COLORS.p3 : isOrganizer ? COLORS.p2 : COLORS.p1
+    
     return (
       <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
         <div className="match-card" style={{ 
           background: COLORS.card,
           borderRadius: 24,
           overflow: 'hidden',
-          boxShadow: '0 2px 16px rgba(0,0,0,0.04)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
           cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          height: '100%'
+          transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          height: '100%',
+          display: 'flex'
         }}>
-          {/* Header avec date */}
+          {/* Barre de couleur latérale */}
           <div style={{
-            background: COLORS.bgSoft,
-            padding: '14px 18px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
-                {dateInfo.day} {dateInfo.num}
-              </span>
-              <span style={{ fontSize: 12, color: COLORS.muted }}>{dateInfo.month}</span>
-            </div>
-            <span style={{ fontSize: 22, fontWeight: 900, color: COLORS.ink, letterSpacing: -0.5 }}>
-              {formatTime(match.match_time)}
-            </span>
-          </div>
+            width: 5,
+            background: accentColor,
+            flexShrink: 0
+          }} />
           
-          {/* Body */}
-          <div style={{ padding: '16px 18px 18px' }}>
-            {/* Location + badges */}
+          {/* Contenu */}
+          <div style={{ flex: 1, padding: '18px 20px' }}>
+            {/* Header : Date + Heure + Badges */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: 14,
-              gap: 8
+              alignItems: 'flex-start',
+              marginBottom: 14
             }}>
+              <div>
+                <div style={{ 
+                  fontSize: 13, 
+                  color: COLORS.gray, 
+                  fontWeight: 600,
+                  marginBottom: 2
+                }}>
+                  {dateInfo.day} {dateInfo.num} {dateInfo.month}
+                </div>
+                <div style={{ 
+                  fontSize: 34, 
+                  fontWeight: 900, 
+                  color: COLORS.ink,
+                  letterSpacing: -1.5,
+                  lineHeight: 1
+                }}>
+                  {formatTime(match.match_time)}
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                {isOrganizer && (
+                  <span style={{ 
+                    background: COLORS.p2,
+                    color: COLORS.white,
+                    padding: '5px 10px', 
+                    borderRadius: 100, 
+                    fontSize: 11, 
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}>👑 Orga</span>
+                )}
+                {spotsLeft > 0 ? (
+                  <span style={{ 
+                    background: COLORS.bgSoft,
+                    color: COLORS.gray,
+                    padding: '5px 10px', 
+                    borderRadius: 100, 
+                    fontSize: 11, 
+                    fontWeight: 600
+                  }}>{spotsLeft} place{spotsLeft > 1 ? 's' : ''}</span>
+                ) : (
+                  <span style={{ 
+                    background: COLORS.p3,
+                    color: COLORS.white,
+                    padding: '5px 10px', 
+                    borderRadius: 100, 
+                    fontSize: 11, 
+                    fontWeight: 700
+                  }}>Complet</span>
+                )}
+              </div>
+            </div>
+            
+            {/* Location */}
+            <div style={{ 
+              fontSize: 14, 
+              color: COLORS.gray,
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <span style={{ fontSize: 15 }}>📍</span>
+              <span style={{ 
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>{getMatchLocation(match)}</span>
+            </div>
+            
+            {/* Grille 4 avatars */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(4, 1fr)', 
+              gap: 10
+            }}>
+              {allSlots.map((player, idx) => (
+                <AvatarWithName key={idx} player={player} index={idx} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </Link>
+    )
+  }
+  
+  // Avatar avec nom en dessous (comme l'original)
+  function AvatarWithName({ player, index }) {
+    const bgColor = PLAYER_COLORS[index % 4]
+    
+    if (!player) {
+      return (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 6
+        }}>
+          <div style={{
+            width: '100%',
+            aspectRatio: '1',
+            borderRadius: 16,
+            background: COLORS.bgSoft,
+            border: `2px dashed ${COLORS.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: COLORS.muted,
+            fontSize: 20,
+            fontWeight: 600
+          }}>?</div>
+          <span style={{ 
+            fontSize: 11, 
+            color: COLORS.muted,
+            fontWeight: 500
+          }}>
+            {index === 0 ? '1 place' : ''}
+          </span>
+        </div>
+      )
+    }
+    
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6
+      }}>
+        <div className="avatar-slot" style={{
+          width: '100%',
+          aspectRatio: '1',
+          borderRadius: 16,
+          background: bgColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: COLORS.white,
+          fontSize: 26,
+          fontWeight: 700,
+          boxShadow: `0 4px 12px ${bgColor}40`
+        }}>
+          {player.name?.[0]?.toUpperCase()}
+        </div>
+        <span style={{ 
+          fontSize: 11, 
+          color: COLORS.gray,
+          fontWeight: 600,
+          maxWidth: '100%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          textAlign: 'center'
+        }}>
+          {getFirstName(player.name)}
+        </span>
+      </div>
+    )
+  }
+
+  // Liste item compact WARM v2 - avec barre de couleur
+  function MatchListItem({ match, isOrganizer = false }) {
+    const players = getMatchPlayers(match)
+    const allSlots = [...players]
+    while (allSlots.length < 4) allSlots.push(null)
+    const dateInfo = formatDateShort(match.match_date)
+    const spotsLeft = 4 - players.length
+    const accentColor = spotsLeft === 0 ? COLORS.p3 : isOrganizer ? COLORS.p2 : COLORS.p1
+    
+    return (
+      <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
+        <div className="match-list-item" style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: COLORS.card,
+          borderRadius: 18,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+          overflow: 'hidden'
+        }}>
+          {/* Barre de couleur */}
+          <div style={{ width: 4, alignSelf: 'stretch', background: accentColor, flexShrink: 0 }} />
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', flex: 1 }}>
+            {/* Bloc date */}
+            <div style={{
+              background: COLORS.bgSoft,
+              borderRadius: 12,
+              padding: '8px 12px',
+              textAlign: 'center',
+              minWidth: 50,
+              flexShrink: 0
+            }}>
+              <div style={{ fontSize: 10, color: COLORS.muted, fontWeight: 600, textTransform: 'uppercase' }}>
+                {dateInfo.day}
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ink }}>{dateInfo.num}</div>
+            </div>
+            
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>
+                  {formatTime(match.match_time)}
+                </span>
+                {isOrganizer && (
+                  <span style={{ 
+                    background: COLORS.p2, 
+                    color: COLORS.white,
+                    padding: '2px 8px', 
+                    borderRadius: 100, 
+                    fontSize: 10, 
+                    fontWeight: 700
+                  }}>👑</span>
+                )}
+              </div>
               <div style={{ 
                 fontSize: 13, 
                 color: COLORS.gray,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                flex: 1
+                textOverflow: 'ellipsis'
               }}>
                 📍 {getMatchLocation(match)}
               </div>
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                {isOrganizer && (
-                  <span style={{ 
-                    background: COLORS.ink, color: COLORS.white,
-                    padding: '4px 10px', borderRadius: 100, 
-                    fontSize: 11, fontWeight: 700
-                  }}>👑</span>
-                )}
-                {spotsLeft > 0 && (
-                  <span style={{ 
-                    background: COLORS.white, color: COLORS.gray,
-                    padding: '4px 10px', borderRadius: 100, 
-                    fontSize: 11, fontWeight: 600,
-                    border: `1px solid ${COLORS.border}`
-                  }}>{spotsLeft} pl.</span>
-                )}
-              </div>
             </div>
             
-            {/* Grille 4 avatars */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            {/* Avatars mini */}
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
               {allSlots.map((player, idx) => (
-                <Avatar key={idx} player={player} index={idx} size="large" />
+                <Avatar key={idx} player={player} index={idx} size="mini" />
               ))}
             </div>
           </div>
@@ -427,74 +620,7 @@ export default function PartiesPage() {
     )
   }
 
-  // Liste item compact WARM
-  function MatchListItem({ match, isOrganizer = false }) {
-    const players = getMatchPlayers(match)
-    const allSlots = [...players]
-    while (allSlots.length < 4) allSlots.push(null)
-    const dateInfo = formatDateShort(match.match_date)
-    
-    return (
-      <Link href={`/dashboard/match/${match.id}`} style={{ textDecoration: 'none' }}>
-        <div className="match-list-item" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-          padding: 14,
-          background: COLORS.card,
-          borderRadius: 18,
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          boxShadow: '0 1px 8px rgba(0,0,0,0.03)'
-        }}>
-          {/* Bloc date */}
-          <div style={{
-            background: COLORS.bgSoft,
-            borderRadius: 12,
-            padding: '10px 12px',
-            textAlign: 'center',
-            minWidth: 52,
-            flexShrink: 0
-          }}>
-            <div style={{ fontSize: 10, color: COLORS.muted, fontWeight: 600, textTransform: 'uppercase' }}>
-              {dateInfo.day}
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: COLORS.ink }}>{dateInfo.num}</div>
-          </div>
-          
-          {/* Info */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink }}>
-                {formatTime(match.match_time)}
-              </span>
-              {isOrganizer && (
-                <span style={{ fontSize: 12 }}>👑</span>
-              )}
-            </div>
-            <div style={{ 
-              fontSize: 13, 
-              color: COLORS.muted,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}>
-              {getMatchLocation(match)}
-            </div>
-          </div>
-          
-          {/* Avatars mini */}
-          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-            {allSlots.map((player, idx) => (
-              <Avatar key={idx} player={player} index={idx} size="mini" />
-            ))}
-          </div>
-        </div>
-      </Link>
-    )
-  }
-
-  // Available match item WARM
+  // Available match item WARM v2 - Plus attrayant
   function AvailableMatchItem({ match }) {
     const players = getMatchPlayers(match)
     const spotsLeft = 4 - players.length
@@ -507,58 +633,80 @@ export default function PartiesPage() {
           display: 'flex',
           alignItems: 'center',
           gap: 14,
-          padding: '14px 4px',
+          padding: '12px 16px',
           cursor: 'pointer',
-          transition: 'all 0.15s ease',
-          borderRadius: 14,
-          margin: '0 -4px'
+          transition: 'all 0.2s ease',
+          borderRadius: 16,
+          background: COLORS.card,
+          boxShadow: '0 1px 6px rgba(0,0,0,0.03)',
+          marginBottom: 8
         }}>
-          {/* Bloc date */}
+          {/* Bloc date avec couleur */}
           <div style={{
-            background: COLORS.bgSoft,
+            background: `linear-gradient(135deg, ${COLORS.p1}20, ${COLORS.p2}20)`,
             borderRadius: 12,
-            padding: '10px 12px',
+            padding: '8px 12px',
             textAlign: 'center',
-            minWidth: 52,
+            minWidth: 48,
             flexShrink: 0
           }}>
-            <div style={{ fontSize: 10, color: COLORS.muted, fontWeight: 600 }}>{dateInfo.day}</div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: COLORS.ink }}>{dateInfo.num}</div>
+            <div style={{ fontSize: 10, color: COLORS.gray, fontWeight: 700, textTransform: 'uppercase' }}>
+              {dateInfo.day}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ink }}>{dateInfo.num}</div>
           </div>
           
           {/* Info */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 2 }}>
-              {formatTime(match.match_time)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: COLORS.ink }}>
+                {formatTime(match.match_time)}
+              </span>
+              <span style={{ fontSize: 12, color: COLORS.muted }}>·</span>
+              <span style={{ fontSize: 12, color: COLORS.gray, fontWeight: 500 }}>
+                par {organizerName}
+              </span>
             </div>
             <div style={{ 
               fontSize: 13, 
-              color: COLORS.muted,
+              color: COLORS.gray,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis'
             }}>
-              {getMatchLocation(match)}
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 2 }}>
-              par {organizerName}
+              📍 {getMatchLocation(match)}
             </div>
           </div>
           
           {/* Avatars */}
-          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
             {players.slice(0, 3).map((player, idx) => (
               <Avatar key={idx} player={player} index={idx} size="mini" />
             ))}
+            {players.length > 3 && (
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                background: COLORS.bgSoft,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 11,
+                fontWeight: 700,
+                color: COLORS.gray
+              }}>+{players.length - 3}</div>
+            )}
           </div>
           
-          {/* Places */}
+          {/* Badge places */}
           <span style={{ 
+            background: spotsLeft === 1 ? `${COLORS.p1}20` : COLORS.bgSoft,
+            color: spotsLeft === 1 ? COLORS.p1 : COLORS.gray,
+            padding: '6px 10px',
+            borderRadius: 100,
             fontSize: 12, 
-            fontWeight: 600, 
-            color: COLORS.gray,
-            minWidth: 44,
-            textAlign: 'right',
+            fontWeight: 700,
             flexShrink: 0
           }}>
             {spotsLeft} pl.
@@ -1010,16 +1158,18 @@ export default function PartiesPage() {
         }
         
         .match-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+          transform: translateY(-4px);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.12);
         }
         
         .match-list-item:hover {
-          background: ${COLORS.bgSoft};
+          transform: translateX(4px);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.08);
         }
         
         .available-item:hover {
-          background: ${COLORS.bgSoft};
+          transform: translateX(4px);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.06);
         }
         
         /* === SHOW MORE BTN === */
@@ -1165,12 +1315,17 @@ export default function PartiesPage() {
         
         /* === AVATAR ANIMATIONS === */
         .avatar-slot {
-          transition: transform 0.2s ease;
+          transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         
         .match-card:hover .avatar-slot {
-          transform: translateY(-2px);
+          transform: translateY(-4px) scale(1.05);
         }
+        
+        .match-card:hover .avatar-slot:nth-child(1) { transition-delay: 0s; }
+        .match-card:hover .avatar-slot:nth-child(2) { transition-delay: 0.03s; }
+        .match-card:hover .avatar-slot:nth-child(3) { transition-delay: 0.06s; }
+        .match-card:hover .avatar-slot:nth-child(4) { transition-delay: 0.09s; }
         
         /* === RESPONSIVE === */
         
